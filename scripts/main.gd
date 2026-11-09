@@ -1,0 +1,418 @@
+extends Node2D
+## Combat sandbox: your flagship and escorts against escalating pirate waves.
+
+const ShipScript := preload("res://scripts/ship.gd")
+const FxScript := preload("res://scripts/fx.gd")
+const StarfieldScript := preload("res://scripts/starfield.gd")
+const HudScript := preload("res://scripts/hud.gd")
+const WheelScript := preload("res://scripts/tactics_wheel.gd")
+
+const COMBAT_RANGE := 1500.0
+const WHEEL_TIME_SCALE := 0.2
+
+var world: Node2D
+var fx: Node2D
+var camera: Camera2D
+var hud: Control
+var wheel: Control
+
+var player: Ship = null
+var escorts: Array = []
+var fleet_order := "engage"
+var formation := "wedge"
+var focus_target: Ship = null
+var fleet_heading := 0.0
+var in_combat := false
+
+var wave := 0
+var next_wave_t := 3.0
+var kills := 0
+var message := ""
+var message_t := 0.0
+
+var _wheel_mouse_world := Vector2.ZERO
+var _shake := 0.0
+var _zoom := 0.9
+
+# Automated self-test: `godot --headless -- --autotest` runs a fight and prints stats.
+var autotest := false
+var _autotest_t := 0.0
+var _losses := 0
+
+
+func _ready() -> void:
+	randomize()
+	_setup_input()
+	autotest = "--autotest" in OS.get_cmdline_user_args()
+
+	var bg_layer := CanvasLayer.new()
+	bg_layer.layer = -10
+	add_child(bg_layer)
+	var stars := Node2D.new()
+	stars.set_script(StarfieldScript)
+	stars.main = self
+	bg_layer.add_child(stars)
+
+	world = Node2D.new()
+	world.name = "World"
+	add_child(world)
+	fx = Node2D.new()
+	fx.set_script(FxScript)
+	fx.z_index = 5
+	world.add_child(fx)
+
+	camera = Camera2D.new()
+	camera.zoom = Vector2(_zoom, _zoom)
+	world.add_child(camera)
+	camera.make_current()
+
+	var ui := CanvasLayer.new()
+	ui.layer = 10
+	add_child(ui)
+	hud = Control.new()
+	hud.set_script(HudScript)
+	hud.main = self
+	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(hud)
+	wheel = Control.new()
+	wheel.set_script(WheelScript)
+	wheel.main = self
+	wheel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wheel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wheel.visible = false
+	ui.add_child(wheel)
+
+	player = spawn_ship("kestrel", 0, Vector2.ZERO)
+	player.is_player = true
+	if autotest:
+		var ai := AIController.new(player, self)
+		ai.freelance = true
+		player.controller = ai
+	else:
+		player.controller = PlayerController.new(player, self)
+	for i in 2:
+		add_escort("wasp", Vector2(-80 - 40 * i, 70 * (1 if i % 2 else -1)))
+	show_message("Pirates are inbound. Hold Q to command your wingmen.", 5.0)
+
+
+func _setup_input() -> void:
+	var keys := {
+		"thrust": [KEY_W, KEY_UP], "turn_left": [KEY_A, KEY_LEFT], "turn_right": [KEY_D, KEY_RIGHT],
+		"reverse": [KEY_S, KEY_DOWN], "fire": [KEY_SPACE], "tactics": [KEY_Q], "target": [KEY_T],
+		"restart": [KEY_R], "toggle_help": [KEY_H, KEY_F1],
+	}
+	for action in keys:
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		for k in keys[action]:
+			var ev := InputEventKey.new()
+			ev.physical_keycode = k
+			InputMap.action_add_event(action, ev)
+	var mb := InputEventMouseButton.new()
+	mb.button_index = MOUSE_BUTTON_LEFT
+	InputMap.action_add_event("fire", mb)
+
+
+# --- Spawning ------------------------------------------------------------
+
+func spawn_ship(id: String, team: int, pos: Vector2, facing: float = 0.0) -> Ship:
+	var s: Ship = ShipScript.new()
+	s.setup(id, team, self)
+	s.position = pos
+	s.rotation = facing
+	s.add_to_group("ships")
+	s.destroyed.connect(_on_ship_destroyed)
+	world.add_child(s)
+	return s
+
+
+func add_escort(id: String, offset: Vector2) -> Ship:
+	var base := player.global_position if is_instance_valid(player) else Vector2.ZERO
+	var s := spawn_ship(id, 0, base + offset)
+	s.controller = AIController.new(s, self)
+	escorts.append(s)
+	_reassign_slots()
+	return s
+
+
+func spawn_wave() -> void:
+	wave += 1
+	var center := player.global_position if is_instance_valid(player) else Vector2.ZERO
+	var from_angle := randf() * TAU
+	var spawn_center := center + Vector2.RIGHT.rotated(from_angle) * 1700.0
+	var raiders := 1 + wave
+	var marauders := wave / 3
+	for i in raiders:
+		var p := spawn_center + Vector2(randf_range(-200, 200), randf_range(-200, 200))
+		var s := spawn_ship("raider", 1, p, from_angle + PI)
+		s.controller = AIController.new(s, self)
+	for i in marauders:
+		var p := spawn_center + Vector2(randf_range(-150, 150), randf_range(-150, 150))
+		var s := spawn_ship("marauder", 1, p, from_angle + PI)
+		s.controller = AIController.new(s, self)
+	show_message("Wave %d: %d pirate ships detected" % [wave, raiders + marauders], 3.0)
+
+
+func spawn_projectile(pos: Vector2, angle: float, w: Dictionary, shooter: Ship) -> void:
+	fx.spawn_projectile(pos, angle, w, shooter)
+
+
+func spawn_sparks(pos: Vector2, color: Color, count: int) -> void:
+	fx.spawn_sparks(pos, color, count)
+
+
+func spawn_explosion(pos: Vector2, radius: float, vel: Vector2) -> void:
+	fx.spawn_explosion(pos, radius, vel)
+	if is_instance_valid(player):
+		var d := pos.distance_to(player.global_position)
+		_shake = maxf(_shake, clampf(radius * 0.6 * (1.0 - d / 1500.0), 0.0, 22.0))
+
+
+func _on_ship_destroyed(s: Ship) -> void:
+	if s == player:
+		player = null
+		show_message("", 0.0)
+		return
+	if s.team == 1:
+		kills += 1
+	else:
+		_losses += 1
+		show_message("%s lost!" % s.def["name"], 2.0)
+	escorts.erase(s)
+	_reassign_slots()
+	if s == focus_target:
+		focus_target = null
+
+
+func _reassign_slots() -> void:
+	var i := 0
+	for e in escorts:
+		if is_instance_valid(e):
+			e.controller.slot_index = i
+			i += 1
+
+
+# --- Queries used by AI and HUD -------------------------------------------
+
+func hostile_count() -> int:
+	var n := 0
+	for s in get_tree().get_nodes_in_group("ships"):
+		if s.alive and s.team == 1:
+			n += 1
+	return n
+
+
+## Nearest live enemy of `team` to `from`, limited to `max_dist` from `center` (default: from).
+func nearest_enemy(team: int, from: Vector2, max_dist: float, center = null) -> Ship:
+	var c: Vector2 = from if center == null else center
+	var best: Ship = null
+	var best_d := INF
+	for s in get_tree().get_nodes_in_group("ships"):
+		var ship := s as Ship
+		if ship == null or not ship.alive or ship.team == team:
+			continue
+		if c.distance_to(ship.global_position) > max_dist:
+			continue
+		var d := from.distance_squared_to(ship.global_position)
+		if d < best_d:
+			best_d = d
+			best = ship
+	return best
+
+
+func formation_slot(i: int) -> Vector2:
+	var n := maxi(escorts.size(), 1)
+	var offset := Vector2.ZERO
+	var side := -1.0 if i % 2 == 0 else 1.0
+	var row := i / 2 + 1
+	match formation:
+		"wedge":
+			offset = Vector2(-75.0 * row, 75.0 * row * side)
+		"line":
+			offset = Vector2(-15.0, 85.0 * row * side)
+		"screen":
+			offset = Vector2.RIGHT.rotated(TAU * float(i) / n + PI / n) * 150.0
+	var base := player.global_position if is_instance_valid(player) else Vector2.ZERO
+	return base + offset.rotated(fleet_heading)
+
+
+func mouse_world() -> Vector2:
+	return world.get_global_mouse_position()
+
+
+func wheel_open() -> bool:
+	return wheel.visible
+
+
+func show_message(text: String, duration: float) -> void:
+	message = text
+	message_t = duration
+
+
+func apply_tactic(id: String) -> void:
+	match id:
+		"wedge", "line", "screen":
+			formation = id
+			show_message("Formation: %s" % id.capitalize(), 1.5)
+		"engage":
+			fleet_order = "engage"
+			show_message("Wingmen: engage at will", 1.5)
+		"hold":
+			fleet_order = "hold"
+			show_message("Wingmen: hold formation", 1.5)
+		"focus":
+			_order_focus(_wheel_mouse_world)
+
+
+func _order_focus(at: Vector2) -> void:
+	var t := nearest_enemy(0, at, 600.0)
+	if t == null:
+		show_message("No target near the cursor", 1.5)
+		return
+	focus_target = t
+	fleet_order = "focus"
+	show_message("Wingmen: attack %s" % t.def["name"], 1.5)
+
+
+# --- Loop ----------------------------------------------------------------
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("restart") and not is_instance_valid(player):
+		Engine.time_scale = 1.0
+		get_tree().reload_current_scene()
+	elif event.is_action_pressed("toggle_help"):
+		hud.show_help = not hud.show_help
+	elif event.is_action_pressed("target"):
+		_order_focus(mouse_world())
+	elif event.is_action_pressed("tactics"):
+		_wheel_mouse_world = mouse_world()
+		wheel.visible = true
+		Engine.time_scale = WHEEL_TIME_SCALE
+	elif event.is_action_released("tactics") and wheel.visible:
+		var id: String = wheel.current_id()
+		wheel.visible = false
+		Engine.time_scale = 1.0
+		if id != "":
+			apply_tactic(id)
+	elif event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_zoom = clampf(_zoom * 1.1, 0.4, 1.4)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_zoom = clampf(_zoom / 1.1, 0.4, 1.4)
+
+
+func _physics_process(delta: float) -> void:
+	if is_instance_valid(player):
+		if player.velocity.length() > 60.0:
+			fleet_heading = lerp_angle(fleet_heading, player.velocity.angle(), 2.5 * delta)
+		in_combat = nearest_enemy(0, player.global_position, COMBAT_RANGE) != null
+	else:
+		in_combat = false
+
+	if focus_target != null and (not is_instance_valid(focus_target) or not focus_target.alive):
+		focus_target = null
+	if fleet_order == "focus" and focus_target == null:
+		fleet_order = "engage"
+
+	if hostile_count() == 0:
+		if next_wave_t <= 0.0:
+			next_wave_t = 6.0 if wave > 0 else 2.0
+			if wave > 0:
+				_between_waves()
+		next_wave_t -= delta
+		if next_wave_t <= 0.0:
+			spawn_wave()
+			next_wave_t = 0.0
+	message_t = maxf(0.0, message_t - delta)
+	_separate_ships(delta)
+
+	if autotest:
+		_autotest_step(delta)
+
+
+## Soft collisions: ships that overlap gently push apart instead of stacking.
+func _separate_ships(delta: float) -> void:
+	var ships := get_tree().get_nodes_in_group("ships")
+	for i in ships.size():
+		var a := ships[i] as Ship
+		if a == null or not a.alive:
+			continue
+		for j in range(i + 1, ships.size()):
+			var b := ships[j] as Ship
+			if b == null or not b.alive:
+				continue
+			var d := b.global_position - a.global_position
+			var min_d := (a.radius + b.radius) * 1.15
+			var dist := d.length()
+			if dist >= min_d or dist < 0.001:
+				continue
+			var push := d / dist * (min_d - dist) * 6.0 * delta
+			var wa := b.radius / (a.radius + b.radius)
+			a.position -= push * wa
+			b.position += push * (1.0 - wa)
+			a.velocity -= push * wa * 4.0
+			b.velocity += push * (1.0 - wa) * 4.0
+
+
+func _between_waves() -> void:
+	# Sandbox convenience: top the fleet back up between waves.
+	if is_instance_valid(player):
+		player.hull_hp = minf(player.max_hull, player.hull_hp + player.max_hull * 0.35)
+	var alive := 0
+	for e in escorts:
+		if is_instance_valid(e):
+			alive += 1
+	if alive < 2 and is_instance_valid(player):
+		add_escort("wasp", Vector2(-300, 0).rotated(fleet_heading))
+		show_message("Wave cleared. A replacement wingman has joined you.", 3.0)
+	else:
+		show_message("Wave cleared!", 2.5)
+
+
+func _process(delta: float) -> void:
+	if is_instance_valid(player):
+		var look := (mouse_world() - player.global_position).limit_length(1200.0) * 0.18
+		if autotest:
+			look = Vector2.ZERO
+		var target := player.global_position + look + player.velocity * 0.15
+		camera.global_position = camera.global_position.lerp(target, clampf(8.0 * delta, 0.0, 1.0))
+	var z := lerpf(camera.zoom.x, _zoom, clampf(6.0 * delta, 0.0, 1.0))
+	camera.zoom = Vector2(z, z)
+	_shake = maxf(0.0, _shake - 40.0 * delta)
+	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake
+
+
+func _autotest_step(delta: float) -> void:
+	_autotest_t += delta
+	var frame := int(_autotest_t * 60.0)
+	# Exercise every order and formation so the AI paths all get run.
+	if frame % 1200 == 600:
+		var orders := ["engage", "hold", "focus"]
+		var forms := ["wedge", "line", "screen"]
+		var k := (frame / 1200) % 3
+		formation = forms[k]
+		if orders[k] == "focus":
+			_order_focus(player.global_position if is_instance_valid(player) else Vector2.ZERO)
+		else:
+			fleet_order = orders[k]
+	var shots_dir := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--shots="):
+			shots_dir = a.substr(8)
+	if shots_dir != "":
+		if frame == 60 * 14:
+			wheel.visible = true
+		if frame in [60 * 4, 60 * 9, 60 * 14 + 2, 60 * 22, 60 * 33]:
+			get_viewport().get_texture().get_image().save_png("%s/shot_%03d.png" % [shots_dir, frame / 60])
+		if frame == 60 * 14 + 4:
+			wheel.visible = false
+	if frame % 600 == 0:
+		var hp := "dead"
+		if is_instance_valid(player):
+			hp = "%d/%d" % [int(player.shields), int(player.hull_hp)]
+		print("[autotest] t=%.0fs wave=%d kills=%d escort_losses=%d hostiles=%d escorts=%d player=%s projectiles=%d" % [
+			_autotest_t, wave, kills, _losses, hostile_count(), escorts.size(), hp, fx.projectiles.size()])
+	if _autotest_t >= 120.0 or not is_instance_valid(player):
+		print("[autotest] done: wave=%d kills=%d escort_losses=%d player_alive=%s" % [wave, kills, _losses, is_instance_valid(player)])
+		get_tree().quit()
