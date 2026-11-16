@@ -100,7 +100,7 @@ func _draw() -> void:
 		_bar(Rect2(Vector2(150, y - 3), Vector2(80, 5)), e.hull_hp / e.max_hull, COL_HULL)
 
 	# Wave and score, top left.
-	_text(Vector2(20, 34), "STARRY CLUSTER  ·  Combat sandbox", 16, Color(0.75, 0.88, 1.0))
+	_text(Vector2(20, 34), "SECTOR SECUNDUS  ·  Combat sandbox", 16, Color(0.75, 0.88, 1.0))
 	_text(Vector2(20, 58), "Wave %d   ·   Pirates destroyed: %d" % [main.wave, main.kills], 14)
 	if main.next_wave_t > 0 and main.hostile_count() == 0 and main.wave > 0:
 		_text(Vector2(20, 80), "Next wave in %d…" % ceili(main.next_wave_t), 14, Color(1.0, 0.8, 0.5))

@@ -1,4 +1,4 @@
-# Starry Cluster
+# Sector Secundus
 
 A top-down space fleet RPG built in Godot 4. You captain a flagship, build a fleet, outfit ships and grow from a lone pilot into a fleet commander. The main inspiration is Endless Sky; the names, art and story here are original.
 
