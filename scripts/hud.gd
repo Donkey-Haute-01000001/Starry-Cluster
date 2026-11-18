@@ -9,6 +9,7 @@ const COL_SHIELD := Color(0.35, 0.7, 1.0)
 const COL_HULL := Color(0.95, 0.75, 0.3)
 const COL_ENEMY := Color(1.0, 0.4, 0.3)
 const COL_FRIEND := Color(0.4, 0.9, 1.0)
+const COL_ENERGY := Color(0.75, 0.55, 1.0)
 
 
 func _process(_delta: float) -> void:
@@ -44,7 +45,7 @@ func _draw() -> void:
 			var inset := float(k) * 6.0
 			draw_rect(Rect2(Vector2(inset, inset), vp - Vector2(inset, inset) * 2.0), Color(1.0, 0.15, 0.1, a * (1.0 - k * 0.25)), false, 6.0)
 		_text(Vector2(vp.x * 0.5, 42), "FLEET ENGAGED", 24, Color(1.0, 0.45, 0.35), true)
-		_text(Vector2(vp.x * 0.5, 64), "Hold Q for tactics   ·   T: attack my target", 14, Color(1.0, 0.8, 0.75), true)
+		_text(Vector2(vp.x * 0.5, 64), "Hold Tab for tactics   ·   T: attack my target", 14, Color(1.0, 0.8, 0.75), true)
 
 	# Brackets on fleet ships and enemies, and arrows to enemies off screen.
 	for s in get_tree().get_nodes_in_group("ships"):
@@ -75,14 +76,24 @@ func _draw() -> void:
 
 	# Flagship status, bottom centre.
 	var p: Ship = main.player
-	var base := Vector2(vp.x * 0.5 - 180, vp.y - 70)
+	var base := Vector2(vp.x * 0.5 - 180, vp.y - 80)
 	if p and is_instance_valid(p) and p.alive:
 		_text(base + Vector2(0, -8), p.def["name"].to_upper(), 14, Color(0.7, 0.85, 1.0))
 		_text(base + Vector2(250, -8), "%d m/s" % int(p.velocity.length()), 14, Color(0.6, 0.75, 0.9))
 		_bar(Rect2(base, Vector2(360, 12)), p.shields / p.max_shields, COL_SHIELD)
 		_bar(Rect2(base + Vector2(0, 18), Vector2(360, 12)), p.hull_hp / p.max_hull, COL_HULL)
+		_bar(Rect2(base + Vector2(0, 36), Vector2(360, 8)), p.energy / p.max_energy, COL_ENERGY)
 		_text(base + Vector2(366, 11), "SHIELDS", 11, COL_SHIELD)
 		_text(base + Vector2(366, 29), "HULL", 11, COL_HULL)
+		_text(base + Vector2(366, 45), "ENERGY", 11, COL_ENERGY)
+		if p.in_brake:
+			_text(base + Vector2(130, -8), "BRAKE", 14, Color(1.0, 0.85, 0.4))
+		# Velocity marker: where your drift is taking you.
+		if p.velocity.length() > 20.0:
+			var sp := _to_screen(p.global_position)
+			var vp_end := sp + p.velocity.normalized() * (40.0 + 60.0 * p.velocity.length() / p.max_speed)
+			draw_line(sp, vp_end, Color(0.6, 0.9, 1.0, 0.35), 1.5)
+			draw_circle(vp_end, 3.0, Color(0.6, 0.9, 1.0, 0.6))
 	else:
 		_text(Vector2(vp.x * 0.5, vp.y * 0.45), "FLAGSHIP DESTROYED", 34, COL_ENEMY, true)
 		_text(Vector2(vp.x * 0.5, vp.y * 0.45 + 34), "Press R to restart", 18, Color(1, 1, 1), true)
@@ -111,9 +122,9 @@ func _draw() -> void:
 	_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)
 
 	if show_help:
-		var lines := ["W thrust   A/D turn   S face retrograde",
-			"Mouse aim turrets   Left click / Space fire",
-			"Hold Q tactics wheel   T attack target under cursor",
+		var lines := ["W/S forward/back   A/D strafe   Q/E turn   X brake",
+			"Mouse aim   Left click turrets   Space cannons",
+			"Hold Tab tactics wheel   T attack target under cursor",
 			"Mouse wheel zoom   H hide help"]
 		for i in lines.size():
 			_text(Vector2(20, vp.y - 90 + i * 20), lines[i], 13, Color(0.7, 0.8, 0.9, 0.85))

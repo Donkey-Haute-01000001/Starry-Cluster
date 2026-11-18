@@ -69,9 +69,11 @@ func _update_hostile(delta: float) -> void:
 	if _valid(target):
 		_attack(delta, target)
 	else:
-		ship.in_thrust = 0.0
+		# Nothing to fight: kill the drift and wait.
+		ship.in_move = Vector2.ZERO
 		ship.in_turn = 0.0
-		ship.in_fire = false
+		ship.in_brake = true
+		_set_fire(false)
 
 
 # --- Behaviours ----------------------------------------------------------
@@ -81,7 +83,8 @@ func _attack(_delta: float, t: Ship) -> void:
 	var dist := to_t.length()
 	var lead := _lead_point(t)
 	ship.aim_point = lead
-	ship.in_fire = dist < ship.max_range() * 1.05
+	ship.in_brake = false
+	_set_fire(dist < ship.max_range() * 1.05)
 
 	if ship.def["role"] == "gunship":
 		# Orbit at turret range, nose roughly toward the target for any forward guns.
@@ -95,13 +98,17 @@ func _attack(_delta: float, t: Ship) -> void:
 	if _state == "extend":
 		var away := (-to_t).normalized().rotated(0.6 * _orbit_dir)
 		_face(away.angle())
-		ship.in_thrust = 1.0
+		ship.in_move = Vector2(1.0, 0.0)
 		if _state_t <= 0.0 or dist > ship.max_range() * 0.9:
 			_state = "attack"
 		return
 	_face((lead - ship.global_position).angle())
 	var facing_err := absf(wrapf((lead - ship.global_position).angle() - ship.rotation, -PI, PI))
-	ship.in_thrust = 1.0 if facing_err < 0.6 and dist > 140.0 else 0.3
+	# Main engine toward the target; side thrusters cancel drift across the line of attack.
+	var want_vel := t.velocity + to_t.normalized() * ship.max_speed
+	var local_dv := (want_vel - ship.velocity).rotated(-ship.rotation)
+	var fwd := 1.0 if facing_err < 0.6 and dist > 140.0 else 0.3
+	ship.in_move = Vector2(fwd, clampf(local_dv.y / 150.0, -1.0, 1.0))
 	if dist < 150.0 + ship.radius + t.radius:
 		_state = "extend"
 		_state_t = randf_range(0.8, 1.4)
@@ -111,26 +118,39 @@ func _attack(_delta: float, t: Ship) -> void:
 func _shoot_at(t: Ship) -> void:
 	if _valid(t):
 		ship.aim_point = _lead_point(t)
-		ship.in_fire = true
+		_set_fire(true)
 	else:
 		ship.aim_point = ship.global_position + ship.forward() * 200.0
-		ship.in_fire = false
+		_set_fire(false)
+
+
+func _set_fire(on: bool) -> void:
+	ship.in_fire_aimed = on
+	ship.in_fire_fixed = on
 
 
 ## Steer toward a point while matching a reference velocity; settle facing rest_heading.
+## With no drag the AI has to burn against its own drift, using every thruster it has.
 func _fly_to(point: Vector2, match_vel: Vector2, rest_heading: float) -> void:
+	ship.in_brake = false
 	var offset := point - ship.global_position
 	var desired := match_vel + offset.limit_length(ship.max_speed) * 1.6
 	desired = desired.limit_length(ship.max_speed)
 	var dv := desired - ship.velocity
-	if dv.length() < 25.0 and offset.length() < 40.0:
+	if dv.length() < 15.0 and offset.length() < 40.0:
 		_face(rest_heading)
-		ship.in_thrust = 0.0
+		ship.in_move = Vector2.ZERO
 		return
-	var want := dv.angle()
-	_face(want)
-	var err := absf(wrapf(want - ship.rotation, -PI, PI))
-	ship.in_thrust = clampf(dv.length() / 120.0, 0.0, 1.0) if err < 0.45 else 0.0
+	# Big corrections: point the main engine at the burn. Small ones: keep facing
+	# where we want to and trim with the maneuvering thrusters.
+	if dv.length() > 160.0:
+		_face(dv.angle())
+	else:
+		_face(rest_heading)
+	var local := dv.rotated(-ship.rotation)
+	var cap_x := ship.accel if local.x > 0.0 else ship.reverse_accel
+	ship.in_move = Vector2(clampf(local.x / (cap_x * 0.25), -1.0, 1.0),
+		clampf(local.y / (ship.side_accel * 0.25), -1.0, 1.0))
 
 
 func _face(angle: float) -> void:

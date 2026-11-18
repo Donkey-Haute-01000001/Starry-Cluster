@@ -10,14 +10,18 @@ A top-down space fleet RPG built in Godot 4. You captain a flagship, build a fle
 
 ## Controls
 
+Thrusters are always relative to where your ship points. The camera never rotates.
+
 | Action | Keys |
 | --- | --- |
-| Thrust | W / ↑ |
-| Turn | A, D / ←, → |
-| Face against your motion (to brake) | S / ↓ |
+| Thrust forward / back | W / S (or ↑ / ↓) |
+| Strafe left / right | A / D |
+| Turn | Q / E (or ← / →) |
+| Brake assist (fires your real thrusters against your drift) | Hold X |
 | Aim turrets and gun gimbals | Mouse |
-| Fire | Left click / Space |
-| Tactics wheel (time slows) | Hold Q, point, release |
+| Fire turrets | Left click |
+| Fire forward cannons | Space |
+| Tactics wheel (time slows) | Hold Tab, point, release |
 | Wingmen attack target under cursor | T |
 | Zoom | Mouse wheel |
 | Toggle help | H |
@@ -25,7 +29,10 @@ A top-down space fleet RPG built in Godot 4. You captain a flagship, build a fle
 
 ## Current state: step 1, combat sandbox
 
-- Weighty rotate-and-thrust flight with inertia.
+- Newtonian flight with no drag: you coast until you burn against your motion.
+- A hard top speed per hull. Thrust past it only changes your direction.
+- A strong main engine plus weaker side and reverse thrusters (20 to 60% of the main engine, set per hull). Fighters have strong side thrusters, big ships weak ones.
+- A built-in reactor per hull feeds one energy bar. Guns, shield recharge and thrusters all draw from it.
 - Fixed cannons (forward, small gimbal, more damage) and turrets (follow the mouse at a limited traverse speed).
 - Shields that recharge after a delay, then hull.
 - Pirate raiders make gun runs, and pirate marauders orbit and use turrets. Waves escalate.

@@ -1,6 +1,6 @@
 extends Control
-## Hold Q: time slows and a radial menu of formations and orders appears.
-## Point the mouse at an option and release Q to give the order.
+## Hold Tab: time slows and a radial menu of formations and orders appears.
+## Point the mouse at an option and release Tab to give the order.
 
 var main: Node
 var options := [
@@ -65,7 +65,7 @@ func _draw() -> void:
 	var title := "TACTICS"
 	var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	draw_string(font, c + Vector2(-tw * 0.5, 6), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.7, 0.9, 1.0))
-	var hint := "Point at an option and release Q.  Release in the middle to cancel."
+	var hint := "Point at an option and release Tab.  Release in the middle to cancel."
 	var hw := font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	draw_string(font, c + Vector2(-hw * 0.5, RADIUS + 34), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.75, 0.85, 0.95))
 
