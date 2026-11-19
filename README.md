@@ -43,9 +43,10 @@ The game opens on a start screen with four starts. Merchant is playable; Scrappe
 - You start docked at the Counter in debt to the Charter Company. Charlie gives you a starter run: 20 tons of water from the Drip to the Greenhouse.
 - Loan payments come out every week (a day is 60 s of flight). Miss one and interest is added. Pay extra or pay it off at the Counter.
 - Marcellus is the rough system: more profit, pirate raiders.
-- Not in yet: the old friend, the Tallyman and Franz, the ending, cruise, saving.
+- After picking Merchant you design an old friend: name, face, role (pilot, gunner, engineer, trader) and a shared memory. You meet them at the Greenhouse after the first delivery and they fly with you as a free escort, following you through jumps. Each role and memory gives a bonus and callback lines; they comment on what you do. If their ship goes down they pod out and rejoin at your next dock.
+- Not in yet: the Tallyman and Franz, the ending, cruise, saving.
 
-Scripted check: `godot --headless --fixed-fps 60 -- --merchant-test` runs the opening end to end and prints each step.
+Scripted check: `godot --headless --fixed-fps 60 -- --merchant-test` runs the opening end to end and prints each step. Add `--friend-role=pilot|gunner|engineer|trader` and `--friend-memory=drip|four|lost|gate` to test the old friend's options.
 
 ### Combat sandbox
 

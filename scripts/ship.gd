@@ -31,6 +31,11 @@ var energy_regen := 50.0
 var radius := 20.0
 var mounts: Array = []
 var alive := true
+var display_name := ""        ## shown on the roster instead of the hull name
+var is_friend := false        ## the old friend's ship
+var ace := false              ## jinks under fire (pilot friend)
+var accuracy := 1.0           ## multiplies weapon spread (gunner friend: lower is better)
+var traverse_mult := 1.0      ## multiplies turret traverse speed
 
 # Inputs, written by the controller.
 var in_move := Vector2.ZERO   ## ship-relative thrust: x forward(+)/back(-), y right(+)/left(-), each -1..1
@@ -159,7 +164,7 @@ func _update_weapons(delta: float) -> void:
 		var desired_local: float = wrapf((aim_point - world_pos).angle() - rotation, -PI, PI)
 		var firing := in_fire_aimed
 		if w["kind"] == "turret":
-			m["angle"] = rotate_toward(m["angle"], desired_local, deg_to_rad(w["traverse"]) * delta)
+			m["angle"] = rotate_toward(m["angle"], desired_local, deg_to_rad(w["traverse"]) * traverse_mult * delta)
 		else:
 			var g := deg_to_rad(w["gimbal"])
 			m["angle"] = rotate_toward(m["angle"], clampf(desired_local, -g, g), deg_to_rad(240.0) * delta)
@@ -179,7 +184,7 @@ func _update_weapons(delta: float) -> void:
 			continue
 		energy -= cost
 		m["cooldown"] = w["cooldown"]
-		var dir: float = rotation + m["angle"] + deg_to_rad(randf_range(-w["spread"], w["spread"]))
+		var dir: float = rotation + m["angle"] + deg_to_rad(randf_range(-w["spread"], w["spread"]) * accuracy)
 		main.spawn_projectile(world_pos, dir, w, self)
 
 

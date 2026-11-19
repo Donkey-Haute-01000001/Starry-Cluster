@@ -86,12 +86,13 @@ func _attack(_delta: float, t: Ship) -> void:
 	ship.in_brake = false
 	_set_fire(dist < ship.max_range() * 1.05)
 
-	if ship.def["role"] == "gunship":
+	if ship.def["role"] in ["gunship", "freighter"]:
 		# Orbit at turret range, nose roughly toward the target for any forward guns.
 		var keep := ship.max_range() * 0.65
 		var radial := (ship.global_position - t.global_position).normalized()
 		var orbit_point := t.global_position + radial.rotated(0.5 * _orbit_dir) * keep
 		_fly_to(orbit_point, t.velocity, (lead - ship.global_position).angle())
+		_jink()
 		return
 
 	# Fighter gun runs.
@@ -109,10 +110,19 @@ func _attack(_delta: float, t: Ship) -> void:
 	var local_dv := (want_vel - ship.velocity).rotated(-ship.rotation)
 	var fwd := 1.0 if facing_err < 0.6 and dist > 140.0 else 0.3
 	ship.in_move = Vector2(fwd, clampf(local_dv.y / 150.0, -1.0, 1.0))
+	_jink()
 	if dist < 150.0 + ship.radius + t.radius:
 		_state = "extend"
 		_state_t = randf_range(0.8, 1.4)
 		_orbit_dir = -_orbit_dir
+
+
+## Ace pilots weave with their side thrusters when they've been shot at recently.
+func _jink() -> void:
+	if not ship.ace or ship.since_hit > 3.0:
+		return
+	var w := sin(Time.get_ticks_msec() * 0.004 + ship.get_instance_id() % 7) * 0.9
+	ship.in_move.y = clampf(ship.in_move.y + w, -1.0, 1.0)
 
 
 func _shoot_at(t: Ship) -> void:

@@ -125,6 +125,7 @@ func open(id: String) -> void:
 	_desc.text = st["desc"]
 	_comms_name.text = ""
 	_comms_text.text = ""
+	_log.clear()
 	visible = true
 	_refresh()
 
@@ -135,9 +136,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		main.undock()
 
 
+var _log: Array = []
+
+
+## Shows the last few lines, newest at the bottom, so back-to-back lines aren't lost.
 func _on_comms(speaker: String, text: String) -> void:
-	_comms_name.text = speaker.to_upper()
-	_comms_text.text = text
+	_log.append("%s:  %s" % [speaker.to_upper(), text])
+	if _log.size() > 3:
+		_log.pop_front()
+	_comms_text.text = "\n\n".join(_log)
 
 
 func _refresh() -> void:
@@ -145,7 +152,7 @@ func _refresh() -> void:
 		return
 	for c in _market.get_children():
 		c.queue_free()
-	for h in ["GOOD", "PRICE", "HOLD", "", "", "", ""]:
+	for h in ["GOOD", "PRICE (BUY / SELL)" if Career.friend_with_you() and Career.friend["role"] == "trader" else "PRICE", "HOLD", "", "", "", ""]:
 		_label(_market, h, 12, Color(0.55, 0.65, 0.75))
 	var st: Dictionary = Data.stations[station_id]
 	for g in Data.goods_order:
@@ -161,7 +168,10 @@ func _refresh() -> void:
 		name_l.tooltip_text = "\"%s\": %s" % [Data.goods[g]["slang"], Data.goods[g]["desc"]]
 		name_l.mouse_filter = Control.MOUSE_FILTER_PASS
 		name_l.custom_minimum_size.x = 210
-		_label(_market, "%s cr" % Career.fmt(Career.price(station_id, g)), 15, col)
+		var bp := Career.buy_price(station_id, g)
+		var sp := Career.sell_price(station_id, g)
+		var ptxt := "%s cr" % Career.fmt(bp) if bp == sp else "%s / %s" % [Career.fmt(bp), Career.fmt(sp)]
+		_label(_market, ptxt, 15, col)
 		var owned: int = Career.cargo.get(g, 0)
 		var job: int = Career.job_cargo.get(g, 0)
 		_label(_market, str(owned) + (" (+%d job)" % job if job > 0 else ""), 15)
