@@ -166,12 +166,52 @@ static func draw_portrait(ci: CanvasItem, r: Rect2, pal: Array, frame := GOLD) -
 
 ## A Charter ID photo: a grainy, washed-out file photo with a serial number and
 ## a corner of the Charter's seal over it. Real portrait art drops in later.
-static func draw_id_photo(ci: CanvasItem, r: Rect2, pal: Array, serial := "", seed := 1) -> void:
+static var _portrait_cache := {}
+
+const PORTRAIT_FILES := {
+	"Dez": "dez", "Charlie": "charlie", "Franz": "franz", "Tallyman": "tallyman",
+	"Fay": "fay", "Mersham": "mersham", "Gate customs": "customs", "Dock crew": "dock_crew",
+}
+
+
+## Hand-made pixel portrait for a speaker, or null.
+static func portrait_tex(who: String) -> Texture2D:
+	if not PORTRAIT_FILES.has(who):
+		return null
+	if _portrait_cache.has(who):
+		return _portrait_cache[who]
+	var path := "res://portraits/%s.png" % PORTRAIT_FILES[who]
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	else:
+		var img := Image.load_from_file(ProjectSettings.globalize_path(path))
+		if img:
+			tex = ImageTexture.create_from_image(img)
+	_portrait_cache[who] = tex
+	return tex
+
+
+static func draw_id_photo(ci: CanvasItem, r: Rect2, pal: Array, serial := "", seed := 1, who := "") -> void:
 	# Photo paper border.
 	ci.draw_rect(r.grow(3), Color(0.93, 0.91, 0.86))
 	var p := r
 	if serial != "":
 		p.size.y -= 14
+	var tex := portrait_tex(who)
+	if tex:
+		ci.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		# Cover the photo, crop centered.
+		var ts := tex.get_size()
+		var k := maxf(p.size.x / ts.x, p.size.y / ts.y)
+		var dst := Rect2(p.get_center() - ts * k * 0.5, ts * k)
+		var src := Rect2(Vector2.ZERO, ts)
+		# Clip to the photo rect via source rect.
+		var over := (dst.size - p.size) / k
+		src = Rect2(over * 0.5, ts - over)
+		ci.draw_texture_rect_region(tex, p, src, Color(0.96, 0.95, 0.92))
+		_photo_finish(ci, p, serial, seed)
+		return
 	var wash := func(c: Color) -> Color:
 		var g := c.get_luminance()
 		return Color(lerpf(c.r, g, 0.55) * 0.9 + 0.06, lerpf(c.g, g, 0.55) * 0.92 + 0.07, lerpf(c.b, g, 0.55) * 0.95 + 0.09)
@@ -188,6 +228,11 @@ static func draw_id_photo(ci: CanvasItem, r: Rect2, pal: Array, serial := "", se
 	ci.draw_rect(Rect2(c.x - s * 0.07, p.position.y + p.size.y * 0.58, s * 0.14, p.size.y * 0.14), wash.call(pal[0]).darkened(0.1))
 	ci.draw_circle(Vector2(c.x, p.position.y + p.size.y * 0.43), s * 0.2, wash.call(pal[0]))
 	ci.draw_arc(Vector2(c.x, p.position.y + p.size.y * 0.41), s * 0.205, PI * 1.08, PI * 1.92, 16, wash.call(pal[1]), s * 0.07)
+	_photo_finish(ci, p, serial, seed)
+
+
+static func _photo_finish(ci: CanvasItem, p: Rect2, serial: String, seed: int) -> void:
+	var s := p.size.x
 	# Grain and a soft light leak.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed

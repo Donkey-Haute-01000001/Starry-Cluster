@@ -216,7 +216,7 @@ func _on_comms(speaker: String, text: String) -> void:
 func _draw_face() -> void:
 	if _log.is_empty():
 		return
-	UIStyle.draw_id_photo(_comms_face, Rect2(Vector2(3, 3), _comms_face.size - Vector2(6, 6)), Data.portrait_for(_log[-1][0]), "", str(_log[-1][0]).hash())
+	UIStyle.draw_id_photo(_comms_face, Rect2(Vector2(3, 3), _comms_face.size - Vector2(6, 6)), Data.portrait_for(_log[-1][0]), "", str(_log[-1][0]).hash(), str(_log[-1][0]))
 
 
 func _refresh() -> void:

@@ -305,7 +305,7 @@ func _draw_comms(vp: Vector2) -> void:
 		draw_rect(Rect2(r.end.x - 60 + k * 9, r.position.y + 14 - k * 2, 5, 3 + k * 2), Color(col.r, col.g, col.b, (0.9 if on else 0.2) * a))
 	# ID photo with its file number; a flicker of static when the line opens.
 	var photo := Rect2(r.position + Vector2(14, 32), Vector2(78, 100))
-	UIStyle.draw_id_photo(self, photo, Data.portrait_for(_comms_speaker), info["serial"], _comms_speaker.hash())
+	UIStyle.draw_id_photo(self, photo, Data.portrait_for(_comms_speaker), info["serial"], _comms_speaker.hash(), _comms_speaker)
 	if _comms_age < 0.35:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = int(_comms_age * 60.0)

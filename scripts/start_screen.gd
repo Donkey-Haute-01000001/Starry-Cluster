@@ -418,7 +418,7 @@ func _show_contact(animate := true) -> void:
 	var photo := Control.new()
 	photo.custom_minimum_size = Vector2(104, 132)
 	photo.draw.connect(func():
-		UIStyle.draw_id_photo(photo, Rect2(Vector2(4, 4), Vector2(96, 124)), Data.speaker_portraits["Dez"], "NK-40817-1", 9))
+		UIStyle.draw_id_photo(photo, Rect2(Vector2(4, 4), Vector2(96, 124)), Data.speaker_portraits["Dez"], "NK-40817-1", 9, "Dez"))
 	who.add_child(photo)
 	var fields := VBoxContainer.new()
 	fields.add_theme_constant_override("separation", 2)
