@@ -232,7 +232,7 @@ func _draw() -> void:
 	# Hull: the sprite when the art is installed, otherwise the polygon.
 	var sprite: String = def.get("sprite", "")
 	var flash := Color(1, 1, 1).lerp(Color(1, 0.45, 0.4), _hull_flash * 0.7)
-	if sprite != "" and Art.draw_fit(self, "ships/%s.png" % sprite, radius * def.get("sprite_scale", 3.2), flash):
+	if sprite != "" and Art.draw_fit(self, "ships/%s.png" % sprite, radius * def.get("sprite_scale", 3.6), flash):
 		for m in mounts:
 			if m["weapon"]["kind"] == "turret":
 				var p: Vector2 = m["pos"]

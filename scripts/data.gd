@@ -8,6 +8,7 @@ extends Node
 ## UI font for everything (Exo 2, SIL Open Font License; see fonts/).
 const UI_FONT := "res://fonts/Exo2.ttf"
 const UI_FONT_WEIGHT := 500
+var font_bold: Font = null  ## titles and headings
 
 
 func _ready() -> void:
@@ -24,7 +25,10 @@ func _ready() -> void:
 	# Every Control without its own theme font, and every draw_string that uses
 	# the fallback font (HUD, labels in space), picks this up.
 	ThemeDB.fallback_font = f
-	ThemeDB.get_default_theme().default_font = f
+	font_bold = FontVariation.new()
+	font_bold.base_font = base
+	font_bold.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 680}
+	UIStyle.apply_default_theme(f)
 
 
 var mode := "sandbox"  ## "sandbox" (combat test) or "merchant" (the demo opening)
@@ -363,6 +367,19 @@ var friend_portraits := [
 	[Color(0.9, 0.75, 0.6), Color(0.75, 0.45, 0.2), Color(0.4, 0.4, 0.45)],
 	[Color(0.85, 0.68, 0.55), Color(0.6, 0.6, 0.62), Color(0.5, 0.25, 0.4)],
 ]
+## Portraits for the people who talk to you on comms (placeholder art).
+var speaker_portraits := {
+	"Charlie": [Color(0.94, 0.78, 0.66), Color(0.55, 0.3, 0.15), Color(0.23, 0.42, 0.6)],
+	"Dock crew": [Color(0.7, 0.55, 0.42), Color(0.2, 0.18, 0.16), Color(0.55, 0.45, 0.2)],
+}
+
+
+func portrait_for(speaker: String) -> Array:
+	if Career.friend.get("name", "") == speaker:
+		return friend_portraits[Career.friend.get("portrait", 0)]
+	return speaker_portraits.get(speaker, [Color(0.75, 0.7, 0.65), Color(0.3, 0.3, 0.3), Color(0.35, 0.4, 0.45)])
+
+
 var friend_default_names := ["Rook", "Dana", "Teo", "Mags", "Jules", "Sasha"]
 
 ## %s slots: name, memory, ship.

@@ -92,15 +92,25 @@ func _draw() -> void:
 		var t: float = 1.0 - r["life"] / r["max"]
 		var rad: float = lerpf(r["r"], r["max_r"], t)
 		draw_arc(r["pos"], rad, 0.0, TAU, 40, Color(1.0, 0.8, 0.5, 1.0 - t), 3.0, true)
-		if t < 0.3:
-			draw_circle(r["pos"], rad * 0.6, Color(1.0, 0.95, 0.8, 0.6 * (1.0 - t / 0.3)))
+		draw_arc(r["pos"], rad * 0.92, 0.0, TAU, 40, Color(0.5, 0.8, 1.0, 0.35 * (1.0 - t)), 8.0, true)
+		if t < 0.35:
+			var f := 1.0 - t / 0.35
+			draw_circle(r["pos"], rad * 0.9, Color(1.0, 0.75, 0.4, 0.18 * f))
+			draw_circle(r["pos"], rad * 0.5, Color(1.0, 0.9, 0.7, 0.45 * f))
+			draw_circle(r["pos"], rad * 0.25, Color(1.0, 1.0, 0.95, 0.8 * f))
 	for q in particles:
 		var a: float = q["life"] / q["max"]
 		var c: Color = q["color"]
-		draw_circle(q["pos"], q["size"] * (0.5 + 0.5 * a), Color(c.r, c.g, c.b, a))
+		var sz: float = q["size"] * (0.5 + 0.5 * a)
+		draw_circle(q["pos"], sz * 2.4, Color(c.r, c.g, c.b, a * 0.12))
+		draw_circle(q["pos"], sz, Color(c.r, c.g, c.b, a))
 	for p in projectiles:
 		var v: Vector2 = p["vel"]
 		var tail: Vector2 = p["pos"] - v.normalized() * (p["size"] * 5.0)
 		var c: Color = p["color"]
+		# Glowing bolt: a wide soft halo, the coloured body, then a hot white core.
+		var long_tail: Vector2 = p["pos"] - v.normalized() * (p["size"] * 9.0)
+		draw_line(long_tail, p["pos"], Color(c.r, c.g, c.b, 0.18), p["size"] * 3.2, true)
 		draw_line(tail, p["pos"], c, p["size"], true)
-		draw_circle(p["pos"], p["size"] * 0.6, c.lightened(0.6))
+		draw_line(tail.lerp(p["pos"], 0.5), p["pos"], Color(1, 1, 1, 0.9), maxf(1.0, p["size"] * 0.4), true)
+		draw_circle(p["pos"], p["size"] * 1.6, Color(c.r, c.g, c.b, 0.25))
