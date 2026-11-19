@@ -53,7 +53,18 @@ func _ready() -> void:
 	var bg := ColorRect.new()
 	bg.color = Color(0.015, 0.015, 0.035)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/nebula.gdshader")
+	mat.set_shader_parameter("density", 0.7)
+	mat.set_shader_parameter("seed", 11.0)
+	bg.material = mat
 	add_child(bg)
+	# A dark glass sheet over the left side so the text stays readable.
+	var sheet := Panel.new()
+	sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sheet.add_theme_stylebox_override("panel", UIStyle.panel(Color(0.02, 0.05, 0.09, 0.55), Color(0.47, 0.78, 1.0, 0.0), 0, 0.0))
+	sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(sheet)
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -67,7 +78,9 @@ func _ready() -> void:
 
 	var title := Label.new()
 	title.text = "SECTOR SECUNDUS"
-	title.add_theme_font_size_override("font_size", 54)
+	title.add_theme_font_size_override("font_size", 58)
+	if Data.font_bold:
+		title.add_theme_font_override("font", Data.font_bold)
 	title.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
 	root.add_child(title)
 	var tag := Label.new()
@@ -182,7 +195,9 @@ func _open_creator() -> void:
 	for c in _root.get_children():
 		c.queue_free()
 	_friend["name"] = Data.friend_default_names[randi() % Data.friend_default_names.size()]
-	_lbl(_root, "AN OLD FRIEND", 40, Color(0.85, 0.92, 1.0))
+	var head := _lbl(_root, "AN OLD FRIEND", 40, Color(0.85, 0.92, 1.0))
+	if Data.font_bold:
+		head.add_theme_font_override("font", Data.font_bold)
 	_lbl(_root, "Somebody from before the rig and the loan. You'll run into them out there.", 17, Color(0.6, 0.72, 0.88))
 
 	var names := HBoxContainer.new()

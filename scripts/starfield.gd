@@ -6,7 +6,22 @@ var _stars: Array = []
 const TILE := 2048.0
 
 
+var nebula: ColorRect
+
+
 func _ready() -> void:
+	# Nebula backdrop behind the stars, tinted per system.
+	nebula = ColorRect.new()
+	nebula.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	nebula.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/nebula.gdshader")
+	nebula.material = mat
+	nebula.show_behind_parent = true
+	var holder := CanvasLayer.new()
+	holder.layer = -20
+	holder.add_child(nebula)
+	add_child.call_deferred(holder)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1337
 	for i in 420:
@@ -19,22 +34,31 @@ func _ready() -> void:
 		})
 
 
+## Colours per system: [cloud, wisps, density].
+const TINTS := {
+	"aurelia": [Color(0.10, 0.30, 0.55), Color(0.30, 0.12, 0.42), 0.75],
+	"tiberine": [Color(0.40, 0.25, 0.10), Color(0.12, 0.30, 0.40), 0.7],
+	"marcellus": [Color(0.42, 0.12, 0.10), Color(0.25, 0.10, 0.30), 0.8],
+	"porta_aquila": [Color(0.12, 0.35, 0.40), Color(0.35, 0.30, 0.55), 0.8],
+}
+
+
 func _process(_delta: float) -> void:
+	if nebula and main and main.camera:
+		var mat := nebula.material as ShaderMaterial
+		mat.set_shader_parameter("cam", main.camera.global_position)
+		var sid: String = main.system_id if main.merchant else "aurelia"
+		var tint: Array = TINTS.get(sid, TINTS["aurelia"])
+		mat.set_shader_parameter("tint_a", tint[0])
+		mat.set_shader_parameter("tint_b", tint[1])
+		mat.set_shader_parameter("density", tint[2])
+		mat.set_shader_parameter("seed", float(sid.hash() % 97))
 	queue_redraw()
 
 
 func _draw() -> void:
 	var vp := get_viewport_rect().size
 	var cam_pos: Vector2 = main.camera.global_position if main and main.camera else Vector2.ZERO
-	# Faint nebula washes for some colour.
-	var neb := [[Vector2(600, 400), 900.0, Color(0.25, 0.1, 0.4, 0.06)], [Vector2(-900, 1300), 1200.0, Color(0.05, 0.25, 0.4, 0.05)]]
-	for n in neb:
-		var sp: Vector2 = n[0] - cam_pos * 0.03 + vp * 0.5
-		var c: Color = n[2]
-		# Stack soft circles so the nebula fades out instead of having a hard edge.
-		for k in 10:
-			var f := 1.0 - float(k) / 10.0
-			draw_circle(sp, n[1] * f, Color(c.r, c.g, c.b, c.a * 0.35))
 	for s in _stars:
 		var p: Vector2 = s["p"] - cam_pos * s["depth"]
 		p = Vector2(fposmod(p.x, TILE), fposmod(p.y, TILE))
@@ -44,5 +68,8 @@ func _draw() -> void:
 			var y := p.y
 			while y < vp.y:
 				draw_circle(Vector2(x, y), s["size"], s["color"])
+				if s["size"] > 1.9:
+					var c: Color = s["color"]
+					draw_circle(Vector2(x, y), s["size"] * 3.0, Color(c.r, c.g, c.b, 0.08))
 				y += TILE
 			x += TILE
