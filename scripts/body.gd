@@ -110,12 +110,16 @@ func _draw() -> void:
 				draw_arc(Vector2.ZERO, DOCK_RANGE, 0, TAU, 64, Color(0.5, 0.8, 1.0, 0.08), 2.0, true)
 			"jump":
 				var col := Color(0.55, 0.4, 1.0) if not locked else Color(1.0, 0.45, 0.35)
-				# The gate station's ring sits around the rift.
-				Art.draw_fit(self, "gate.png", 240.0, Color(1, 1, 1) if not locked else Color(1.0, 0.6, 0.55))
-				# The rift itself: a natural tear the station was built on.
+				# The rift itself: a natural tear, nobody built it. Buoys mark the
+				# approach; the gate stations sit nearby, not around it.
 				draw_set_transform(Vector2.ZERO, 0.35)
-				Rift.draw(self, _t, 170.0, col, id.hash() % 97, 3.0)
+				Rift.draw(self, _t, 230.0, col, id.hash() % 97, 3.0)
 				draw_set_transform(Vector2.ZERO)
+				for k in 6:
+					var bp := Vector2.RIGHT.rotated(k * TAU / 6.0 + 0.3) * 150.0
+					var on := fmod(_t + k * 0.25, 1.5) < 0.2
+					draw_rect(Rect2(bp - Vector2(3, 3), Vector2(6, 6)), Color(0.25, 0.27, 0.3))
+					draw_rect(Rect2(bp - Vector2(2, 2), Vector2(4, 4)), col if on else col.darkened(0.6))
 				draw_arc(Vector2.ZERO, JUMP_RANGE, 0, TAU, 64, Color(col.r, col.g, col.b, 0.1), 2.0, true)
 
 	if label != "":
@@ -123,8 +127,8 @@ func _draw() -> void:
 		var off := radius + 26.0 if kind == "planet" else 70.0
 		if kind == "station" and not _frames.is_empty():
 			off = art_size * 0.5 + 18.0
-		elif kind == "jump" and Art.tex("gate.png") != null:
-			off = 140.0
+		elif kind == "jump":
+			off = 175.0
 		var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 		draw_string(font, Vector2(-w * 0.5, off), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.85, 0.9, 1.0, 0.9))
 		if sublabel != "":

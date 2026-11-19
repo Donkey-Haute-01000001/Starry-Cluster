@@ -357,6 +357,19 @@ var stations := {
 		"desc": "Customs, garrison and the checkpoint where they ask for your Writ of Passage. Everybody calls it your papers."},
 }
 
+## Each station's wall when you're docked: bulkhead paint, the stripe they
+## painted round it, and how worn it is. The boards hang on this.
+var station_walls := {
+	"counter": {"wall": Color(0.2, 0.23, 0.27), "stripe": Color(0.86, 0.62, 0.18), "wear": 0.2},   # Charter grey, company amber
+	"bones": {"wall": Color(0.22, 0.2, 0.18), "stripe": Color(0.9, 0.72, 0.12), "wear": 0.8, "hazard": true},
+	"drip": {"wall": Color(0.14, 0.22, 0.24), "stripe": Color(0.5, 0.75, 0.78), "wear": 0.7},
+	"greenhouse": {"wall": Color(0.2, 0.25, 0.2), "stripe": Color(0.85, 0.88, 0.8), "wear": 0.4},
+	"four": {"wall": Color(0.23, 0.24, 0.21), "stripe": Color(0.38, 0.47, 0.6), "wear": 0.9},     # dust grey, navy blue
+	"saltgate": {"wall": Color(0.21, 0.16, 0.13), "stripe": Color(0.75, 0.38, 0.18), "wear": 0.7},
+	"ambers": {"wall": Color(0.2, 0.14, 0.15), "stripe": Color(0.82, 0.55, 0.6), "wear": 1.0},     # old patisserie pink
+	"gatehouse": {"wall": Color(0.24, 0.26, 0.3), "stripe": Color(0.88, 0.9, 0.95), "wear": 0.1},
+}
+
 ## Start screen. Only the Merchant start is playable in the demo.
 var starts := [
 	{"id": "merchant", "doc": {"issuer": "THE CHARTER COMPANY", "title": "Rig Financing Agreement", "office": "Aurelia Sector Office", "file": "CC-40817-M", "stamp": "APPROVED", "note": "7 years. never again."}, "name": "Merchant", "playable": true,

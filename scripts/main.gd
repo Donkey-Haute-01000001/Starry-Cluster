@@ -763,6 +763,33 @@ func _go(station: String) -> void:
 
 
 func _run_merchant_test() -> void:
+	# --look=a,b,...: quick screenshots only (station ids, "rift", "crossroads").
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--look="):
+			await _wait(0.3)
+			for what in a.substr(7).split(","):
+				if what == "crossroads":
+					story.arrive_crossroads()
+					await _wait(9.0)
+				elif what == "rift":
+					if station_ui.visible:
+						undock()
+					load_system("marcellus", "aurelia")
+					await _wait(0.5)
+					var j: Node2D = null
+					for b in get_tree().get_nodes_in_group("bodies"):
+						if b.kind == "jump":
+							j = b
+					if j:
+						player.position = j.global_position + Vector2(320, 120)
+					await _wait(1.0)
+				else:
+					Career.flags["franz_met"] = true
+					_go(what)
+					await _wait(0.3)
+				_shot("look_" + what)
+			get_tree().quit()
+			return
 	# --fast: bigger time steps, so rendered runs (screenshots) finish sooner.
 	if "--fast" in OS.get_cmdline_user_args():
 		Engine.time_scale = 4.0
