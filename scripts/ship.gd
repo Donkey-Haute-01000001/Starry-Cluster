@@ -33,9 +33,14 @@ var mounts: Array = []
 var alive := true
 var display_name := ""        ## shown on the roster instead of the hull name
 var is_friend := false        ## the old friend's ship
+var captain_id := ""          ## a hired bar captain's ship (Data.captains)
 var ace := false              ## jinks under fire (pilot friend)
 var accuracy := 1.0           ## multiplies weapon spread (gunner friend: lower is better)
 var traverse_mult := 1.0      ## multiplies turret traverse speed
+var ion_t := 0.0              ## seconds left with engines knocked out by an ion hit
+var hull_floor := 0.0         ## story ships: hull never drops below this fraction
+var hold_fire := false        ## story: guns cold (ceasefire, hails)
+var damage_taken := 0.0       ## running total, for scenes that score a fight
 
 # Inputs, written by the controller.
 var in_move := Vector2.ZERO   ## ship-relative thrust: x forward(+)/back(-), y right(+)/left(-), each -1..1
@@ -107,8 +112,15 @@ func _physics_process(delta: float) -> void:
 		controller.update(delta)
 
 	energy = minf(max_energy, energy + energy_regen * delta)
-	rotation = wrapf(rotation + clampf(in_turn, -1.0, 1.0) * turn_rate * delta, -PI, PI)
-	_apply_thrust(delta)
+	var turn := turn_rate * (0.3 if ion_t > 0.0 else 1.0)
+	rotation = wrapf(rotation + clampf(in_turn, -1.0, 1.0) * turn * delta, -PI, PI)
+	if ion_t > 0.0:
+		# Engines dead: no thrust at all, just a slow drift down.
+		ion_t -= delta
+		velocity = velocity.move_toward(Vector2.ZERO, 20.0 * delta)
+		thrust_out = Vector2.ZERO
+	else:
+		_apply_thrust(delta)
 	position += velocity * delta
 
 	# Shields recharge after a short delay without taking hits, paid for with energy.
@@ -169,7 +181,7 @@ func _update_weapons(delta: float) -> void:
 			var g := deg_to_rad(w["gimbal"])
 			m["angle"] = rotate_toward(m["angle"], clampf(desired_local, -g, g), deg_to_rad(240.0) * delta)
 			firing = in_fire_fixed
-		if not firing or m["cooldown"] > 0.0:
+		if not firing or hold_fire or m["cooldown"] > 0.0:
 			continue
 		# The AI only fires a mount when it is actually lined up and in range.
 		if not is_player:
@@ -192,6 +204,7 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 	if not alive:
 		return
 	since_hit = 0.0
+	damage_taken += amount
 	if shields > 0.0:
 		var absorbed := minf(shields, amount)
 		shields -= absorbed
@@ -201,8 +214,17 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		hull_hp -= amount
 		_hull_flash = 1.0
 		main.spawn_sparks(hit_pos, def["accent"], 4)
+	if hull_floor > 0.0:
+		hull_hp = maxf(hull_hp, max_hull * hull_floor)
 	if hull_hp <= 0.0:
 		die()
+
+
+## An ion bolt: shields soak a little, then the engines go dead for a while.
+func ion_hit(seconds: float) -> void:
+	ion_t = maxf(ion_t, seconds)
+	shields = maxf(0.0, shields - max_shields * 0.5)
+	_shield_flash = 1.0
 
 
 func die() -> void:
@@ -255,6 +277,11 @@ func _draw() -> void:
 				draw_line(p, p + Vector2.RIGHT.rotated(a) * 9.0, col.lightened(0.6), 2.0)
 			else:
 				draw_line(p, p + Vector2.RIGHT.rotated(a) * 7.0, col.lightened(0.5), 2.0)
+	# Ion crackle while the engines are dead.
+	if ion_t > 0.0:
+		for k in 3:
+			var a0 := randf() * TAU
+			draw_arc(Vector2.ZERO, radius * randf_range(0.6, 1.1), a0, a0 + randf_range(0.4, 1.0), 6, Color(0.7, 0.55, 1.0, 0.8), 1.5)
 	# Shield shimmer when hit.
 	if _shield_flash > 0.0 and shields > 0.0:
 		draw_arc(Vector2.ZERO, radius + 6.0, 0.0, TAU, 32, Color(0.4, 0.75, 1.0, 0.6 * _shield_flash), 2.0, true)

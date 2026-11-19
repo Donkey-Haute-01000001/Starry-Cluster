@@ -27,6 +27,11 @@ func _load_font(path: String) -> FontFile:
 
 
 func _ready() -> void:
+	for id in hull_variants:
+		var v: Array = hull_variants[id]
+		var h: Dictionary = hulls[v[0]].duplicate(true)
+		h.merge(v[1], true)
+		hulls[id] = h
 	font_type = _load_font("res://fonts/CourierPrime.ttf")
 	font_type_bold = _load_font("res://fonts/CourierPrime-Bold.ttf")
 	font_stamp = _load_font("res://fonts/BlackOpsOne.ttf")
@@ -69,6 +74,12 @@ var weapons := {
 		"name": "Light Turret", "kind": "turret",
 		"damage": 9.0, "cooldown": 0.2, "energy": 2.5, "speed": 820.0, "range": 640.0,
 		"traverse": 200.0, "spread": 2.0, "color": Color(0.7, 1.0, 0.6), "size": 2.5,
+	},
+	# Story only: the Tallyman's opener. Knocks the engines out instead of killing.
+	"ion_bolt": {
+		"name": "Ion Bolt", "kind": "gun",
+		"damage": 10.0, "cooldown": 9.0, "energy": 0.0, "speed": 700.0, "range": 2400.0,
+		"gimbal": 30.0, "spread": 0.0, "color": Color(0.7, 0.5, 1.0), "size": 7.0, "ion": 14.0,
 	},
 	"pirate_turret": {
 		"name": "Rusty Turret", "kind": "turret",
@@ -289,6 +300,22 @@ var systems := {
 	},
 }
 
+## Story ships, built from a base hull plus overrides (Data._ready merges them).
+var hull_variants := {
+	"tally_gunboat": ["marauder", {"name": "Tally's Gunboat", "sprite": "hull", "sprite_scale": 3.2,
+		"hull": 1600.0, "shields": 800.0, "shield_regen": 30.0, "accel": 300.0, "max_speed": 330.0, "turn": 140.0, "radius": 30.0,
+		"mounts": [{"pos": Vector2(24, -6), "weapon": "pulse_cannon"}, {"pos": Vector2(24, 6), "weapon": "pulse_cannon"},
+			{"pos": Vector2(2, -13), "weapon": "light_turret"}, {"pos": Vector2(2, 13), "weapon": "light_turret"}]}],
+	"tally_escort": ["raider", {"name": "Tally's Raider", "sprite": "pointbreak", "hull": 420.0, "shields": 220.0,
+		"mounts": [{"pos": Vector2(6, -3), "weapon": "pulse_cannon"}, {"pos": Vector2(6, 3), "weapon": "pulse_cannon"}]}],
+	"navy_cutter": ["kestrel", {"name": "FNS Halberd", "sprite": "northstar", "hull": 900.0, "shields": 600.0, "radius": 27.0}],
+	"navy_wing": ["wasp", {"name": "Navy Interceptor", "sprite": "cruxio", "radius": 15.0}],
+	"mud_lark": ["raider", {"name": "Mud Lark", "sprite": "switchblade", "hull": 380.0, "shields": 160.0, "radius": 15.0}],
+	"fay_skiff": ["wasp", {"name": "Fay's Skiff", "sprite": "areisu", "role": "fighter", "hull": 220.0, "shields": 140.0, "radius": 15.0}],
+	"karabey_fighter": ["wasp", {"name": "Karabey Lancer", "sprite": "endra", "hull": 320.0, "shields": 240.0, "accel": 600.0, "max_speed": 490.0, "radius": 17.0,
+		"mounts": [{"pos": Vector2(8, -5), "weapon": "pulse_cannon"}, {"pos": Vector2(8, 5), "weapon": "pulse_cannon"}, {"pos": Vector2(10, 0), "weapon": "pulse_cannon"}]}],
+}
+
 var stations := {
 	"counter": {"art": "hub", "art_size": 300.0, "name": "Aurelia Highport", "nick": "the Counter", "system": "aurelia", "pos": Vector2(760, -380),
 		"makes": ["electronics"], "wants": ["luxuries", "medicine"],
@@ -414,6 +441,8 @@ var speaker_portraits := {
 
 
 func portrait_for(speaker: String) -> Array:
+	if story_portraits.has(speaker):
+		return story_portraits[speaker]
 	return speaker_portraits.get(speaker, [Color(0.75, 0.7, 0.65), Color(0.3, 0.3, 0.3), Color(0.35, 0.4, 0.45)])
 
 
@@ -430,4 +459,81 @@ var friend_lines := {
 	"paid_off": "Free and clear. Never thought I'd see it.",
 	"down": "I'm out! Pod's fine. Meet you at the next dock.",
 	"back": "Patched her up. Where were we?",
+}
+
+
+# --- The rest of the Merchant opening ---------------------------------------------
+# Lines marked DRAFT are mine; everything else is from the script doc, which wins.
+
+## The Tallyman's ambush on your first run into Marcellus (script doc: Tallyman).
+var tally := {
+	"hail": "Easy, easy. Charter colors on a rig that old? Let me guess. Eleven years, company terms, weekly payments.",
+	"choices": [
+		{"text": "Maybe.", "reply": "Maybe. Ha. That's what I used to say."},  # DRAFT reply
+		{"text": "Seven years, actually.", "reply": "Seven. They'll make it eleven. They always do."},  # DRAFT reply
+	],
+	# DRAFT: what he thinks of how you fought.
+	"fought_well": "You fly that brick like you mean it. Most Charter boys just cry on the open channel.",
+	"fought_poorly": "Relax. If I wanted you dead, you'd know it.",
+	"spare": "I'm not taking your cargo. Not this time. Keep paying them. You'll see.",
+	"signoff": "Name's Tallyn. They call me the Tallyman. I keep count.",
+	"dez": "He let us go. Why'd he let us go?",  # DRAFT, Dez's conscience
+}
+
+## Lt. Franz Kessler (script doc: Franz).
+var franz := {
+	"arrival": "Federation Navy, Marcellus patrol. Captain, you hurt? ...The Tallyman. Again. That's the fourth Charter rig this month. He takes the rig, lets the crew walk, and paints another mark on his hull. But he left you alone. Huh.",
+	"intro": "Lieutenant Franz Kessler. If you're hauling through the belt, you'll want friends out here. I post bounties at Four. Pays better than water.",
+	"patched": "Engines are back. My crew can't fix the paint job. Finish your run, captain. We'll keep the belt quiet for an hour.",  # DRAFT
+	"at_four": "Five now. Another Charter rig this morning. He never takes the cargo. He just counts.",  # DRAFT, from the brief
+	"pitch": "We're stretched thin, and honest pilots are rare out here. If you ever get tired of hauling for the Charter, the navy's hiring.",
+	"paid": "Mud Lark's done. Good work, captain. Bounty's yours.",  # DRAFT
+}
+
+## Kessler's board at Four. "alive" waits for boarding.
+var bounty := {
+	"id": "mud_lark", "hull": "mud_lark", "station": "ambers",
+	"title": "BOUNTY: pirate skiff Mud Lark",
+	"text": "Last seen near Amber's. 3,000 credits; alive pays 4,500.",
+	"sign": "Lt. F. Kessler",
+	"pay": 3000, "pay_alive": 4500,
+}
+
+## Bar captains at Saltgate, hired on weekly contracts (script doc: Phaedra, Mersham).
+var captains := {
+	"fay": {"name": "Fay", "full": "Phaedra \"Fay\" Andreou", "hull": "fay_skiff", "ship": "skiff", "wage": 150,
+		"pitch": "You're the one with the freighter? Hire me. I've loaded, fixed, flown and fueled every ship that's ever docked at Saltgate. I'm cheap, I learn fast, and I really, really want to see the gate.",
+		"hired": "You won't regret this! ...Probably!",
+		"note": "Cheap, eager, green. Flies a patched-up skiff."},
+	"mersham": {"name": "Mersham", "full": "Mersham Ali of Clan Karabey", "hull": "karabey_fighter", "ship": "lancer", "wage": 600, "ace": true,
+		"pitch": "You fly a hauler, and your escorts fly like cargo. I flew for Clan Karabey, until the court decided my clan backed the wrong prince. My price is high. My aim is better.",
+		"hired": "Point me at whoever's bothering you.",
+		"note": "Clan Karabey ace. Expensive. Flies point."},
+}
+var captain_order := ["fay", "mersham"]
+## DRAFT: the discovered bond when you hire both.
+var captains_bond := ["Mersham", "Stay on my wing, girl. Watch what I do, not what I say.", "Fay", "...Yes, sir! I mean. Yes."]
+var captain_lines := {
+	"unpaid": "No pay, no wings. Find me at Saltgate when your books are better.",  # DRAFT
+	"down": "Punching out! Pick me up at the next dock.",  # DRAFT
+}
+
+## The ending (script doc: Ending).
+var ending := {
+	"customs": "Writ of Passage, Charter file CC-40817-M... paid in full. Stamped. You're cleared to jump, captain. Don't come back broke.",  # DRAFT
+	"mersham": "...Home. Or what they made of it.",  # DRAFT
+	"line": "The crossroads. Every road in the cluster, and not one of them owes you anything.",
+}
+
+var crossroads := {
+	"name": "The Crossroads", "nick": "Dynasty gate", "security": "Dynasty", "danger": 0.0,
+	"desc": "", "bodies": [], "jumps": [],
+}
+
+var story_portraits := {
+	"Tallyman": [Color(0.72, 0.55, 0.42), Color(0.35, 0.33, 0.3), Color(0.28, 0.24, 0.22)],
+	"Franz": [Color(0.93, 0.8, 0.68), Color(0.78, 0.6, 0.32), Color(0.2, 0.28, 0.42)],
+	"Fay": [Color(0.86, 0.68, 0.54), Color(0.18, 0.12, 0.1), Color(0.55, 0.42, 0.25)],
+	"Mersham": [Color(0.62, 0.45, 0.32), Color(0.1, 0.09, 0.08), Color(0.5, 0.18, 0.16)],
+	"Gate customs": [Color(0.8, 0.66, 0.55), Color(0.25, 0.22, 0.2), Color(0.25, 0.3, 0.36)],
 }

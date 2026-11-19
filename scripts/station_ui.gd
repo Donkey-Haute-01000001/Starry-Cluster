@@ -320,6 +320,71 @@ func _refresh() -> void:
 		d.get_child(0).add_child(row)
 		_button(row, "Pay 1,000 extra", func(): Career.pay_extra(1000), Career.credits > 0)
 		_button(row, "Pay off the loan", func(): Career.pay_extra(Career.loan_balance), Career.credits >= Career.loan_balance)
+	if station_id == "four" and Career.flags.get("franz_met", false) and not Career.flags.get("bounty_paid", false):
+		_bounty_notice()
+	if station_id == "saltgate":
+		_bar()
+
+
+## Kessler's notice, pinned to the board at Four: typed, signed in pen.
+func _bounty_notice() -> void:
+	var b: Dictionary = Data.bounty
+	var paper := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = UIStyle.PAPER
+	sb.set_content_margin_all(12)
+	paper.add_theme_stylebox_override("panel", sb)
+	paper.rotation = deg_to_rad(-0.6)
+	_dispatch.add_child(paper)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	paper.add_child(v)
+	var t := _label(v, b["title"], 15, UIStyle.INK_TYPE)
+	if Data.font_type_bold:
+		t.add_theme_font_override("font", Data.font_type_bold)
+	var body := _label(v, b["text"], 13, UIStyle.INK_TYPE)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if Data.font_type:
+		body.add_theme_font_override("font", Data.font_type)
+	var row := HBoxContainer.new()
+	v.add_child(row)
+	var sig := _label(row, b["sign"], 22, UIStyle.INK_PEN)
+	sig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if Data.font_hand:
+		sig.add_theme_font_override("font", Data.font_hand)
+	if Career.flags.get("bounty_killed", false):
+		_label(row, "DONE: collect here", 13, UIStyle.INK_STAMP)
+	elif Career.flags.get("bounty_taken", false):
+		_label(row, "taken", 13, UIStyle.INK_FADED)
+	else:
+		_button(row, "Take it", func():
+			Sfx.play("tick")
+			Career.take_bounty())
+
+
+## Saltgate's bar: captains for hire on weekly contracts.
+func _bar() -> void:
+	var d := _card(_dispatch, "SALTGATE BAR")
+	for id in Data.captain_order:
+		var c: Dictionary = Data.captains[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		d.get_child(0).add_child(row)
+		var info := VBoxContainer.new()
+		info.add_theme_constant_override("separation", -1)
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(info)
+		var n := _label(info, c["full"], 15, Color(0.92, 0.97, 1.0))
+		if Data.font_bold:
+			n.add_theme_font_override("font", Data.font_bold)
+		_label(info, "%s %s cr/week" % [c["note"], Career.fmt(c["wage"])], 13, UIStyle.TEXT_DIM).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.tooltip_text = c["pitch"]
+		if Career.crew.has(id):
+			_label(row, "Hired", 13, UIStyle.GREEN)
+		else:
+			_button(row, "Hire", func():
+				Sfx.play("stamp", -6.0)
+				Career.hire(id), Career.credits >= c["wage"])
 
 
 func _stat(name: String, value: String, col := Color(0.92, 0.97, 1.0)) -> void:

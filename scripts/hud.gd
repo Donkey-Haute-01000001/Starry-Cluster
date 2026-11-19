@@ -219,7 +219,7 @@ func _order_name(id: String) -> String:
 
 
 func _draw_merchant(vp: Vector2, t: float) -> void:
-	var sys: Dictionary = Data.systems[main.system_id]
+	var sys: Dictionary = Data.systems.get(main.system_id, Data.crossroads)
 	UIStyle.draw_glass(self, Rect2(Vector2(16, 16), Vector2(470, 100)))
 	_text(Vector2(32, 40), _sp("%s SPACE · %s · DAY %d · WEEK %d" % [sys["security"].to_upper(), Data.sector["name"].to_upper(), int(Career.day) + 1, Career.week()]), 10, UIStyle.KICKER)
 	_text(Vector2(32, 72), sys["name"], 28, Color(0.92, 0.97, 1.0), false, true)
