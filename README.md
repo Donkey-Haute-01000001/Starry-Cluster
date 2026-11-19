@@ -25,9 +25,23 @@ Thrusters are always relative to where your ship points. The camera never rotate
 | Wingmen attack target under cursor | T |
 | Zoom | Mouse wheel |
 | Toggle help | H |
-| Restart after defeat | R |
+| Dock at a station / jump through a rift | F (slow down near it; hold still 3 s to jump) |
+| Restart after defeat (sandbox) / back to start screen (merchant) | R |
 
-## Current state: step 1, combat sandbox
+## Current state: Merchant opening
+
+The game opens on a start screen with four starts. Merchant is playable; Scrapper, Miner and Pirate are teased. A **Combat sandbox** button opens the old combat test.
+
+- Four systems (Aurelia, Tiberine, Marcellus, Porta Aquila) linked by jump rifts, eight stations to dock at. The crossroads gate is locked until you have papers.
+- Docking pauses time. Each station has a market: green goods are made there (cheap), orange goods are needed there (pays well). Prices drift weekly.
+- You start docked at the Counter in debt to the Charter Company. Charlie gives you a starter run: 20 tons of water from the Drip to the Greenhouse.
+- Loan payments come out every week (a day is 60 s of flight). Miss one and interest is added. Pay extra or pay it off at the Counter.
+- Marcellus is the rough system: more profit, pirate raiders.
+- Not in yet: the old friend, the Tallyman and Franz, the ending, cruise, saving.
+
+Scripted check: `godot --headless --fixed-fps 60 -- --merchant-test` runs the opening end to end and prints each step.
+
+### Combat sandbox
 
 - Newtonian flight with no drag: you coast until you burn against your motion.
 - A hard top speed per hull. Thrust past it only changes your direction.

@@ -6,6 +6,10 @@ const FxScript := preload("res://scripts/fx.gd")
 const StarfieldScript := preload("res://scripts/starfield.gd")
 const HudScript := preload("res://scripts/hud.gd")
 const WheelScript := preload("res://scripts/tactics_wheel.gd")
+const BodyScript := preload("res://scripts/body.gd")
+const StationUIScript := preload("res://scripts/station_ui.gd")
+
+const JUMP_CHARGE := 3.0
 
 const COMBAT_RANGE := 1500.0
 const WHEEL_TIME_SCALE := 0.2
@@ -29,6 +33,18 @@ var next_wave_t := 3.0
 var kills := 0
 var message := ""
 var message_t := 0.0
+
+# Merchant mode: the Hesper March, one system loaded at a time.
+var merchant := false
+var system_id := ""
+var bodies: Array = []
+var station_ui: Control
+var docked_at := ""
+var jump_charge := -1.0      ## seconds charged, or -1 when not charging
+var jump_target: Node2D = null
+var _pirate_t := 45.0
+var _merchant_test := false
+var _test_t := 0.0
 
 var _wheel_mouse_world := Vector2.ZERO
 var _shake := 0.0
@@ -83,6 +99,27 @@ func _ready() -> void:
 	wheel.visible = false
 	ui.add_child(wheel)
 
+	merchant = Data.mode == "merchant"
+	_merchant_test = "--merchant-test" in OS.get_cmdline_user_args()
+	if _merchant_test:
+		process_mode = Node.PROCESS_MODE_ALWAYS  # keep the scripted test running while docked
+	if merchant:
+		station_ui = Control.new()
+		station_ui.set_script(StationUIScript)
+		station_ui.main = self
+		ui.add_child(station_ui)
+		Career.comms.connect(hud.on_comms)
+		player = spawn_ship("light_freighter", 0, Vector2.ZERO)
+		player.is_player = true
+		player.controller = PlayerController.new(player, self)
+		load_system(Career.system_id, "")
+		# The opening: you start docked at the Counter, where Charlie is waiting.
+		var st: Dictionary = Data.stations["counter"]
+		player.position = st["pos"] + Vector2(0, 120)
+		camera.global_position = player.position
+		dock("counter")
+		return
+
 	player = spawn_ship("kestrel", 0, Vector2.ZERO)
 	player.is_player = true
 	if autotest:
@@ -96,13 +133,175 @@ func _ready() -> void:
 	show_message("Pirates are inbound. Hold Tab to command your wingmen.", 5.0)
 
 
+# --- Merchant mode: systems, docking and jumping ---------------------------
+
+## Load a star system. `from_system` places the player at the matching jump point.
+func load_system(id: String, from_system: String) -> void:
+	for b in bodies:
+		if is_instance_valid(b):
+			b.queue_free()
+	bodies.clear()
+	for s in get_tree().get_nodes_in_group("ships"):
+		if s != player:
+			s.remove_from_group("ships")
+			s.queue_free()
+	fx.projectiles.clear()
+	system_id = id
+	Career.system_id = id
+	var sys: Dictionary = Data.systems[id]
+	for b in sys["bodies"]:
+		_add_body(b["kind"], b)
+	for sid in Data.stations:
+		var st: Dictionary = Data.stations[sid]
+		if st["system"] != id:
+			continue
+		var node := _add_body("station", {"pos": st["pos"]})
+		node.id = sid
+		node.label = st["nick"][0].to_upper() + st["nick"].substr(1)
+		node.sublabel = st["name"]
+	for j in sys["jumps"]:
+		var node := _add_body("jump", {"pos": j["pos"]})
+		node.id = j["to"]
+		node.locked = j.get("locked", false)
+		var dest_name: String = "the Crossroads" if j["to"] == "crossroads" else Data.systems[j["to"]]["name"]
+		node.label = "Jump point: " + dest_name
+		node.sublabel = "Writ of Passage required" if node.locked else "Hold position and press F to jump"
+		if j["to"] == from_system and is_instance_valid(player):
+			# Arrivals scatter a little around the rift.
+			player.position = j["pos"] + (Vector2.ZERO - j["pos"]).normalized() * 380.0 + Vector2(randf_range(-80, 80), randf_range(-80, 80))
+			player.velocity = (Vector2.ZERO - j["pos"]).normalized() * 60.0
+			player.rotation = player.velocity.angle()
+			camera.global_position = player.position
+	_pirate_t = randf_range(25.0, 45.0)
+	show_message("%s  ·  %s  ·  %s" % [sys["name"], sys["nick"], sys["security"]], 4.0)
+
+
+func _add_body(kind: String, data: Dictionary) -> Node2D:
+	var n := Node2D.new()
+	n.set_script(BodyScript)
+	n.setup(kind, data)
+	world.add_child(n)
+	bodies.append(n)
+	return n
+
+
+## The nearest dockable station or jump point within reach of the player.
+func nearby_interactable() -> Node2D:
+	if not is_instance_valid(player):
+		return null
+	var best: Node2D = null
+	var best_d := INF
+	for b in bodies:
+		if not is_instance_valid(b) or not (b.kind in ["station", "jump"]):
+			continue
+		var d: float = player.global_position.distance_to(b.global_position)
+		if d < b.interact_range() and d < best_d:
+			best = b
+			best_d = d
+	return best
+
+
+func _try_interact() -> void:
+	var b := nearby_interactable()
+	if b == null:
+		show_message("Nothing in range. Fly to a station or jump point.", 2.0)
+		return
+	if b.kind == "station":
+		if player.velocity.length() > 140.0:
+			show_message("Too fast to dock. Slow down (hold X to brake).", 2.0)
+			return
+		dock(b.id)
+	elif b.kind == "jump":
+		if b.locked:
+			if Career.flags.get("papers", false):
+				show_message("Your papers check out. The crossroads await... (the ending arrives in a later build)", 4.0)
+			else:
+				show_message("Gate customs: no Writ of Passage, no jump. Pay off your Charter loan.", 3.5)
+			return
+		if jump_charge >= 0.0:
+			return
+		jump_charge = 0.0
+		jump_target = b
+		show_message("Charging jump drive...", 1.5)
+
+
+func dock(id: String) -> void:
+	docked_at = id
+	jump_charge = -1.0
+	if is_instance_valid(player):
+		player.velocity = Vector2.ZERO
+		# Station crews patch you up while you're docked.
+		player.hull_hp = player.max_hull
+		player.shields = player.max_shields
+		player.energy = player.max_energy
+	get_tree().paused = true
+	station_ui.open(id)
+	Career.on_dock(id)
+
+
+func undock() -> void:
+	if docked_at == "":
+		return
+	docked_at = ""
+	station_ui.visible = false
+	get_tree().paused = false
+
+
+func _merchant_step(delta: float) -> void:
+	if not is_instance_valid(player):
+		return
+	Career.advance(delta)
+	# Jump charge: a few vulnerable seconds holding near the rift.
+	if jump_charge >= 0.0:
+		if not is_instance_valid(jump_target) or player.global_position.distance_to(jump_target.global_position) > jump_target.interact_range():
+			jump_charge = -1.0
+			show_message("Jump cancelled: you drifted out of the rift.", 2.0)
+		else:
+			jump_charge += delta
+			if jump_charge >= JUMP_CHARGE:
+				var from := system_id
+				var dest: String = jump_target.id
+				jump_charge = -1.0
+				_shake = 12.0
+				load_system(dest, from)
+	# Pirates hide in the rough systems' rocks.
+	var danger: float = Data.systems[system_id]["danger"]
+	if danger > 0.0 and hostile_count() == 0:
+		_pirate_t -= delta
+		if _pirate_t <= 0.0:
+			_pirate_t = randf_range(70.0, 120.0) / danger
+			var from_angle := randf() * TAU
+			var c := player.global_position + Vector2.RIGHT.rotated(from_angle) * 1500.0
+			for i in 2:
+				var s := spawn_ship("raider", 1, c + Vector2(randf_range(-150, 150), randf_range(-150, 150)), from_angle + PI)
+				s.controller = AIController.new(s, self)
+			show_message("Pirate raiders inbound! Fight, or run for a station.", 3.5)
+
+
+## Where the current objective points: a station here, or the jump toward it.
+func objective_target() -> Node2D:
+	if Career.objective.is_empty():
+		return null
+	var st_id: String = Career.objective["station"]
+	var st_sys: String = Data.stations[st_id]["system"]
+	var want_id := st_id
+	var want_kind := "station"
+	if st_sys != system_id:
+		want_id = Career.next_hop(system_id, st_sys)
+		want_kind = "jump"
+	for b in bodies:
+		if is_instance_valid(b) and b.kind == want_kind and b.id == want_id:
+			return b
+	return null
+
+
 func _setup_input() -> void:
 	var keys := {
 		"thrust_forward": [KEY_W, KEY_UP], "thrust_back": [KEY_S, KEY_DOWN],
 		"strafe_left": [KEY_A], "strafe_right": [KEY_D],
 		"turn_left": [KEY_Q, KEY_LEFT], "turn_right": [KEY_E, KEY_RIGHT],
 		"brake": [KEY_X], "fire_fixed": [KEY_SPACE], "tactics": [KEY_TAB], "target": [KEY_T],
-		"restart": [KEY_R], "toggle_help": [KEY_H, KEY_F1],
+		"restart": [KEY_R], "toggle_help": [KEY_H, KEY_F1], "interact": [KEY_F],
 	}
 	for action in keys:
 		if not InputMap.has_action(action):
@@ -176,6 +375,7 @@ func spawn_explosion(pos: Vector2, radius: float, vel: Vector2) -> void:
 func _on_ship_destroyed(s: Ship) -> void:
 	if s == player:
 		player = null
+		jump_charge = -1.0
 		show_message("", 0.0)
 		return
 	if s.team == 1:
@@ -284,7 +484,12 @@ func _order_focus(at: Vector2) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("restart") and not is_instance_valid(player):
 		Engine.time_scale = 1.0
-		get_tree().reload_current_scene()
+		if merchant:
+			get_tree().change_scene_to_file("res://scenes/start.tscn")
+		else:
+			get_tree().reload_current_scene()
+	elif merchant and event.is_action_pressed("interact") and is_instance_valid(player):
+		_try_interact()
 	elif event.is_action_pressed("toggle_help"):
 		hud.show_help = not hud.show_help
 	elif event.is_action_pressed("target"):
@@ -319,7 +524,11 @@ func _physics_process(delta: float) -> void:
 	if fleet_order == "focus" and focus_target == null:
 		fleet_order = "engage"
 
-	if hostile_count() == 0:
+	if merchant:
+		_merchant_step(delta)
+		if _merchant_test:
+			_merchant_test_step(delta)
+	elif hostile_count() == 0:
 		if next_wave_t <= 0.0:
 			next_wave_t = 6.0 if wave > 0 else 2.0
 			if wave > 0:
@@ -420,3 +629,61 @@ func _autotest_step(delta: float) -> void:
 	if _autotest_t >= 120.0 or not is_instance_valid(player):
 		print("[autotest] done: wave=%d kills=%d escort_losses=%d player_alive=%s" % [wave, kills, _losses, is_instance_valid(player)])
 		get_tree().quit()
+
+
+## Automated check of the Merchant opening: `-- --merchant-test`.
+## Flies the starter job by teleporting between stops and prints the state.
+func _merchant_test_step(delta: float) -> void:
+	_test_t += delta
+	var step := int(_test_t * 60.0)
+	var shots_dir := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--shots="):
+			shots_dir = a.substr(8)
+	match step:
+		30:
+			print("[merchant] start: day=%.2f credits=%d loan=%d jobs=%d objective=%s" % [Career.day, Career.credits, Career.loan_balance, Career.jobs.size(), Career.objective.get("station", "")])
+			if shots_dir != "":
+				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_flight.png")
+		60:
+			player.position = Data.stations["bones"]["pos"] + Vector2(100, 0)
+			player.velocity = Vector2.ZERO
+			dock("bones")
+		62:
+			Career.buy("bones", "parts", 20)
+			if shots_dir != "":
+				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_station.png")
+			undock()
+		90:
+			player.position = Data.stations["drip"]["pos"] + Vector2(100, 0)
+			dock("drip")
+		92:
+			print("[merchant] at drip: hold=%d/%d job_cargo=%s cargo=%s" % [Career.cargo_used(), Career.cargo_capacity, Career.job_cargo, Career.cargo])
+			undock()
+		100:
+			var target := objective_target()
+			print("[merchant] objective points at: %s %s" % [target.kind if target else "none", target.id if target else ""])
+			player.position = target.global_position
+			player.velocity = Vector2.ZERO
+			_try_interact()
+		300:
+			print("[merchant] after jump: system=%s" % system_id)
+			player.position = Data.stations["greenhouse"]["pos"] + Vector2(100, 0)
+			dock("greenhouse")
+		302:
+			var before := Career.credits
+			Career.sell("greenhouse", "parts", 99)
+			print("[merchant] delivered: credits=%d (parts sold for %d) flags=%s objective=%s" % [Career.credits, Career.credits - before, Career.flags, Career.objective])
+			undock()
+		320:
+			Career.day = 6.99
+		400:
+			print("[merchant] after week 1: credits=%d loan=%d" % [Career.credits, Career.loan_balance])
+			load_system("marcellus", "tiberine")
+			_pirate_t = 0.1
+		700:
+			print("[merchant] marcellus: hostiles=%d player_alive=%s" % [hostile_count(), is_instance_valid(player)])
+			if shots_dir != "":
+				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_marcellus.png")
+			print("[merchant] done")
+			get_tree().quit()
