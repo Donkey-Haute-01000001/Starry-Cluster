@@ -53,6 +53,7 @@ var _hull_flash := 0.0
 func setup(id: String, p_team: int, p_main: Node) -> void:
 	hull_id = id
 	def = Data.hulls[id]
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	team = p_team
 	main = p_main
 	max_hull = def["hull"]
@@ -223,24 +224,32 @@ func _draw() -> void:
 				Color(accent.r, accent.g, accent.b, 0.85))
 			draw_colored_polygon(PackedVector2Array([ep + Vector2(0, -1.5), ep + Vector2(-length * 0.55, 0), ep + Vector2(0, 1.5)]),
 				Color(1, 1, 0.9, 0.9))
-	# Hull.
-	var body := col.lerp(Color(1, 0.4, 0.3), _hull_flash * 0.6)
-	draw_colored_polygon(shape, body)
-	var outline := shape.duplicate()
-	outline.append(shape[0])
-	draw_polyline(outline, col.lightened(0.45), 1.5, true)
-	draw_line(Vector2(-radius * 0.5, 0), Vector2(radius * 0.7, 0), col.darkened(0.3), 2.0)
-	if is_player:
-		draw_circle(Vector2(radius * 0.25, 0), 3.0, Color(0.8, 0.95, 1.0))
-	# Mounts: turrets as domes with barrels, guns as short forward barrels.
-	for m in mounts:
-		var p: Vector2 = m["pos"]
-		var a: float = m["angle"]
-		if m["weapon"]["kind"] == "turret":
-			draw_circle(p, 4.5, col.darkened(0.35))
-			draw_line(p, p + Vector2.RIGHT.rotated(a) * 9.0, col.lightened(0.6), 2.0)
-		else:
-			draw_line(p, p + Vector2.RIGHT.rotated(a) * 7.0, col.lightened(0.5), 2.0)
+	# Hull: the sprite when the art is installed, otherwise the polygon.
+	var sprite: String = def.get("sprite", "")
+	var flash := Color(1, 1, 1).lerp(Color(1, 0.45, 0.4), _hull_flash * 0.7)
+	if sprite != "" and Art.draw_fit(self, "ships/%s.png" % sprite, radius * def.get("sprite_scale", 3.2), flash):
+		for m in mounts:
+			if m["weapon"]["kind"] == "turret":
+				var p: Vector2 = m["pos"]
+				draw_line(p, p + Vector2.RIGHT.rotated(m["angle"]) * 9.0, col.lightened(0.6), 2.0)
+	else:
+		var body := col.lerp(Color(1, 0.4, 0.3), _hull_flash * 0.6)
+		draw_colored_polygon(shape, body)
+		var outline := shape.duplicate()
+		outline.append(shape[0])
+		draw_polyline(outline, col.lightened(0.45), 1.5, true)
+		draw_line(Vector2(-radius * 0.5, 0), Vector2(radius * 0.7, 0), col.darkened(0.3), 2.0)
+		if is_player:
+			draw_circle(Vector2(radius * 0.25, 0), 3.0, Color(0.8, 0.95, 1.0))
+		# Mounts: turrets as domes with barrels, guns as short forward barrels.
+		for m in mounts:
+			var p: Vector2 = m["pos"]
+			var a: float = m["angle"]
+			if m["weapon"]["kind"] == "turret":
+				draw_circle(p, 4.5, col.darkened(0.35))
+				draw_line(p, p + Vector2.RIGHT.rotated(a) * 9.0, col.lightened(0.6), 2.0)
+			else:
+				draw_line(p, p + Vector2.RIGHT.rotated(a) * 7.0, col.lightened(0.5), 2.0)
 	# Shield shimmer when hit.
 	if _shield_flash > 0.0 and shields > 0.0:
 		draw_arc(Vector2.ZERO, radius + 6.0, 0.0, TAU, 32, Color(0.4, 0.75, 1.0, 0.6 * _shield_flash), 2.0, true)
