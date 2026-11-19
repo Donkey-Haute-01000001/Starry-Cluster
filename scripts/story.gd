@@ -472,14 +472,49 @@ func _ending_step() -> void:
 class Crossroads extends Node2D:
 	var _t := 0.0
 	var _ships := []
+	## The Dynasty fleet on station, plus the traffic of a chaotic crossroads:
+	## League haulers, pilgrims, nomads, a corsair or two. Same hulls, each
+	## in its owner's paint with a little wear of its own.
+	class Hull extends Node2D:
+		var rel := ""
+		var size := 200.0
+		var vel := Vector2.ZERO
+		var light := Color(0.5, 1.0, 0.6, 0.6)
+		func _process(delta: float) -> void:
+			position += vel * delta
+			queue_redraw()
+		func _draw() -> void:
+			if not Art.draw_fit(self, rel, size, Color(0.88, 0.9, 0.9)):
+				draw_rect(Rect2(-size * 0.5, -size * 0.12, size, size * 0.24), Color(0.3, 0.4, 0.32))
+			draw_circle(Vector2(size * 0.45, 0), 4.0, light)
 	func _ready() -> void:
 		z_index = -1
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 1453
-		var kinds := ["mjolnir_mark_v", "mjolnir_mark_v", "starblaster", "destructor", "trident", "vangaurd", "mjolnir_mark_v"]
-		for i in 16:
-			_ships.append({"kind": kinds[i % kinds.size()], "pos": Vector2(rng.randf_range(-2600, 1800), rng.randf_range(-1300, 1300)),
-				"size": rng.randf_range(160, 380), "speed": rng.randf_range(14, 30)})
+		var groups := [
+			["dynasty", ["mjolnir_mark_v", "destructor", "trident", "vangaurd", "starblaster", "mjolnir_mark_v"], 11, Vector2(160, 380), Color(0.5, 1.0, 0.6)],
+			["league", ["cargo", "harbinger", "diverger"], 3, Vector2(120, 200), Color(1.0, 0.85, 0.4)],
+			["faithful", ["seraph", "arcblaster"], 2, Vector2(90, 150), Color(0.85, 0.7, 1.0)],
+			["nomad", ["bison", "scorpion"], 2, Vector2(100, 170), Color(0.6, 1.0, 0.9)],
+			["pirate", ["crossbow", "diablo"], 2, Vector2(60, 90), Color(1.0, 0.5, 0.3)],
+		]
+		for g in groups:
+			var kinds: Array = g[1]
+			for i in g[2]:
+				var h := Hull.new()
+				h.rel = "ships/%s.png" % kinds[i % kinds.size()]
+				h.size = rng.randf_range(g[3].x, g[3].y)
+				h.position = Vector2(rng.randf_range(-2600, 1800), rng.randf_range(-1300, 1300))
+				var dyn: bool = g[0] == "dynasty"
+				# The fleet holds a slow line; traffic crosses it at its own angles.
+				var heading := PI * 0.95 if dyn else rng.randf_range(0, TAU)
+				h.rotation = heading
+				h.vel = Vector2.RIGHT.rotated(heading) * rng.randf_range(14, 30) * (1.0 if dyn else 2.2)
+				h.light = Color(g[4].r, g[4].g, g[4].b, 0.6)
+				h.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+				h.material = Art.livery(Data.liveries[g[0]], i + 31 * _ships.size(), Art.main_hue(h.rel))
+				add_child(h)
+				_ships.append(h)
 	func _process(delta: float) -> void:
 		_t += delta
 		queue_redraw()
@@ -491,17 +526,10 @@ class Crossroads extends Node2D:
 			draw_circle(Vector2.ZERO, 700, Color(0.2, 0.24, 0.22))
 		else:
 			Art.draw_fit(self, "stations/dyson/00.png", 1700.0, Color(0.85, 0.95, 0.85), frames[int(_t * 4.0) % frames.size()])
+		# The rift you came through, behind you: a tear, not a door.
+		draw_set_transform(Vector2(-1250, 0), 0.3)
+		Rift.draw(self, _t, 520.0, Color(0.6, 0.45, 1.0), 1453, 5.0)
 		draw_set_transform(Vector2.ZERO)
-		# The rift glow behind you.
-		for k in 4:
-			draw_arc(Vector2(-1250, 0), 120.0 + k * 40.0 + sin(_t * 2.0 + k) * 8.0, 0, TAU, 48, Color(0.6, 0.45, 1.0, 0.25 - k * 0.05), 6.0, true)
-		for s in _ships:
-			var p: Vector2 = s["pos"] + Vector2(-s["speed"] * _t, s["speed"] * 0.15 * _t)
-			draw_set_transform(p, PI * 0.95)
-			if not Art.draw_fit(self, "ships/%s.png" % s["kind"], s["size"], Color(0.8, 0.88, 0.8)):
-				draw_rect(Rect2(-s["size"] * 0.5, -s["size"] * 0.12, s["size"], s["size"] * 0.24), Color(0.3, 0.4, 0.32))
-			draw_set_transform(Vector2.ZERO)
-			draw_circle(p + Vector2(s["size"] * 0.5, 0).rotated(PI * 0.95), 4.0, Color(0.5, 1.0, 0.6, 0.6))
 
 
 ## Cinematic subtitles, then the title card. The demo ends hard there.

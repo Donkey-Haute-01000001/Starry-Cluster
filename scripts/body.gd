@@ -112,12 +112,10 @@ func _draw() -> void:
 				var col := Color(0.55, 0.4, 1.0) if not locked else Color(1.0, 0.45, 0.35)
 				# The gate station's ring sits around the rift.
 				Art.draw_fit(self, "gate.png", 240.0, Color(1, 1, 1) if not locked else Color(1.0, 0.6, 0.55))
-				# A slow swirl of light: the rift itself.
-				for k in 5:
-					var r := 40.0 + k * 22.0
-					var a := _t * (0.6 - k * 0.08)
-					draw_arc(Vector2.ZERO, r, a, a + PI * 1.3, 32, Color(col.r, col.g, col.b, 0.5 - k * 0.08), 3.0, true)
-				draw_circle(Vector2.ZERO, 18.0, Color(col.r, col.g, col.b, 0.35))
+				# The rift itself: a natural tear the station was built on.
+				draw_set_transform(Vector2.ZERO, 0.35)
+				Rift.draw(self, _t, 170.0, col, id.hash() % 97, 3.0)
+				draw_set_transform(Vector2.ZERO)
 				draw_arc(Vector2.ZERO, JUMP_RANGE, 0, TAU, 64, Color(col.r, col.g, col.b, 0.1), 2.0, true)
 
 	if label != "":

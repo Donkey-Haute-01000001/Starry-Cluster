@@ -188,7 +188,7 @@ var hulls := {
 		],
 	},
 	"raider": {
-		"name": "Pirate Raider", "sprite": "crossbow", "role": "fighter",
+		"name": "Pirate Raider", "sprite": "crossbow", "role": "fighter", "livery": "pirate",
 		"hull": 140.0, "shields": 70.0, "shield_regen": 12.0, "regen_delay": 2.5,
 		"accel": 480.0, "side_thrust": 0.5, "reverse_thrust": 0.45, "max_speed": 430.0, "turn": 250.0, "radius": 13.0,
 		"energy": 120.0, "energy_regen": 30.0,
@@ -202,7 +202,7 @@ var hulls := {
 		],
 	},
 	"marauder": {
-		"name": "Pirate Marauder", "sprite": "bison", "role": "gunship",
+		"name": "Pirate Marauder", "sprite": "bison", "role": "gunship", "livery": "pirate",
 		"hull": 520.0, "shields": 220.0, "shield_regen": 15.0, "regen_delay": 3.0,
 		"accel": 210.0, "side_thrust": 0.25, "reverse_thrust": 0.3, "max_speed": 250.0, "turn": 100.0, "radius": 26.0,
 		"energy": 220.0, "energy_regen": 35.0,
@@ -300,19 +300,33 @@ var systems := {
 	},
 }
 
+## Faction paint: main color and trim. One model reads as many owners.
+var liveries := {
+	"charter": [Color(0.86, 0.62, 0.18), Color(0.92, 0.9, 0.84)],   # company amber, white trim
+	"navy": [Color(0.32, 0.42, 0.58), Color(0.9, 0.92, 0.96)],      # Federation slate blue, white
+	"pirate": [Color(0.55, 0.26, 0.16), Color(0.85, 0.6, 0.3)],     # rust, scavenged brass
+	"tally": [Color(0.32, 0.12, 0.1), Color(0.85, 0.82, 0.74)],     # oxblood, bone tally marks
+	"dynasty": [Color(0.22, 0.45, 0.32), Color(0.88, 0.7, 0.32)],   # Dynasty green, brass
+	"karabey": [Color(0.6, 0.12, 0.12), Color(0.2, 0.18, 0.18)],    # Clan Karabey crimson and black
+	"league": [Color(0.18, 0.4, 0.55), Color(0.9, 0.78, 0.4)],      # Merchant League teal, gold
+	"faithful": [Color(0.78, 0.75, 0.66), Color(0.45, 0.3, 0.45)],   # pilgrim white, violet
+	"nomad": [Color(0.6, 0.5, 0.3), Color(0.35, 0.6, 0.55)],        # patched ochre, verdigris
+}
+
+
 ## Story ships, built from a base hull plus overrides (Data._ready merges them).
 var hull_variants := {
-	"tally_gunboat": ["marauder", {"name": "Tally's Gunboat", "sprite": "hull", "sprite_scale": 3.2,
+	"tally_gunboat": ["marauder", {"name": "Tally's Gunboat", "sprite": "hull", "sprite_scale": 3.2, "livery": "tally",
 		"hull": 1600.0, "shields": 800.0, "shield_regen": 30.0, "accel": 300.0, "max_speed": 330.0, "turn": 140.0, "radius": 30.0,
 		"mounts": [{"pos": Vector2(24, -6), "weapon": "pulse_cannon"}, {"pos": Vector2(24, 6), "weapon": "pulse_cannon"},
 			{"pos": Vector2(2, -13), "weapon": "light_turret"}, {"pos": Vector2(2, 13), "weapon": "light_turret"}]}],
-	"tally_escort": ["raider", {"name": "Tally's Raider", "sprite": "pointbreak", "hull": 420.0, "shields": 220.0,
+	"tally_escort": ["raider", {"name": "Tally's Raider", "sprite": "pointbreak", "livery": "tally", "hull": 420.0, "shields": 220.0,
 		"mounts": [{"pos": Vector2(6, -3), "weapon": "pulse_cannon"}, {"pos": Vector2(6, 3), "weapon": "pulse_cannon"}]}],
-	"navy_cutter": ["kestrel", {"name": "FNS Halberd", "sprite": "northstar", "hull": 900.0, "shields": 600.0, "radius": 27.0}],
-	"navy_wing": ["wasp", {"name": "Navy Interceptor", "sprite": "cruxio", "radius": 15.0}],
+	"navy_cutter": ["kestrel", {"name": "FNS Halberd", "sprite": "northstar", "livery": "navy", "hull": 900.0, "shields": 600.0, "radius": 27.0}],
+	"navy_wing": ["wasp", {"name": "Navy Interceptor", "sprite": "cruxio", "livery": "navy", "radius": 15.0}],
 	"mud_lark": ["raider", {"name": "Mud Lark", "sprite": "switchblade", "hull": 380.0, "shields": 160.0, "radius": 15.0}],
 	"fay_skiff": ["wasp", {"name": "Fay's Skiff", "sprite": "areisu", "role": "fighter", "hull": 220.0, "shields": 140.0, "radius": 15.0}],
-	"karabey_fighter": ["wasp", {"name": "Karabey Lancer", "sprite": "endra", "hull": 320.0, "shields": 240.0, "accel": 600.0, "max_speed": 490.0, "radius": 17.0,
+	"karabey_fighter": ["wasp", {"name": "Karabey Lancer", "sprite": "endra", "livery": "karabey", "hull": 320.0, "shields": 240.0, "accel": 600.0, "max_speed": 490.0, "radius": 17.0,
 		"mounts": [{"pos": Vector2(8, -5), "weapon": "pulse_cannon"}, {"pos": Vector2(8, 5), "weapon": "pulse_cannon"}, {"pos": Vector2(10, 0), "weapon": "pulse_cannon"}]}],
 }
 

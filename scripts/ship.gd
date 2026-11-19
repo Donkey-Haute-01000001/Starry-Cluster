@@ -64,6 +64,8 @@ func setup(id: String, p_team: int, p_main: Node) -> void:
 	hull_id = id
 	def = Data.hulls[id]
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	if def.has("livery"):
+		material = Art.livery(Data.liveries.get(def["livery"], []), get_instance_id(), Art.main_hue("ships/%s.png" % def.get("sprite", "")))
 	team = p_team
 	main = p_main
 	max_hull = def["hull"]
