@@ -8,6 +8,7 @@ var _comms_speaker := ""
 var _comms_text := ""
 var _comms_t := 0.0
 var _comms_queue: Array = []
+var _comms_age := 0.0
 
 const COL_SHIELD := Color(0.35, 0.7, 1.0)
 const COL_HULL := Color(0.95, 0.75, 0.3)
@@ -18,6 +19,7 @@ const COL_ENERGY := Color(0.75, 0.55, 1.0)
 
 func _process(delta: float) -> void:
 	_comms_t = maxf(0.0, _comms_t - delta)
+	_comms_age += delta
 	if _comms_t <= 0.0 and not _comms_queue.is_empty():
 		var next: Array = _comms_queue.pop_front()
 		_show_comms(next[0], next[1])
@@ -39,6 +41,9 @@ func _show_comms(speaker: String, text: String) -> void:
 	_comms_speaker = speaker
 	_comms_text = text
 	_comms_t = 6.0 + text.length() * 0.04
+	_comms_age = 0.0
+	if main.docked_at == "":
+		Sfx.play("radio", -8.0)
 
 
 func _to_screen(world_pos: Vector2) -> Vector2:
@@ -275,13 +280,44 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 		_text(Vector2(vp.x * 0.5, vp.y * 0.66), "JUMP DRIVE CHARGING", 16, Color(0.75, 0.6, 1.0), true)
 		_bar(Rect2(Vector2(vp.x * 0.5 - 150, vp.y * 0.67), Vector2(300, 8)), frac, Color(0.65, 0.5, 1.0))
 
-	# Comms box: who's talking to you.
+	# Comms: a radio feed. Channel and file number in print, the speaker's ID
+	# photo, and the words coming in a letter at a time over the static.
 	if _comms_t > 0.0 and not main.docked_at:
-		var a := minf(1.0, _comms_t)
-		var r := Rect2(Vector2(16, vp.y - 170), Vector2(540, 150))
-		UIStyle.draw_glass(self, r, a, 12.0, UIStyle.GOLD)
-		draw_rect(Rect2(r.position + Vector2(0, 14), Vector2(3, r.size.y - 28)), Color(UIStyle.GOLD.r, UIStyle.GOLD.g, UIStyle.GOLD.b, a))
-		UIStyle.draw_id_photo(self, Rect2(r.position + Vector2(18, 18), Vector2(60, 72)), Data.portrait_for(_comms_speaker), "", _comms_speaker.hash())
-		_text(r.position + Vector2(100, 34), _sp(_comms_speaker.to_upper()), 12, Color(UIStyle.GOLD.r, UIStyle.GOLD.g, UIStyle.GOLD.b, a))
-		var font := ThemeDB.fallback_font
-		draw_multiline_string(font, r.position + Vector2(100, 60), _comms_text, HORIZONTAL_ALIGNMENT_LEFT, 425, 15, 5, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))
+		_draw_comms(vp)
+
+
+
+func _draw_comms(vp: Vector2) -> void:
+	var a := minf(1.0, _comms_t)
+	var info: Dictionary = Data.speaker_info(_comms_speaker)
+	var col: Color = info["color"]
+	var r := Rect2(Vector2(16, vp.y - 172), Vector2(560, 152))
+	draw_rect(r, Color(0.02, 0.035, 0.045, 0.92 * a))
+	draw_rect(r, Color(col.r, col.g, col.b, 0.35 * a), false, 1.0)
+	# Channel strip across the top.
+	draw_rect(Rect2(r.position, Vector2(r.size.x, 20)), Color(col.r, col.g, col.b, 0.16 * a))
+	var tf: Font = Data.font_type_bold if Data.font_type_bold else ThemeDB.fallback_font
+	draw_string(tf, r.position + Vector2(10, 15), info["channel"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, a))
+	# Signal meter: bars that flicker while the line is still coming in.
+	var typing := _comms_age * 55.0 < _comms_text.length()
+	for k in 5:
+		var on := k < (5 if not typing else 2 + int(_comms_age * 20.0) % 4)
+		draw_rect(Rect2(r.end.x - 60 + k * 9, r.position.y + 14 - k * 2, 5, 3 + k * 2), Color(col.r, col.g, col.b, (0.9 if on else 0.2) * a))
+	# ID photo with its file number; a flicker of static when the line opens.
+	var photo := Rect2(r.position + Vector2(14, 32), Vector2(78, 100))
+	UIStyle.draw_id_photo(self, photo, Data.portrait_for(_comms_speaker), info["serial"], _comms_speaker.hash())
+	if _comms_age < 0.35:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = int(_comms_age * 60.0)
+		for i in 40:
+			var y := photo.position.y + rng.randf() * photo.size.y
+			draw_rect(Rect2(photo.position.x, y, photo.size.x, 1), Color(1, 1, 1, rng.randf() * 0.5))
+	for y in range(int(photo.position.y), int(photo.end.y), 3):
+		draw_line(Vector2(photo.position.x, y), Vector2(photo.end.x, y), Color(0, 0, 0, 0.12 * a), 1.0)
+	# Name, role, then the words.
+	var x := photo.end.x + 18.0
+	_text(Vector2(x, r.position.y + 44), _comms_speaker.to_upper(), 15, Color(1, 1, 1, a), false, true)
+	var role_w := (Data.font_bold if Data.font_bold else ThemeDB.fallback_font).get_string_size(_comms_speaker.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	_text(Vector2(x + role_w + 10, r.position.y + 44), info["role"], 12, Color(col.r, col.g, col.b, 0.85 * a))
+	var shown := _comms_text.substr(0, int(_comms_age * 55.0))
+	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, r.end.x - x - 16, 15, 5, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))

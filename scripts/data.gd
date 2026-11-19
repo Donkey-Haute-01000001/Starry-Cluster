@@ -537,3 +537,23 @@ var story_portraits := {
 	"Mersham": [Color(0.62, 0.45, 0.32), Color(0.1, 0.09, 0.08), Color(0.5, 0.18, 0.16)],
 	"Gate customs": [Color(0.8, 0.66, 0.55), Color(0.25, 0.22, 0.2), Color(0.25, 0.3, 0.36)],
 }
+
+
+## Who's on the radio: channel, role and the file number on their ID photo.
+var speakers := {
+	"Charlie": {"channel": "CH 03  ·  CHARTER DISPATCH", "role": "Dispatch", "serial": "CC-0042-D", "color": Color(1.0, 0.77, 0.42)},
+	"Dock crew": {"channel": "CH 05  ·  DOCK CONTROL", "role": "Loading crew", "serial": "DOCK", "color": Color(0.75, 0.75, 0.7)},
+	"Dez": {"channel": "CH 09  ·  PRIVATE", "role": "Old friend", "serial": "NK-40817-1", "color": Color(0.56, 0.94, 0.64)},
+	"Fay": {"channel": "CH 09  ·  CREW", "role": "Bar captain", "serial": "SG-1187", "color": Color(0.56, 0.94, 0.64)},
+	"Mersham": {"channel": "CH 09  ·  CREW", "role": "Bar captain", "serial": "FED-INT-0031", "color": Color(0.56, 0.94, 0.64)},
+	"Franz": {"channel": "CH 16  ·  FEDERATION NAVY", "role": "Lt., Marcellus patrol", "serial": "FN-2231-LT", "color": Color(0.45, 0.7, 1.0)},
+	"Tallyman": {"channel": "OPEN BAND  ·  UNREGISTERED", "role": "", "serial": "NO FILE", "color": Color(1.0, 0.45, 0.35)},
+	"Gate customs": {"channel": "CH 01  ·  AQUILA CUSTOMS", "role": "Gatehouse", "serial": "AQ-CUSTOMS", "color": Color(0.85, 0.85, 0.95)},
+	"You": {"channel": "OUTBOUND", "role": "", "serial": "CC-40817-M", "color": Color(0.85, 0.92, 0.98)},
+}
+
+
+func speaker_info(who: String) -> Dictionary:
+	if speakers.has(who):
+		return speakers[who]
+	return {"channel": "OPEN BAND", "role": "", "serial": "", "color": Color(0.75, 0.8, 0.85)}
