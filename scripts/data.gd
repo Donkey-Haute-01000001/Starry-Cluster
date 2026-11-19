@@ -524,6 +524,8 @@ var franz := {
 	"at_four": "Five now. Another Charter rig this morning. He never takes the cargo. He just counts.",  # DRAFT, from the brief
 	"pitch": "We're stretched thin, and honest pilots are rare out here. If you ever get tired of hauling for the Charter, the navy's hiring.",
 	"paid": "Mud Lark's done. Good work, captain. Bounty's yours.",  # DRAFT
+	"marines": "Take four of my marines. Knock her dead in the water, get alongside, and they'll do the rest. Alive pays better.",  # DRAFT
+	"paid_alive": "Prize crew brought the Mud Lark in an hour ago. Clean work, captain. Alive rate, plus your share of her hold.",  # DRAFT
 }
 
 ## Kessler's board at Four. "alive" waits for boarding.
@@ -533,6 +535,26 @@ var bounty := {
 	"text": "Last seen near Amber's. 3,000 credits; alive pays 4,500.",
 	"sign": "Lt. F. Kessler",
 	"pay": 3000, "pay_alive": 4500,
+	"crew": 3, "marines": 4,
+	"hold": [["medicine", 8], ["electronics", 6]],
+	"share": 0.2,   ## prize court: your cut of the hold's value
+}
+
+## Boarding plans (demo: Franz's marines). atk/def weight each round; share is
+## how much of the hold survives.
+var board_plans := [
+	{"id": "storm", "name": "Storm the bridge", "note": "Fast and loud. The hold stays intact.",
+		"atk": 1.1, "def": 1.0, "share": 1.0, "order": "Marines, storm the bridge."},
+	{"id": "seal", "name": "Seal the crew in", "note": "Weld the hatches. Safer, but they'll vent cargo.",
+		"atk": 1.0, "def": 0.5, "share": 0.4, "order": "Seal them in. No heroics."},
+]
+
+## Marines on comms during a boarding. DRAFT
+var marine_lines := {
+	"ready": "Alongside. Pick a plan, captain.",
+	"taken": "Ship's ours! Prize crew's taking her to Four.",
+	"repelled": "They're dug in! Falling back, lost %d.",
+	"none": "No marines left. Finish her for the dead bounty.",
 }
 
 ## Bar captains at Saltgate, hired on weekly contracts (script doc: Phaedra, Mersham).

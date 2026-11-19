@@ -783,6 +783,35 @@ func _run_merchant_test() -> void:
 							camera.global_position = e.global_position
 							player.position = e.global_position + Vector2(-60, 40)
 					await _wait(0.2)
+				elif what == "board":
+					if station_ui.visible:
+						undock()
+					Career.flags["franz_met"] = true
+					Career.take_bounty()
+					Career.flags["tally_done"] = true
+					load_system("marcellus", "aurelia")
+					player.position = Data.stations["ambers"]["pos"] + Vector2(300, 0)
+					await _wait(1.0)
+					var lark: Ship = story._bounty_ship
+					for sh in get_tree().get_nodes_in_group("ships"):
+						if sh.team == 1 and sh != lark:
+							sh.die()
+					while not lark.disabled:
+						lark.take_damage(lark.max_hull * 0.1, lark.global_position)
+					player.global_position = lark.global_position + Vector2(170, 60)
+					player.velocity = lark.velocity
+					await _wait(0.5)
+					story.board()
+					await _wait(0.6)
+					_shot("look_board_plan")
+					story.boarding.pick(0)
+					await _wait(2.8)
+					_shot("look_board_breach")
+					while story.boarding != null and story.boarding.phase == "breach":
+						await _wait(0.2)
+					await _wait(0.12)
+					_shot("look_board_stinger")
+					await _wait(2.6)
 				elif what == "rift":
 					if station_ui.visible:
 						undock()
@@ -874,11 +903,36 @@ func _run_merchant_test() -> void:
 	await _wait(1.0)
 	var lark: Ship = story._bounty_ship
 	print("[bounty] spawned=%s objective=%s" % [lark != null and is_instance_valid(lark), Career.objective.get("station", "")])
-	if lark:
-		lark.die()
 	for s in get_tree().get_nodes_in_group("ships"):
-		if s.team == 1:
+		if s.team == 1 and s != lark:
 			s.die()
+	if lark:
+		# Knock it dead in the water, pull alongside, and board until taken.
+		while not lark.disabled:
+			lark.take_damage(lark.max_hull * 0.1, lark.global_position)
+		print("[board] disabled=%s hull=%d/%d" % [lark.disabled, int(lark.hull_hp), int(lark.max_hull)])
+		var tries := 0
+		while is_instance_valid(lark) and lark.team == 1 and Career.flags.get("marines", 0) > 0 and tries < 4:
+			tries += 1
+			player.global_position = lark.global_position + Vector2(160, 0)
+			player.velocity = lark.velocity
+			story.board()
+			await _wait(0.6)
+			if tries == 1:
+				_shot("m_board_plan")
+			story.boarding.pick(0)
+			var w := 0.0
+			while story.boarding != null and story.boarding.phase == "breach" and w < 15.0:
+				await _wait(0.5)
+				w += 0.5
+				if tries == 1 and w == 2.0:
+					_shot("m_board_breach")
+			await _wait(2.6)
+			_shot("m_board_end_%d" % tries)
+			await _wait(3.0)
+		print("[board] tries=%d alive=%s marines=%d share=%s" % [tries, Career.flags.get("bounty_alive"), Career.flags.get("marines", 0), Career.flags.get("prize_share")])
+		if not Career.flags.get("bounty_alive", false) and is_instance_valid(lark):
+			lark.die()
 	_go("four")
 	print("[bounty] killed=%s paid=%s credits=%d" % [Career.flags.get("bounty_killed"), Career.flags.get("bounty_paid"), Career.credits])
 	undock()

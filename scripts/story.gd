@@ -24,6 +24,8 @@ var _ring_ping := 0.0
 var _answered_at := -1.0
 var _base_scale := 1.0
 var _reply_bar: ColorRect
+var boarding: Boarding = null
+var _board_hint := 0.0
 
 
 ## Flies to a point and brakes there. For story ships that aren't fighting.
@@ -297,7 +299,10 @@ func _show_choices() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if ringing and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_B and can_board():
+		get_viewport().set_input_as_handled()
+		board()
+	elif ringing and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C:
 		get_viewport().set_input_as_handled()
 		answer()
 	elif _choices and event is InputEventKey and event.pressed and not event.echo:
@@ -380,6 +385,7 @@ func _bounty_step() -> void:
 	if not f.get("bounty_taken", false) or f.get("bounty_killed", false) or main.system_id != "marcellus":
 		return
 	if _bounty_ship != null and is_instance_valid(_bounty_ship):
+		_board_check()
 		return
 	if not is_instance_valid(main.player) or scene != "":
 		return
@@ -395,9 +401,90 @@ func _bounty_step() -> void:
 		Career.flags["bounty_killed"] = true
 		Career.set_objective("Collect the Mud Lark bounty from Kessler at Four.", "four")
 		main.show_message("Mud Lark destroyed. Collect the bounty at Four.", 3.5))
+	_bounty_ship.disabled_now.connect(func(_s):
+		if Career.flags.get("marines", 0) > 0:
+			main.show_message("Mud Lark disabled! Get alongside and press [B] to board.", 4.0)
+		else:
+			main.show_message("Mud Lark disabled.", 2.5))
 	var wing: Ship = main.spawn_ship("raider", 1, at + Vector2(60, 90), PI)
 	wing.controller = AIController.new(wing, main)
 	main.show_message("Mud Lark spotted near Amber's!", 3.0)
+
+
+## Alongside a disabled Mud Lark with marines aboard: [B] to board.
+func can_board() -> bool:
+	var lark := _bounty_ship
+	if boarding != null or not is_instance_valid(lark) or not lark.disabled or lark.team == 0:
+		return false
+	if Career.flags.get("marines", 0) <= 0 or not is_instance_valid(main.player):
+		return false
+	var p: Ship = main.player
+	return p.global_position.distance_to(lark.global_position) < 280.0 and (p.velocity - lark.velocity).length() < 160.0
+
+
+func _board_check() -> void:
+	_board_hint -= get_physics_process_delta_time()
+	if can_board() and _board_hint <= 0.0:
+		_board_hint = 0.5
+		main.show_message("[B] Board the Mud Lark  ·  %d marines" % Career.flags.get("marines", 0), 0.6)
+
+
+## Opens the plan card. Also used by the scripted test.
+func board() -> void:
+	if not can_board():
+		return
+	Career.say("Marines", Data.marine_lines["ready"])
+	boarding = Boarding.new()
+	boarding.main = main
+	boarding.target = _bounty_ship
+	boarding.marines = Career.flags.get("marines", 0)
+	boarding.defenders = Career.flags.get("lark_crew", Data.bounty["crew"])
+	boarding.plans = Data.board_plans.duplicate(true)
+	boarding.finished.connect(_boarded)
+	boarding.tree_exited.connect(func(): boarding = null)
+	main.hud.get_parent().add_child(boarding)
+
+
+func _boarded(won: bool, plan: Dictionary, left: int) -> void:
+	var lost: int = Career.flags.get("marines", 0) - left
+	Career.flags["marines"] = left
+	if not won:
+		Career.flags["lark_crew"] = boarding.defenders
+		Career.say("Marines", Data.marine_lines["repelled"] % lost)
+		if left <= 0:
+			Career.say("Marines", Data.marine_lines["none"])
+		return
+	var share := Career.prize_share(plan["share"])
+	Career.flags["bounty_alive"] = true
+	Career.flags["bounty_killed"] = true
+	Career.flags["prize_share"] = share
+	Career.say("Marines", Data.marine_lines["taken"])
+	var lines: Array = []
+	for row in Data.bounty["hold"]:
+		var kept := int(round(row[1] * plan["share"]))
+		lines.append("HOLD   %d t %s%s" % [kept, Data.goods[row[0]]["name"].to_lower(), "" if kept == row[1] else "  (%d vented)" % (row[1] - kept)])
+	lines.append("BOUNTY (ALIVE)  %s cr" % _num(Data.bounty["pay_alive"]))
+	lines.append("YOUR PRIZE SHARE  +%s cr" % _num(share))
+	boarding.set_loot(lines)
+	Career.set_objective("Collect the Mud Lark bounty and prize share from Kessler at Four.", "four")
+	# The navy prize crew patches her up and flies her in.
+	var lark := _bounty_ship
+	get_tree().create_timer(3.0).timeout.connect(func():
+		if not is_instance_valid(lark):
+			return
+		lark.team = 0
+		lark.disabled = false
+		lark.hold_fire = true
+		lark.display_name = "Mud Lark (prize)"
+		var pilot := ScriptedPilot.new(lark, main)
+		pilot.goal = Data.stations["four"]["pos"]
+		pilot.face = (pilot.goal - lark.global_position).angle()
+		lark.controller = pilot)
+
+
+static func _num(n: int) -> String:
+	var s := str(n)
+	return s.substr(0, s.length() - 3) + "," + s.substr(s.length() - 3) if n >= 1000 else s
 
 
 # --- The ending --------------------------------------------------------------------

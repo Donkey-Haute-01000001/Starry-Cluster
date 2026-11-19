@@ -155,6 +155,8 @@ func take_bounty() -> void:
 	if flags.get("bounty_taken", false):
 		return
 	flags["bounty_taken"] = true
+	flags["marines"] = Data.bounty["marines"]
+	say("Franz", Data.franz["marines"])
 	set_objective("Hunt the Mud Lark near Amber's, in the outer belt.", Data.bounty["station"])
 	changed.emit()
 
@@ -293,8 +295,12 @@ func on_dock(station: String) -> void:
 			say("Franz", Data.franz["at_four"])
 		if flags.get("bounty_killed", false) and not flags.get("bounty_paid", false):
 			flags["bounty_paid"] = true
-			credits += Data.bounty["pay"]
-			say("Franz", Data.franz["paid"])
+			if flags.get("bounty_alive", false):
+				credits += Data.bounty["pay_alive"] + int(flags.get("prize_share", 0))
+				say("Franz", Data.franz["paid_alive"])
+			else:
+				credits += Data.bounty["pay"]
+				say("Franz", Data.franz["paid"])
 			set_objective("", "")
 		elif not first and flags.get("bounty_paid", false) and not flags.get("franz_pitch", false):
 			flags["franz_pitch"] = true
@@ -399,3 +405,11 @@ static func _fmt(n: int) -> String:
 
 func fmt(n: int) -> String:
 	return _fmt(n)
+
+
+## Your prize-court cut of the Mud Lark's hold, at base prices.
+func prize_share(keep: float) -> int:
+	var total := 0
+	for row in Data.bounty["hold"]:
+		total += int(Data.goods[row[0]]["base"]) * int(row[1])
+	return int(total * Data.bounty["share"] * keep)
