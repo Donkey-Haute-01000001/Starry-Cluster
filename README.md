@@ -8,6 +8,10 @@ A top-down space fleet RPG built in Godot 4. You captain a flagship, build a fle
 2. Open Godot, click **Import**, and choose this folder's `project.godot`.
 3. Press **F5** (or the ▶ button) to play.
 
+## Fonts
+
+All text uses Exo 2 (`fonts/`, SIL Open Font License, free to ship).
+
 ## Art
 
 The ship, planet and station art comes from bought asset packs, which can't be shared publicly, so `art/` is git-ignored. Without it the game draws simple shapes instead.
