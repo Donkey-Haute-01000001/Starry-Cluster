@@ -263,6 +263,9 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 		var pw := ThemeDB.fallback_font.get_string_size(prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x + 44.0
 		UIStyle.draw_glass(self, Rect2(Vector2(vp.x * 0.5 - pw * 0.5, vp.y * 0.62 - 25), Vector2(pw, 36)), 1.0, 8.0, UIStyle.GOLD)
 		_text(Vector2(vp.x * 0.5, vp.y * 0.62), prompt, 17, Color(1.0, 0.92, 0.7), true, true)
+	if is_instance_valid(main.player) and main.player.ion_t > 0.0:
+		var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.008)
+		_text(Vector2(vp.x * 0.5, vp.y * 0.7), "ENGINES DOWN  ·  ION DAMAGE", 18, Color(0.78, 0.62, 1.0, pulse), true, true)
 	if main.jump_charge >= 0.0:
 		var frac: float = main.jump_charge / main.JUMP_CHARGE
 		_text(Vector2(vp.x * 0.5, vp.y * 0.66), "JUMP DRIVE CHARGING", 16, Color(0.75, 0.6, 1.0), true)
