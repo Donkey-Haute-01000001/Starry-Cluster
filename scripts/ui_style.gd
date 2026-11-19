@@ -177,6 +177,8 @@ static func draw_portrait(ci: CanvasItem, r: Rect2, pal: Array, frame := GOLD) -
 ## a corner of the Charter's seal over it. Real portrait art drops in later.
 static var _portrait_cache := {}
 
+static var _photo_bg := {}
+
 const PORTRAIT_FILES := {
 	"Dez": "dez", "Charlie": "charlie", "Franz": "franz", "Tallyman": "tallyman",
 	"Fay": "fay", "Mersham": "mersham", "Gate customs": "customs", "Dock crew": "dock_crew",
@@ -189,14 +191,17 @@ static func portrait_tex(who: String) -> Texture2D:
 		return null
 	if _portrait_cache.has(who):
 		return _portrait_cache[who]
-	var path := "res://portraits/%s.png" % PORTRAIT_FILES[who]
+	# Vishnu's portrait pack (art/, not in git) wins over the hand-made set.
 	var tex: Texture2D = null
-	if ResourceLoader.exists(path):
-		tex = load(path)
-	else:
-		var img := Image.load_from_file(ProjectSettings.globalize_path(path))
-		if img:
-			tex = ImageTexture.create_from_image(img)
+	for path in ["res://art/portraits/%s.png" % PORTRAIT_FILES[who], "res://portraits/%s.png" % PORTRAIT_FILES[who]]:
+		if ResourceLoader.exists(path):
+			tex = load(path)
+		elif FileAccess.file_exists(path):
+			var img := Image.load_from_file(ProjectSettings.globalize_path(path))
+			if img:
+				tex = ImageTexture.create_from_image(img)
+		if tex:
+			break
 	_portrait_cache[who] = tex
 	return tex
 
@@ -212,6 +217,18 @@ static func draw_id_photo(ci: CanvasItem, r: Rect2, pal: Array, serial := "", se
 		ci.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		# Cover the photo, crop centered.
 		var ts := tex.get_size()
+		if ts.x >= ts.y * 0.95:
+			# Square pack portrait: fit the width, sit it on the bottom edge,
+			# and extend its backdrop up to fill the taller photo.
+			if not _photo_bg.has(tex):
+				var img := tex.get_image()
+				_photo_bg[tex] = img.get_pixel(0, 0) if img else Color(0.4, 0.45, 0.5)
+			var bg: Color = _photo_bg[tex]
+			ci.draw_rect(p, Color(bg.r * 0.96, bg.g * 0.95, bg.b * 0.92))
+			var kk := p.size.x / ts.x
+			ci.draw_texture_rect(tex, Rect2(Vector2(p.position.x, p.end.y - ts.y * kk), ts * kk), false, Color(0.96, 0.95, 0.92))
+			_photo_finish(ci, p, serial, seed)
+			return
 		var k := maxf(p.size.x / ts.x, p.size.y / ts.y)
 		var dst := Rect2(p.get_center() - ts * k * 0.5, ts * k)
 		var src := Rect2(Vector2.ZERO, ts)
