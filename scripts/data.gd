@@ -63,6 +63,60 @@ var hulls := {
 			{"pos": Vector2(4, 0), "weapon": "light_turret"},
 		],
 	},
+	# The old friend's ships, one per role. Picked in the friend creator.
+	"friend_gunboat": {
+		"name": "Light Gunboat", "sprite": "starsparrow", "role": "fighter",
+		"hull": 260.0, "shields": 180.0, "shield_regen": 20.0, "regen_delay": 2.0,
+		"accel": 480.0, "side_thrust": 0.55, "reverse_thrust": 0.5, "max_speed": 420.0, "turn": 240.0, "radius": 16.0,
+		"energy": 170.0, "energy_regen": 42.0,
+		"color": Color(0.7, 0.45, 0.4), "accent": Color(1.0, 0.6, 0.3),
+		"shape": [Vector2(18, 0), Vector2(-4, -7), Vector2(-12, -14), Vector2(-9, -3),
+			Vector2(-13, 0), Vector2(-9, 3), Vector2(-12, 14), Vector2(-4, 7)],
+		"engines": [Vector2(-13, -4), Vector2(-13, 4)],
+		"mounts": [
+			{"pos": Vector2(8, -5), "weapon": "pulse_cannon"},
+			{"pos": Vector2(8, 5), "weapon": "pulse_cannon"},
+		],
+	},
+	"friend_corvette": {
+		"name": "Corvette", "sprite": "scifighter", "role": "gunship",
+		"hull": 420.0, "shields": 260.0, "shield_regen": 22.0, "regen_delay": 2.5,
+		"accel": 300.0, "side_thrust": 0.35, "reverse_thrust": 0.35, "max_speed": 340.0, "turn": 150.0, "radius": 21.0,
+		"energy": 220.0, "energy_regen": 46.0,
+		"color": Color(0.45, 0.55, 0.75), "accent": Color(0.4, 0.7, 1.0),
+		"shape": [Vector2(24, 0), Vector2(8, -10), Vector2(-18, -14), Vector2(-14, 0),
+			Vector2(-18, 14), Vector2(8, 10)],
+		"engines": [Vector2(-17, -7), Vector2(-17, 7)],
+		"mounts": [
+			{"pos": Vector2(14, 0), "weapon": "pulse_cannon"},
+			{"pos": Vector2(-2, -8), "weapon": "light_turret"},
+			{"pos": Vector2(-2, 8), "weapon": "light_turret"},
+		],
+	},
+	"salvage_freighter": {
+		"name": "Salvage Freighter", "sprite": "harbinger", "role": "freighter",
+		"hull": 560.0, "shields": 160.0, "shield_regen": 14.0, "regen_delay": 3.0,
+		"accel": 200.0, "side_thrust": 0.25, "reverse_thrust": 0.3, "max_speed": 290.0, "turn": 100.0, "radius": 24.0,
+		"energy": 180.0, "energy_regen": 36.0,
+		"color": Color(0.5, 0.5, 0.48), "accent": Color(1.0, 0.7, 0.3),
+		"shape": [Vector2(26, -9), Vector2(26, 9), Vector2(-24, 12), Vector2(-24, -12)],
+		"engines": [Vector2(-24, -6), Vector2(-24, 6)],
+		"mounts": [
+			{"pos": Vector2(4, 0), "weapon": "light_turret"},
+		],
+	},
+	"friend_freighter": {
+		"name": "Light Freighter", "sprite": "diverger", "role": "freighter",
+		"hull": 480.0, "shields": 240.0, "shield_regen": 18.0, "regen_delay": 3.0,
+		"accel": 210.0, "side_thrust": 0.25, "reverse_thrust": 0.3, "max_speed": 290.0, "turn": 110.0, "radius": 23.0,
+		"energy": 190.0, "energy_regen": 38.0, "cargo": 20,
+		"color": Color(0.6, 0.58, 0.5), "accent": Color(1.0, 0.75, 0.35),
+		"shape": [Vector2(25, -8), Vector2(25, 8), Vector2(-22, 12), Vector2(-22, -12)],
+		"engines": [Vector2(-22, -6), Vector2(-22, 6)],
+		"mounts": [
+			{"pos": Vector2(2, 0), "weapon": "light_turret"},
+		],
+	},
 	"wasp": {
 		"name": "Wasp Interceptor", "sprite": "arachnid", "role": "fighter",
 		"hull": 170.0, "shields": 120.0, "shield_regen": 18.0, "regen_delay": 2.0,
@@ -244,3 +298,62 @@ const LOAN_WEEKLY := 1200
 const LOAN_INTEREST := 0.1   ## fraction of a missed payment added to the balance
 const START_CREDITS := 2000
 const SECONDS_PER_DAY := 60.0
+
+
+# --- The old friend ------------------------------------------------------------
+# Designed right after you pick your start; met at the Greenhouse bar after the
+# first delivery. Flies free. Lines are drafts: the script doc's Old friend tab wins.
+
+var friend_roles := {
+	"pilot": {"name": "Pilot", "hull": "friend_gunboat", "ship": "light gunboat",
+		"bonus": "Better dodging under fire."},
+	"gunner": {"name": "Gunner", "hull": "friend_corvette", "ship": "corvette",
+		"bonus": "Steadier turrets: tighter spread, faster traverse."},
+	"engineer": {"name": "Engineer", "hull": "salvage_freighter", "ship": "salvage freighter",
+		"bonus": "Patches up your fleet between fights."},
+	"trader": {"name": "Trader", "hull": "friend_freighter", "ship": "light freighter",
+		"bonus": "Their hold adds 20 tons to yours, and they haggle: 3% better prices."},
+}
+var friend_role_order := ["pilot", "gunner", "engineer", "trader"]
+
+var friend_memories := {
+	"drip": {"memory": "the night shift we got stranded at the Drip", "trait": "Steady",
+		"trait_desc": "Holds up under fire: their shields recover faster.",
+		"line": "Still warmer than that night at the Drip."},
+	"four": {"memory": "that bar fight on Four", "trait": "Brawler",
+		"trait_desc": "Tough as old boots: a sturdier hull. (Boarding bonus once boarding is in.)",
+		"line": "Just like Four. You take the big one."},
+	"lost": {"memory": "the cargo we \"lost\"", "trait": "Light fingers",
+		"trait_desc": "Knows the back doors: 10% better prices at Amber's.",
+		"line": "Remember what we 'lost'? Nobody ever found it."},
+	"gate": {"memory": "the first time we saw the gate", "trait": "Dreamer",
+		"trait_desc": "Sells survey data: 300 credits the first time you enter a system.",
+		"line": "Told you we'd get through one day."},
+}
+var friend_memory_order := ["drip", "four", "lost", "gate"]
+
+## Portrait palette: skin, hair, jacket. Placeholder until there's portrait art.
+var friend_portraits := [
+	[Color(0.95, 0.8, 0.65), Color(0.3, 0.2, 0.12), Color(0.25, 0.4, 0.6)],
+	[Color(0.75, 0.55, 0.4), Color(0.1, 0.08, 0.07), Color(0.6, 0.3, 0.2)],
+	[Color(0.55, 0.38, 0.26), Color(0.15, 0.1, 0.08), Color(0.3, 0.5, 0.35)],
+	[Color(0.4, 0.27, 0.18), Color(0.05, 0.05, 0.05), Color(0.55, 0.5, 0.25)],
+	[Color(0.9, 0.75, 0.6), Color(0.75, 0.45, 0.2), Color(0.4, 0.4, 0.45)],
+	[Color(0.85, 0.68, 0.55), Color(0.6, 0.6, 0.62), Color(0.5, 0.25, 0.4)],
+]
+var friend_default_names := ["Rook", "Dana", "Teo", "Mags", "Jules", "Sasha"]
+
+## %s slots: name, memory, ship.
+const FRIEND_MEETING := "%s? Is that you? Last time I saw you was %s. Heard you got your own rig. Lucky. Tell you what: I've got a beat-up %s and nothing to haul. You need someone watching your back out there?"
+
+## Conscience: reacts to what you do without blocking it. Drafts.
+var friend_lines := {
+	"joined": "Friends don't take wages. Just don't get me killed.",
+	"first_kill": "Poor bastards. Bet half of them owed somebody too.",
+	"fled": "Running's smart. Living's smarter.",
+	"missed": "Missed one. Don't let it happen twice, they'll own your grandkids.",
+	"paid_extra": "Paying the company early? Who are you?",
+	"paid_off": "Free and clear. Never thought I'd see it.",
+	"down": "I'm out! Pod's fine. Meet you at the next dock.",
+	"back": "Patched her up. Where were we?",
+}

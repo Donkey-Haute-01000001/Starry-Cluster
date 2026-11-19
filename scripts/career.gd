@@ -4,6 +4,8 @@ extends Node
 
 signal comms(speaker: String, text: String)
 signal changed
+signal friend_joined
+signal friend_back
 
 var active := false
 var credits := 0
@@ -17,11 +19,20 @@ var system_id := "aurelia"
 var jobs: Array = []        ## accepted jobs
 var flags := {}
 var objective := {}         ## {"text": String, "station": String} or empty
+## The old friend: name, portrait, role, memory, met, down. Empty until designed.
+var friend := {}
+var visited := {}           ## system ids you've been to
+var _once := {}             ## friend lines that only play once
 var _prices := {}           ## station id -> good id -> price this week
 
 
-func start_merchant() -> void:
+func start_merchant(p_friend: Dictionary = {}) -> void:
 	active = true
+	friend = p_friend.duplicate()
+	friend["met"] = false
+	friend["down"] = false
+	visited = {"aurelia": true}
+	_once = {}
 	credits = Data.START_CREDITS
 	loan_balance = Data.LOAN_TOTAL
 	cargo = {}
@@ -68,6 +79,7 @@ func _weekly_payment() -> void:
 	else:
 		loan_balance += int(due * Data.LOAN_INTEREST)
 		say("Charlie", Data.charlie["missed"])
+		friend_say("missed")
 	changed.emit()
 
 
@@ -80,6 +92,8 @@ func pay_extra(amount: int) -> void:
 	loan_balance -= amount
 	if loan_balance <= 0:
 		_paid_off()
+	else:
+		friend_say("paid_extra", true)
 	changed.emit()
 
 
@@ -88,6 +102,7 @@ func _paid_off() -> void:
 	flags["paid_off"] = true
 	flags["papers"] = true
 	say("Charlie", Data.charlie["paid_off"])
+	friend_say("paid_off", true)
 
 
 # --- Market ------------------------------------------------------------------
@@ -115,6 +130,23 @@ func price(station: String, good: String) -> int:
 	return _prices[station][good]
 
 
+## What you actually pay and get, after your friend's haggling.
+func buy_price(station: String, good: String) -> int:
+	var f := 1.0
+	if friend_with_you() and friend["role"] == "trader":
+		f -= 0.03
+	return maxi(1, int(floor(price(station, good) * f)))
+
+
+func sell_price(station: String, good: String) -> int:
+	var f := 1.0
+	if friend_with_you() and friend["role"] == "trader":
+		f += 0.03
+	if friend_with_you() and friend["memory"] == "lost" and station == "ambers":
+		f += 0.1
+	return int(ceil(price(station, good) * f))
+
+
 func cargo_used() -> int:
 	var n := 0
 	for g in cargo:
@@ -129,7 +161,7 @@ func cargo_free() -> int:
 
 
 func buy(station: String, good: String, tons: int) -> int:
-	var p := price(station, good)
+	var p := buy_price(station, good)
 	tons = mini(tons, mini(cargo_free(), credits / p))
 	if tons <= 0:
 		return 0
@@ -143,7 +175,7 @@ func sell(station: String, good: String, tons: int) -> int:
 	tons = mini(tons, cargo.get(good, 0))
 	if tons <= 0:
 		return 0
-	credits += tons * price(station, good)
+	credits += tons * sell_price(station, good)
 	cargo[good] -= tons
 	if cargo[good] <= 0:
 		cargo.erase(good)
@@ -181,7 +213,68 @@ func on_dock(station: String) -> void:
 				flags["starter_done"] = true
 				say("Charlie", Data.charlie["job_done"])
 				_set_objective("", "")
+	# The old friend is waiting at the Greenhouse bar after your first delivery.
+	if station == "greenhouse" and flags.get("starter_done", false) and not friend.is_empty() and not friend["met"]:
+		_meet_friend()
+	elif friend.get("down", false):
+		friend["down"] = false
+		friend_back.emit()
+		friend_say("back")
+	if station == "ambers" and friend_with_you() and friend["memory"] == "lost":
+		friend_say("callback", true)
 	changed.emit()
+
+
+func _meet_friend() -> void:
+	friend["met"] = true
+	var role: Dictionary = Data.friend_roles[friend["role"]]
+	var mem: Dictionary = Data.friend_memories[friend["memory"]]
+	say(friend["name"], Data.FRIEND_MEETING % [player_name(), mem["memory"], role["ship"]])
+	if friend["role"] == "trader":
+		cargo_capacity += Data.hulls[role["hull"]].get("cargo", 0)
+	friend_joined.emit()
+	friend_say("joined")
+
+
+## The player has no name yet; the friend calls you by your old nickname.
+func player_name() -> String:
+	return friend.get("calls_you", "Cap")
+
+
+func friend_with_you() -> bool:
+	return friend.get("met", false) and not friend.get("down", false)
+
+
+## A line from the friend. `key` is in Data.friend_lines, or "callback" for the
+## shared-memory line. once=true plays it only the first time.
+func friend_say(key: String, once := false) -> void:
+	if not friend_with_you():
+		return
+	if once:
+		if _once.has(key):
+			return
+		_once[key] = true
+	var text: String = Data.friend_memories[friend["memory"]]["line"] if key == "callback" else Data.friend_lines[key]
+	say(friend["name"], text)
+
+
+func friend_shot_down() -> void:
+	if not friend_with_you():
+		return
+	friend_say("down")
+	friend["down"] = true
+	changed.emit()
+
+
+## Called on arriving in a system.
+func on_enter_system(id: String) -> void:
+	if visited.has(id):
+		return
+	visited[id] = true
+	if friend_with_you() and friend["memory"] == "gate":
+		credits += 300
+		say(friend["name"], "New sky. Never gets old. Sold our survey data, by the way: 300 credits.")
+		changed.emit()
 
 
 func _set_objective(text: String, station: String) -> void:

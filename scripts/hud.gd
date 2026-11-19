@@ -7,6 +7,7 @@ var show_help := true
 var _comms_speaker := ""
 var _comms_text := ""
 var _comms_t := 0.0
+var _comms_queue: Array = []
 
 const COL_SHIELD := Color(0.35, 0.7, 1.0)
 const COL_HULL := Color(0.95, 0.75, 0.3)
@@ -17,11 +18,24 @@ const COL_ENERGY := Color(0.75, 0.55, 1.0)
 
 func _process(delta: float) -> void:
 	_comms_t = maxf(0.0, _comms_t - delta)
+	if _comms_t <= 0.0 and not _comms_queue.is_empty():
+		var next: Array = _comms_queue.pop_front()
+		_show_comms(next[0], next[1])
 	queue_redraw()
 
 
 ## Comms messages from people (Charlie, dock crews). Shown in flight for a while.
+## In flight, a line that arrives while another is showing waits its turn.
 func on_comms(speaker: String, text: String) -> void:
+	if main.docked_at == "" and _comms_t > 0.0:
+		_comms_t = minf(_comms_t, 2.5)
+		_comms_queue.append([speaker, text])
+		return
+	_comms_queue.clear()
+	_show_comms(speaker, text)
+
+
+func _show_comms(speaker: String, text: String) -> void:
 	_comms_speaker = speaker
 	_comms_text = text
 	_comms_t = 6.0 + text.length() * 0.04
@@ -122,7 +136,7 @@ func _draw() -> void:
 		if not is_instance_valid(e) or not e.alive:
 			continue
 		y += 22
-		_text(Vector2(20, y), e.def["name"], 13)
+		_text(Vector2(20, y), e.display_name if e.display_name != "" else e.def["name"], 13)
 		_bar(Rect2(Vector2(150, y - 10), Vector2(80, 5)), e.shields / e.max_shields, COL_SHIELD)
 		_bar(Rect2(Vector2(150, y - 3), Vector2(80, 5)), e.hull_hp / e.max_hull, COL_HULL)
 

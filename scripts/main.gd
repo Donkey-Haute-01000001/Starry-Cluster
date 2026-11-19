@@ -44,6 +44,8 @@ var jump_charge := -1.0      ## seconds charged, or -1 when not charging
 var jump_target: Node2D = null
 var _pirate_t := 45.0
 var _merchant_test := false
+var hostile_count_before_jump := 0
+var _first_fight := true
 var _test_t := 0.0
 
 var _wheel_mouse_world := Vector2.ZERO
@@ -103,16 +105,21 @@ func _ready() -> void:
 	_merchant_test = "--merchant-test" in OS.get_cmdline_user_args()
 	if _merchant_test:
 		process_mode = Node.PROCESS_MODE_ALWAYS  # keep the scripted test running while docked
+		Career.comms.connect(func(who, text): print("[comms] %s: %s" % [who, text]))
 	if merchant:
 		station_ui = Control.new()
 		station_ui.set_script(StationUIScript)
 		station_ui.main = self
 		ui.add_child(station_ui)
 		Career.comms.connect(hud.on_comms)
+		Career.friend_joined.connect(spawn_friend)
+		Career.friend_back.connect(spawn_friend)
 		player = spawn_ship("light_freighter", 0, Vector2.ZERO)
 		player.is_player = true
 		player.controller = PlayerController.new(player, self)
 		load_system(Career.system_id, "")
+		if Career.friend_with_you():
+			spawn_friend()
 		# The opening: you start docked at the Counter, where Charlie is waiting.
 		var st: Dictionary = Data.stations["counter"]
 		player.position = st["pos"] + Vector2(0, 120)
@@ -142,9 +149,12 @@ func load_system(id: String, from_system: String) -> void:
 			b.queue_free()
 	bodies.clear()
 	for s in get_tree().get_nodes_in_group("ships"):
-		if s != player:
+		if s != player and not (s in escorts):
 			s.remove_from_group("ships")
 			s.queue_free()
+	if from_system != "" and hostile_count_before_jump > 0:
+		Career.friend_say("fled", true)
+	hostile_count_before_jump = 0
 	fx.projectiles.clear()
 	system_id = id
 	Career.system_id = id
@@ -173,7 +183,15 @@ func load_system(id: String, from_system: String) -> void:
 			player.velocity = (Vector2.ZERO - j["pos"]).normalized() * 60.0
 			player.rotation = player.velocity.angle()
 			camera.global_position = player.position
+			# Escorts come through the rift with you.
+			var k := 0
+			for e in escorts:
+				if is_instance_valid(e):
+					k += 1
+					e.position = player.position + Vector2(-90.0 * k, 60.0 * (1 if k % 2 else -1)).rotated(player.rotation)
+					e.velocity = player.velocity
 	_pirate_t = randf_range(25.0, 45.0)
+	Career.on_enter_system(id)
 	show_message("%s  ·  %s  ·  %s" % [sys["name"], sys["nick"], sys["security"]], 4.0)
 
 
@@ -214,6 +232,8 @@ func _try_interact() -> void:
 		dock(b.id)
 	elif b.kind == "jump":
 		if b.locked:
+			if Career.friend_with_you() and Career.friend["memory"] == "gate":
+				Career.friend_say("callback", true)
 			if Career.flags.get("papers", false):
 				show_message("Your papers check out. The crossroads await... (the ending arrives in a later build)", 4.0)
 			else:
@@ -235,6 +255,10 @@ func dock(id: String) -> void:
 		player.hull_hp = player.max_hull
 		player.shields = player.max_shields
 		player.energy = player.max_energy
+	for e in escorts:
+		if is_instance_valid(e):
+			e.hull_hp = e.max_hull
+			e.shields = e.max_shields
 	get_tree().paused = true
 	station_ui.open(id)
 	Career.on_dock(id)
@@ -262,9 +286,15 @@ func _merchant_step(delta: float) -> void:
 			if jump_charge >= JUMP_CHARGE:
 				var from := system_id
 				var dest: String = jump_target.id
+				hostile_count_before_jump = hostile_count()
 				jump_charge = -1.0
 				_shake = 12.0
 				load_system(dest, from)
+	# An engineer friend patches the fleet up whenever nobody's shooting.
+	if Career.friend_with_you() and Career.friend["role"] == "engineer" and hostile_count() == 0:
+		for s in [player] + escorts:
+			if is_instance_valid(s) and s.alive:
+				s.hull_hp = minf(s.max_hull, s.hull_hp + s.max_hull * 0.02 * delta)
 	# Pirates hide in the rough systems' rocks.
 	var danger: float = Data.systems[system_id]["danger"]
 	if danger > 0.0 and hostile_count() == 0:
@@ -277,6 +307,8 @@ func _merchant_step(delta: float) -> void:
 				var s := spawn_ship("raider", 1, c + Vector2(randf_range(-150, 150), randf_range(-150, 150)), from_angle + PI)
 				s.controller = AIController.new(s, self)
 			show_message("Pirate raiders inbound! Fight, or run for a station.", 3.5)
+			if Career.friend_with_you() and Career.friend["memory"] in ["drip", "four"]:
+				Career.friend_say("callback", true)
 
 
 ## Where the current objective points: a station here, or the jump toward it.
@@ -340,6 +372,32 @@ func add_escort(id: String, offset: Vector2) -> Ship:
 	return s
 
 
+## The old friend joins as an escort, flying the ship their role came with.
+func spawn_friend() -> void:
+	if not is_instance_valid(player):
+		return
+	for e in escorts:
+		if is_instance_valid(e) and e.is_friend:
+			return
+	var f: Dictionary = Career.friend
+	var role: Dictionary = Data.friend_roles[f["role"]]
+	var s := add_escort(role["hull"], Vector2(-120, 70).rotated(player.rotation))
+	s.is_friend = true
+	s.display_name = "%s (%s)" % [f["name"], role["ship"]]
+	match f["role"]:
+		"pilot":
+			s.ace = true
+		"gunner":
+			s.accuracy = 0.35
+			s.traverse_mult = 1.6
+	match f["memory"]:
+		"drip":
+			s.shield_regen *= 1.4
+		"four":
+			s.max_hull *= 1.25
+			s.hull_hp = s.max_hull
+
+
 func spawn_wave() -> void:
 	wave += 1
 	var center := player.global_position if is_instance_valid(player) else Vector2.ZERO
@@ -381,7 +439,11 @@ func _on_ship_destroyed(s: Ship) -> void:
 		return
 	if s.team == 1:
 		kills += 1
+		if merchant:
+			Career.friend_say("first_kill", true)
 	else:
+		if s.is_friend:
+			Career.friend_shot_down()
 		_losses += 1
 		show_message("%s lost!" % s.def["name"], 2.0)
 	escorts.erase(s)
@@ -681,6 +743,7 @@ func _merchant_test_step(delta: float) -> void:
 			var before := Career.credits
 			Career.sell("greenhouse", "parts", 99)
 			print("[merchant] delivered: credits=%d (parts sold for %d) flags=%s objective=%s" % [Career.credits, Career.credits - before, Career.flags, Career.objective])
+			print("[merchant] friend: met=%s escorts=%s capacity=%d" % [Career.friend.get("met"), escorts.map(func(e): return e.display_name), Career.cargo_capacity])
 			undock()
 		318:
 			if shots_dir != "":
@@ -692,7 +755,14 @@ func _merchant_test_step(delta: float) -> void:
 			load_system("marcellus", "tiberine")
 			_pirate_t = 0.1
 		700:
-			print("[merchant] marcellus: hostiles=%d player_alive=%s" % [hostile_count(), is_instance_valid(player)])
+			print("[merchant] marcellus: hostiles=%d player_alive=%s escorts=%d" % [hostile_count(), is_instance_valid(player), escorts.size()])
+			for e in escorts:
+				if is_instance_valid(e) and e.is_friend:
+					e.die()
+			print("[merchant] friend down=%s" % Career.friend.get("down"))
+			dock("four")
+			print("[merchant] after dock: down=%s escorts=%d" % [Career.friend.get("down"), escorts.size()])
+			undock()
 			if shots_dir != "":
 				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_marcellus.png")
 			print("[merchant] done")
