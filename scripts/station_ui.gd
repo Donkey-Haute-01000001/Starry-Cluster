@@ -115,7 +115,7 @@ func _ready() -> void:
 	crow.add_theme_constant_override("separation", 16)
 	_comms_box.add_child(crow)
 	_comms_face = Control.new()
-	_comms_face.custom_minimum_size = Vector2(64, 64)
+	_comms_face.custom_minimum_size = Vector2(60, 72)
 	_comms_face.draw.connect(_draw_face)
 	crow.add_child(_comms_face)
 	var cv := VBoxContainer.new()
@@ -216,7 +216,7 @@ func _on_comms(speaker: String, text: String) -> void:
 func _draw_face() -> void:
 	if _log.is_empty():
 		return
-	UIStyle.draw_portrait(_comms_face, Rect2(Vector2.ZERO, _comms_face.size), Data.portrait_for(_log[-1][0]))
+	UIStyle.draw_id_photo(_comms_face, Rect2(Vector2(3, 3), _comms_face.size - Vector2(6, 6)), Data.portrait_for(_log[-1][0]), "", str(_log[-1][0]).hash())
 
 
 func _refresh() -> void:
