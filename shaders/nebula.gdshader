@@ -7,6 +7,8 @@ uniform vec4 tint_a : source_color = vec4(0.10, 0.32, 0.55, 1.0);
 uniform vec4 tint_b : source_color = vec4(0.38, 0.12, 0.45, 1.0);
 uniform float density = 0.55;
 uniform float seed = 0.0;
+uniform float pixel = 4.0;    // screen pixels per backdrop pixel; 1 = smooth
+uniform float levels = 0.0;   // colour steps per channel; 0 = smooth
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7)) + seed) * 43758.5453); }
 float noise(vec2 p) {
@@ -22,6 +24,8 @@ float fbm(vec2 p) {
 
 void fragment() {
 	vec2 px = SCREEN_UV / SCREEN_PIXEL_SIZE;            // screen pixels
+	vec2 cell = floor(px / pixel);
+	px = cell * pixel;                                   // pixel-art grid
 	vec2 p = (px + cam * 0.025) / 520.0;                 // slow parallax
 	vec2 q = vec2(fbm(p + vec2(0.0, TIME * 0.004)), fbm(p + vec2(5.2, 1.3)));
 	float n = fbm(p + 1.8 * q);
@@ -34,5 +38,11 @@ void fragment() {
 	// Dust lanes darken some of it.
 	col *= 1.0 - smoothstep(0.55, 0.85, fbm(p * 1.7 + 11.0)) * 0.6;
 	vec3 base = vec3(0.006, 0.012, 0.028);
-	COLOR = vec4(base + col, 1.0);
+	col += base;
+	if (levels > 0.0) {
+		// Posterize with a 2x2 ordered dither, like hand-shaded pixel clouds.
+		float d = (mod(cell.x + cell.y * 2.0, 4.0) / 4.0 - 0.375) * 0.5;
+		col = floor(col * levels + d) / levels;
+	}
+	COLOR = vec4(max(col, base), 1.0);
 }
