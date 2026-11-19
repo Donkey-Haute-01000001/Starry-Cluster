@@ -66,8 +66,12 @@ func _draw() -> void:
 	var vp := size
 	var t := Time.get_ticks_msec() / 1000.0
 
+	# During a hail the guns are cold: say so instead of the combat banner.
+	if main.story and main.story.ceasefire():
+		_text(Vector2(vp.x * 0.5, 42), "GUNS COLD", 24, UIStyle.GOLD, true)
+		_text(Vector2(vp.x * 0.5, 64), "You're being hailed. Pick a reply.", 14, Color(1.0, 0.9, 0.7), true)
 	# Combat indicator: pulsing red frame and banner while enemies are close.
-	if main.in_combat:
+	elif main.in_combat:
 		var a := 0.25 + 0.15 * sin(t * 5.0)
 		for k in 4:
 			var inset := float(k) * 6.0

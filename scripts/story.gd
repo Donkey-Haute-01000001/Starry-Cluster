@@ -36,6 +36,11 @@ func busy() -> bool:
 	return scene != ""
 
 
+## True while a scene has called a ceasefire (the Tallyman's hail).
+func ceasefire() -> bool:
+	return scene == "ambush" and _phase in ["hail", "talk", "gone"]
+
+
 # --- The Tallyman's ambush ---------------------------------------------------------
 
 ## First arrival in Marcellus: he's waiting at the jump exit.
