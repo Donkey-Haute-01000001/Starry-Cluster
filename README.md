@@ -10,7 +10,11 @@ A top-down space fleet RPG built in Godot 4. You captain a flagship, build a fle
 
 ## Fonts
 
-All text uses Exo 2 (`fonts/`, SIL Open Font License, free to ship).
+UI text uses Exo 2. The paperwork uses Courier Prime (typed forms), Caveat (handwriting) and Black Ops One (rubber stamps). All are in `fonts/` under the SIL Open Font License, free to ship.
+
+## Sounds
+
+`sounds/` holds the paper and dock foley (stamp, pen, paper, page flip, tick, hydraulic hiss, PA chime, dock hum). They're synthesized from scratch by `python tools/make_sounds.py .`, so they're ours to ship. Music comes later.
 
 ## Art
 
@@ -47,10 +51,10 @@ The game opens on a start screen with four starts. Merchant is playable; Scrappe
 - You start docked at the Counter in debt to the Charter Company. Charlie gives you a starter run: 20 tons of water from the Drip to the Greenhouse.
 - Loan payments come out every week (a day is 60 s of flight). Miss one and interest is added. Pay extra or pay it off at the Counter.
 - Marcellus is the rough system: more profit, pirate raiders.
-- After picking Merchant you design an old friend: name, face, role (pilot, gunner, engineer, trader) and a shared memory. You meet them at the Greenhouse after the first delivery and they fly with you as a free escort, following you through jumps. Each role and memory gives a bonus and callback lines; they comment on what you do. If their ship goes down they pod out and rejoin at your next dock.
+- The title screen is a live shot of your rig in its Charter berth at the Counter, with the paperwork on a clipboard. Sign the loan, then fill in the Charter's emergency-contact form: your old friend Dez Okafor. You pick how you know him (rift pilot, ex-navy gunner, yard mechanic, dock hustler); each background sets his ship, bonuses and callback lines. You meet him at the Greenhouse after the first delivery and he flies with you as a free escort, following you through jumps, and comments on what you do. If his ship goes down he pods out and rejoins at your next dock.
 - Not in yet: the Tallyman and Franz, the ending, cruise, saving.
 
-Scripted check: `godot --headless --fixed-fps 60 -- --merchant-test` runs the opening end to end and prints each step. Add `--friend-role=pilot|gunner|engineer|trader` and `--friend-memory=drip|four|lost|gate` to test the old friend's options.
+Scripted check: `godot --headless --fixed-fps 60 -- --merchant-test` runs the opening end to end and prints each step. Add `--friend-bg=rift_pilot|navy_gunner|yard_mechanic|dock_hustler` (or `--friend-role=pilot|gunner|engineer|trader`) to test Dez's backgrounds. `-- --start-shot=out.png` and `-- --creator-shot=out.png` screenshot the title and the contact form.
 
 ### Combat sandbox
 

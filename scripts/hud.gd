@@ -274,7 +274,7 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 		var r := Rect2(Vector2(16, vp.y - 170), Vector2(540, 150))
 		UIStyle.draw_glass(self, r, a, 12.0, UIStyle.GOLD)
 		draw_rect(Rect2(r.position + Vector2(0, 14), Vector2(3, r.size.y - 28)), Color(UIStyle.GOLD.r, UIStyle.GOLD.g, UIStyle.GOLD.b, a))
-		UIStyle.draw_portrait(self, Rect2(r.position + Vector2(18, 20), Vector2(64, 64)), Data.portrait_for(_comms_speaker))
+		UIStyle.draw_id_photo(self, Rect2(r.position + Vector2(18, 18), Vector2(60, 72)), Data.portrait_for(_comms_speaker), "", _comms_speaker.hash())
 		_text(r.position + Vector2(100, 34), _sp(_comms_speaker.to_upper()), 12, Color(UIStyle.GOLD.r, UIStyle.GOLD.g, UIStyle.GOLD.b, a))
 		var font := ThemeDB.fallback_font
 		draw_multiline_string(font, r.position + Vector2(100, 60), _comms_text, HORIZONTAL_ALIGNMENT_LEFT, 425, 15, 5, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))

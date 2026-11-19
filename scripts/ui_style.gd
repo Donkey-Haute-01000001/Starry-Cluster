@@ -14,6 +14,15 @@ const KICKER := Color(0.5, 0.78, 0.94)
 const GLASS := Color(0.035, 0.085, 0.14, 0.9)
 const GLASS_CARD := Color(0.03, 0.09, 0.14, 0.72)
 
+# Paperwork: the Charter's print, people's pen, rubber stamps.
+const PAPER := Color(0.91, 0.88, 0.8)
+const PAPER_SHADE := Color(0.82, 0.78, 0.69)
+const INK_TYPE := Color(0.16, 0.17, 0.2)      ## typewriter / print
+const INK_PEN := Color(0.13, 0.22, 0.52)      ## ballpoint blue
+const INK_STAMP := Color(0.72, 0.13, 0.12)    ## stamp red
+const INK_FADED := Color(0.42, 0.4, 0.37)
+const BOARD := Color(0.24, 0.18, 0.12)        ## clipboard
+
 
 ## A panel stylebox with two cut corners (top-left, bottom-right).
 static func panel(bg := GLASS, border := Color(0.47, 0.78, 1.0, 0.45), cut := 22, margin := 22.0) -> StyleBoxFlat:
@@ -153,3 +162,43 @@ static func draw_portrait(ci: CanvasItem, r: Rect2, pal: Array, frame := GOLD) -
 	ci.draw_circle(Vector2(c.x, r.position.y + s * 0.42), s * 0.21, pal[0])
 	ci.draw_arc(Vector2(c.x, r.position.y + s * 0.4), s * 0.22, PI * 1.05, PI * 1.95, 16, pal[1], s * 0.09)
 	ci.draw_rect(r, Color(frame.r, frame.g, frame.b, 0.6), false, 1.0)
+
+
+## A Charter ID photo: a grainy, washed-out file photo with a serial number and
+## a corner of the Charter's seal over it. Real portrait art drops in later.
+static func draw_id_photo(ci: CanvasItem, r: Rect2, pal: Array, serial := "", seed := 1) -> void:
+	# Photo paper border.
+	ci.draw_rect(r.grow(3), Color(0.93, 0.91, 0.86))
+	var p := r
+	if serial != "":
+		p.size.y -= 14
+	var wash := func(c: Color) -> Color:
+		var g := c.get_luminance()
+		return Color(lerpf(c.r, g, 0.55) * 0.9 + 0.06, lerpf(c.g, g, 0.55) * 0.92 + 0.07, lerpf(c.b, g, 0.55) * 0.95 + 0.09)
+	ci.draw_rect(p, Color(0.62, 0.66, 0.68))  # backdrop wall
+	ci.draw_rect(Rect2(p.position, Vector2(p.size.x, p.size.y * 0.12)), Color(0.55, 0.59, 0.62))
+	var c := p.get_center()
+	var s := p.size.x
+	var body := PackedVector2Array()
+	var bc := Vector2(c.x, p.end.y + s * 0.08)
+	for i in 33:
+		var q := bc + Vector2.RIGHT.rotated(PI + PI * float(i) / 32.0) * s * 0.42
+		body.append(Vector2(clampf(q.x, p.position.x, p.end.x), minf(q.y, p.end.y)))
+	ci.draw_colored_polygon(body, wash.call(pal[2]))
+	ci.draw_rect(Rect2(c.x - s * 0.07, p.position.y + p.size.y * 0.58, s * 0.14, p.size.y * 0.14), wash.call(pal[0]).darkened(0.1))
+	ci.draw_circle(Vector2(c.x, p.position.y + p.size.y * 0.43), s * 0.2, wash.call(pal[0]))
+	ci.draw_arc(Vector2(c.x, p.position.y + p.size.y * 0.41), s * 0.205, PI * 1.08, PI * 1.92, 16, wash.call(pal[1]), s * 0.07)
+	# Grain and a soft light leak.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	for i in int(s * s * 0.06):
+		var gp := p.position + Vector2(rng.randf() * p.size.x, rng.randf() * p.size.y)
+		var v := rng.randf()
+		ci.draw_rect(Rect2(gp, Vector2(1, 1)), Color(v, v, v, 0.12))
+	ci.draw_rect(Rect2(p.position, Vector2(p.size.x, p.size.y * 0.35)), Color(1, 0.95, 0.85, 0.06))
+	# Seal: a red ring biting into the corner.
+	ci.draw_arc(Vector2(p.end.x - s * 0.08, p.end.y - s * 0.12), s * 0.17, 0, TAU, 24, Color(INK_STAMP.r, INK_STAMP.g, INK_STAMP.b, 0.45), 1.5, true)
+	if serial != "":
+		var f: Font = Data.font_type if Data.font_type else ThemeDB.fallback_font
+		ci.draw_rect(Rect2(p.position.x, p.end.y, p.size.x, 14), Color(0.93, 0.91, 0.86))
+		ci.draw_string(f, Vector2(p.position.x + 2, p.end.y + 11), serial, HORIZONTAL_ALIGNMENT_CENTER, p.size.x - 4, 10, INK_TYPE)

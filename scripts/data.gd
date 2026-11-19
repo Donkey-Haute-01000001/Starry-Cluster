@@ -9,16 +9,35 @@ extends Node
 const UI_FONT := "res://fonts/Exo2.ttf"
 const UI_FONT_WEIGHT := 500
 var font_bold: Font = null  ## titles and headings
+## Paperwork fonts (all SIL Open Font License; see fonts/). The Charter's cold
+## print, people's handwriting on top of it, and rubber stamps.
+var font_type: Font = null       ## Courier Prime: forms, serials, typed text
+var font_type_bold: Font = null
+var font_hand: Font = null       ## Caveat: pen notes, signatures, tally marks
+var font_stamp: Font = null      ## Black Ops One: rubber stamps
+
+
+func _load_font(path: String) -> FontFile:
+	if ResourceLoader.exists(path):
+		return load(path)
+	var ff := FontFile.new()
+	if ff.load_dynamic_font(ProjectSettings.globalize_path(path)) != OK:
+		return null
+	return ff
 
 
 func _ready() -> void:
-	var base: FontFile = null
-	if ResourceLoader.exists(UI_FONT):
-		base = load(UI_FONT)
-	else:
-		base = FontFile.new()
-		if base.load_dynamic_font(ProjectSettings.globalize_path(UI_FONT)) != OK:
-			return
+	font_type = _load_font("res://fonts/CourierPrime.ttf")
+	font_type_bold = _load_font("res://fonts/CourierPrime-Bold.ttf")
+	font_stamp = _load_font("res://fonts/BlackOpsOne.ttf")
+	var hand := _load_font("res://fonts/Caveat.ttf")
+	if hand:
+		font_hand = FontVariation.new()
+		font_hand.base_font = hand
+		font_hand.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 550}
+	var base := _load_font(UI_FONT)
+	if base == null:
+		return
 	var f := FontVariation.new()
 	f.base_font = base
 	f.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): UI_FONT_WEIGHT}
@@ -89,7 +108,7 @@ var hulls := {
 			{"pos": Vector2(4, 0), "weapon": "light_turret"},
 		],
 	},
-	# The old friend's ships, one per role. Picked in the friend creator.
+	# The old friend's ships, one per role. Picked by Dez's background.
 	"friend_gunboat": {
 		"name": "Light Gunboat", "sprite": "starsparrow", "role": "fighter",
 		"hull": 260.0, "shields": 180.0, "shield_regen": 20.0, "regen_delay": 2.0,
@@ -299,13 +318,13 @@ var stations := {
 
 ## Start screen. Only the Merchant start is playable in the demo.
 var starts := [
-	{"id": "merchant", "name": "Merchant", "playable": true,
+	{"id": "merchant", "doc": {"issuer": "THE CHARTER COMPANY", "title": "Rig Financing Agreement", "office": "Aurelia Sector Office", "file": "CC-40817-M", "stamp": "APPROVED", "note": "7 years. never again."}, "name": "Merchant", "playable": true,
 		"blurb": "Seven years of loading freighters. Seven years of planning routes. Seven years of eating shit from your greedy bosses. Every time they made a hundred credits, they tossed you one, and insisted you thank them. But you smiled in their faces, and plotted (no, designed) behind their backs. After seven years, you were able to buy your way out. With the Charter Company financing your first freighter, you're eager to do things your way. It isn't freedom yet. Just a new master who bills weekly. What will your company look like?"},
-	{"id": "scrapper", "name": "Scrapper", "playable": false,
+	{"id": "scrapper", "doc": {"issuer": "REEVES SALVAGE & RECLAMATION", "title": "Debt Ledger, Minor", "office": "Wreckyard Nine", "file": "RS-0013", "stamp": "SEALED", "note": "every meal. he counted every meal."}, "name": "Scrapper", "playable": false,
 		"blurb": "To them, you were worthless vermin. A despondent, lonely, and unloved urchin. No one noticed children like you. There was no point in noticing. Half of your friends were dead by ten. Of those remaining, half would meet violent ends before they reached adulthood. And Uncle Reeves, who sent them into the wrecks, still says you owe him for every meal. You scraped, hid, salvaged, recycled, and reclaimed the life your peers never got to have. You learned how to survive, but not how to live. You kept parts. A reactor coil here, a navigation computer there, eventually a cruise drive, and one fated day, a set of thrusters. After years of starving, unquenched dreaming, you finally built your first ship. She was wretched, she was small, and she barely got the job done, but you had never seen a thing so beautiful in your life. Will people finally notice you?"},
-	{"id": "miner", "name": "Miner", "playable": false,
+	{"id": "miner", "doc": {"issuer": "MINERS' COMPACT", "title": "Family Claim Deed", "office": "Belt Registry", "file": "MC-2216-F", "stamp": "SEALED", "note": "not for sale."}, "name": "Miner", "playable": false,
 		"blurb": "Since you were old enough to crawl, you were accustomed to the sights and sounds of haulers, mining lasers, and claim life. This was a family business for you. You learned to read a rock face before you learned to read. You learned which seams sang and which ones lied. Then the laser rig in Shaft Three failed, and your mother didn't get out in time. She lived. She just can't fly anymore. Now the claim is yours. Your little brother asks when Mom will fly again. You don't have an answer. Eleven workers still clock in every shift, because eleven families still need to eat. The letter came on a Tuesday. A League house, sealed in real wax, offering to buy the claim. The price was an insult. The last line was worse: \"Accidents are so common in the belts. We would hate to see another.\" Your mother read it twice, then burned it. Can you hold what your family built?"},
-	{"id": "pirate", "name": "Pirate", "playable": false,
+	{"id": "pirate", "doc": {"issuer": "SECTOR PATROL", "title": "Notice of Bounty", "office": "Wanted, Dead or Alive", "file": "SP-7741-W", "stamp": "SEALED", "note": "rex says one last run."}, "name": "Pirate", "playable": false,
 		"blurb": "You were alone for as long as you could remember. No crew, no flag, no one to watch your back. You took what you needed from whoever couldn't stop you, until the day you jumped the wrong ship. Captain Rex outflew you, shot out your engines, and boarded you himself. Then, instead of spacing you, he laughed. \"Work for me, kid.\" Nobody had ever offered you anything before. Six years later, his crew is the only family you've known. You've bled for his dream: a fleet, a flag, a name nobody can take away. Tonight is the big one. One last run, Rex says, and the dream comes true for all of you. Where would you be without him?"},
 ]
 
@@ -326,9 +345,14 @@ const START_CREDITS := 2000
 const SECONDS_PER_DAY := 60.0
 
 
-# --- The old friend ------------------------------------------------------------
-# Designed right after you pick your start; met at the Greenhouse bar after the
-# first delivery. Flies free. Lines are drafts: the script doc's Old friend tab wins.
+# --- The old friend: Desmond "Dez" Okafor ---------------------------------------
+# Prewritten. The player picks one of four backgrounds on the Charter's
+# emergency-contact form; each bundles a role, a shared memory and lines. Met at
+# the Greenhouse bar after the first delivery. Flies free. Lines are drafts: the
+# script doc's Old friend tab wins.
+
+const FRIEND_NAME := "Dez"
+const FRIEND_FULL_NAME := "Desmond Okafor"
 
 var friend_roles := {
 	"pilot": {"name": "Pilot", "hull": "friend_gunboat", "ship": "light gunboat",
@@ -338,52 +362,63 @@ var friend_roles := {
 	"engineer": {"name": "Engineer", "hull": "salvage_freighter", "ship": "salvage freighter",
 		"bonus": "Patches up your fleet between fights."},
 	"trader": {"name": "Trader", "hull": "friend_freighter", "ship": "light freighter",
-		"bonus": "Their hold adds 20 tons to yours, and they haggle: 3% better prices."},
+		"bonus": "His hold adds 20 tons to yours, and he haggles: 3% better prices."},
 }
-var friend_role_order := ["pilot", "gunner", "engineer", "trader"]
 
 var friend_memories := {
-	"drip": {"memory": "the night shift we got stranded at the Drip", "trait": "Steady",
-		"trait_desc": "Holds up under fire: their shields recover faster.",
-		"line": "Still warmer than that night at the Drip."},
+	"drip": {"memory": "the winter we kept your old rig running at the Drip", "trait": "Steady",
+		"trait_desc": "Holds up under fire: his shields recover faster.",
+		"line": "Still warmer than that winter at the Drip."},
 	"four": {"memory": "that bar fight on Four", "trait": "Brawler",
 		"trait_desc": "Tough as old boots: a sturdier hull. (Boarding bonus once boarding is in.)",
 		"line": "Just like Four. You take the big one."},
-	"lost": {"memory": "the cargo we \"lost\"", "trait": "Light fingers",
+	"lost": {"memory": "the night that crate \"fell off\" at Amber's", "trait": "Light fingers",
 		"trait_desc": "Knows the back doors: 10% better prices at Amber's.",
-		"line": "Remember what we 'lost'? Nobody ever found it."},
+		"line": "Remember that crate? Nobody ever found it."},
 	"gate": {"memory": "the first time we saw the gate", "trait": "Dreamer",
 		"trait_desc": "Sells survey data: 300 credits the first time you enter a system.",
 		"line": "Told you we'd get through one day."},
 }
-var friend_memory_order := ["drip", "four", "lost", "gate"]
 
-## Portrait palette: skin, hair, jacket. Placeholder until there's portrait art.
-var friend_portraits := [
-	[Color(0.95, 0.8, 0.65), Color(0.3, 0.2, 0.12), Color(0.25, 0.4, 0.6)],
-	[Color(0.75, 0.55, 0.4), Color(0.1, 0.08, 0.07), Color(0.6, 0.3, 0.2)],
-	[Color(0.55, 0.38, 0.26), Color(0.15, 0.1, 0.08), Color(0.3, 0.5, 0.35)],
-	[Color(0.4, 0.27, 0.18), Color(0.05, 0.05, 0.05), Color(0.55, 0.5, 0.25)],
-	[Color(0.9, 0.75, 0.6), Color(0.75, 0.45, 0.2), Color(0.4, 0.4, 0.45)],
-	[Color(0.85, 0.68, 0.55), Color(0.6, 0.6, 0.62), Color(0.5, 0.25, 0.4)],
-]
+## The four backgrounds on the form. "note" is your handwriting in the margin.
+var friend_backgrounds := {
+	"rift_pilot": {"title": "Rift pilot", "role": "pilot", "memory": "gate",
+		"typed": "Flew survey skiffs out to the dead rifts. Will not stop talking about what's past them.",
+		"note": "made me watch the gate\nall night. worth it."},
+	"navy_gunner": {"title": "Ex-navy gunner", "role": "gunner", "memory": "four",
+		"typed": "Washed out of the navy. Cleared a bar on Four with the applicant.",
+		"note": "he started it. I finished it."},
+	"yard_mechanic": {"title": "Yard mechanic", "role": "engineer", "memory": "drip",
+		"typed": "Kept the applicant's last rig alive one winter at the Drip, on parts and spite.",
+		"note": "owe him a reactor. and my life."},
+	"dock_hustler": {"title": "Dock hustler", "role": "trader", "memory": "lost",
+		"typed": "Knows every buyer from here to Amber's. Ask no questions about the crate.",
+		"note": "what crate?"},
+}
+var friend_background_order := ["rift_pilot", "navy_gunner", "yard_mechanic", "dock_hustler"]
+
+
+## Everything Career needs to know about Dez for one background.
+func friend_for(bg: String) -> Dictionary:
+	var b: Dictionary = friend_backgrounds[bg]
+	return {"name": FRIEND_NAME, "calls_you": "Cap", "background": bg,
+		"role": b["role"], "memory": b["memory"]}
+
+
 ## Portraits for the people who talk to you on comms (placeholder art).
 var speaker_portraits := {
+	"Dez": [Color(0.36, 0.23, 0.16), Color(0.06, 0.05, 0.05), Color(0.38, 0.4, 0.26)],
 	"Charlie": [Color(0.94, 0.78, 0.66), Color(0.55, 0.3, 0.15), Color(0.23, 0.42, 0.6)],
 	"Dock crew": [Color(0.7, 0.55, 0.42), Color(0.2, 0.18, 0.16), Color(0.55, 0.45, 0.2)],
 }
 
 
 func portrait_for(speaker: String) -> Array:
-	if Career.friend.get("name", "") == speaker:
-		return friend_portraits[Career.friend.get("portrait", 0)]
 	return speaker_portraits.get(speaker, [Color(0.75, 0.7, 0.65), Color(0.3, 0.3, 0.3), Color(0.35, 0.4, 0.45)])
 
 
-var friend_default_names := ["Rook", "Dana", "Teo", "Mags", "Jules", "Sasha"]
-
 ## %s slots: name, memory, ship.
-const FRIEND_MEETING := "%s? Is that you? Last time I saw you was %s. Heard you got your own rig. Lucky. Tell you what: I've got a beat-up %s and nothing to haul. You need someone watching your back out there?"
+const FRIEND_MEETING := "%s? Is that you? Last time I saw you was %s. Heard you got your own rig. Look at you, a real captain. Tell you what: I've got a beat-up %s and nothing to haul. You need someone watching your back out there?"
 
 ## Conscience: reacts to what you do without blocking it. Drafts.
 var friend_lines := {
