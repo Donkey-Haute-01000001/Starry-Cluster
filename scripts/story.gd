@@ -481,9 +481,27 @@ class Crossroads extends Node2D:
 		var vel := Vector2.ZERO
 		var light := Color(0.5, 1.0, 0.6, 0.6)
 		func _process(delta: float) -> void:
+			_t += delta
 			position += vel * delta
 			queue_redraw()
+		var _t := 0.0
 		func _draw() -> void:
+			# Void fleet hulls are folders: animated engine strip under the base.
+			if not rel.ends_with(".png"):
+				var base := Art.tex(rel + "/base.png")
+				var u := Art.used_rect(rel + "/base.png")
+				if base:
+					var k := size / maxf(maxf(u.size.x, u.size.y), 1.0)
+					draw_set_transform(Vector2.ZERO, PI * 0.5, Vector2(k, k))
+					var eng := Art.tex(rel + "/engine.png")
+					if eng:
+						var n := maxi(1, roundi(float(eng.get_width()) / eng.get_height()))
+						var c := float(eng.get_width()) / n
+						var h := float(eng.get_height())
+						draw_texture_rect_region(eng, Rect2(Vector2(-c, -h) * 0.5, Vector2(c, h)), Rect2((int(_t * 10.0) % n) * c, 0, c, h))
+					draw_texture_rect(base, Rect2(-base.get_size() * 0.5, base.get_size()), false)
+					draw_set_transform(Vector2.ZERO)
+				return
 			if not Art.draw_fit(self, rel, size, Color(0.88, 0.9, 0.9)):
 				draw_rect(Rect2(-size * 0.5, -size * 0.12, size, size * 0.24), Color(0.3, 0.4, 0.32))
 			draw_circle(Vector2(size * 0.45, 0), 4.0, light)
@@ -492,17 +510,19 @@ class Crossroads extends Node2D:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 1453
 		var groups := [
-			["dynasty", ["mjolnir_mark_v", "star_marine_trooper", "destructor", "meteor_slicer", "trident", "ultraviolet_intruder", "vangaurd", "starblaster"], 12, Vector2(160, 380), Color(0.5, 1.0, 0.6)],
+			["dynasty", ["@nairan/dreadnought", "@nairan/battlecruiser", "@nairan/frigate", "@nairan/torpedo_ship", "@nairan/frigate", "@nairan/bomber", "star_marine_trooper", "@nairan/battlecruiser"], 12, Vector2(160, 380), Color(0.5, 1.0, 0.6)],
+			["dynasty", ["@nairan/fighter", "@nairan/scout", "@nairan/fighter"], 8, Vector2(40, 60), Color(0.5, 1.0, 0.6)],
 			["league", ["transtellar", "dual_striker", "cargo", "harbinger"], 4, Vector2(120, 220), Color(1.0, 0.85, 0.4)],
 			["faithful", ["seraph", "arcblaster"], 2, Vector2(90, 150), Color(0.85, 0.7, 1.0)],
 			["nomad", ["bison", "scorpion"], 2, Vector2(100, 170), Color(0.6, 1.0, 0.9)],
-			["pirate", ["red_fighter", "galactix_racer", "diablo"], 3, Vector2(60, 90), Color(1.0, 0.5, 0.3)],
+			["pirate", ["@nautolan/fighter", "@nautolan/scout", "@nautolan/bomber"], 3, Vector2(50, 80), Color(1.0, 0.5, 0.3)],
 		]
 		for g in groups:
 			var kinds: Array = g[1]
 			for i in g[2]:
 				var h := Hull.new()
-				h.rel = "ships/%s.png" % kinds[i % kinds.size()]
+				var kind: String = kinds[i % kinds.size()]
+				h.rel = "ships/" + kind.substr(1) if kind.begins_with("@") else "ships/%s.png" % kind
 				h.size = rng.randf_range(g[3].x, g[3].y)
 				h.position = Vector2(rng.randf_range(-2600, 1800), rng.randf_range(-1300, 1300))
 				var dyn: bool = g[0] == "dynasty"
@@ -511,8 +531,11 @@ class Crossroads extends Node2D:
 				h.rotation = heading
 				h.vel = Vector2.RIGHT.rotated(heading) * rng.randf_range(14, 30) * (1.0 if dyn else 2.2)
 				h.light = Color(g[4].r, g[4].g, g[4].b, 0.6)
-				h.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-				h.material = Art.livery(Data.liveries[g[0]], i + 31 * _ships.size(), Art.main_hue(h.rel))
+				if h.rel.ends_with(".png"):
+					h.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+					h.material = Art.livery(Data.liveries[g[0]], i + 31 * _ships.size(), Art.main_hue(h.rel))
+				else:
+					h.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 				add_child(h)
 				_ships.append(h)
 	func _process(delta: float) -> void:

@@ -66,6 +66,10 @@ func setup(id: String, p_team: int, p_main: Node) -> void:
 	hull_id = id
 	def = Data.hulls[id]
 	# Some hulls come in several models; each ship picks one.
+	if not def.get("layered_alts", []).is_empty():
+		def = def.duplicate()
+		var la: Array = def["layered_alts"]
+		def["layered"] = {"dir": la[randi() % la.size()]}
 	if not def.get("sprite_alts", []).is_empty():
 		def = def.duplicate()
 		var alts: Array = def["sprite_alts"]
@@ -74,7 +78,8 @@ func setup(id: String, p_team: int, p_main: Node) -> void:
 	if def.has("layered"):
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if def.has("livery"):
-		material = Art.livery(Data.liveries.get(def["livery"], []), get_instance_id(), Art.main_hue("ships/%s.png" % def.get("sprite", "")))
+		var art_rel: String = "ships/%s/base.png" % def["layered"]["dir"] if def.has("layered") else "ships/%s.png" % def.get("sprite", "")
+		material = Art.livery(Data.liveries.get(def["livery"], []), get_instance_id(), Art.main_hue(art_rel))
 	team = p_team
 	main = p_main
 	max_hull = def["hull"]
@@ -246,6 +251,20 @@ func die() -> void:
 		return
 	alive = false
 	main.spawn_explosion(global_position, radius, velocity)
+	# Void fleet ships break apart in their own frames.
+	if def.has("layered"):
+		var t := Art.tex("ships/%s/destruction.png" % def["layered"]["dir"])
+		if t:
+			var wreck := Wreck.new()
+			wreck.tex = t
+			wreck.global_position = global_position
+			wreck.rotation = rotation + PI * 0.5
+			var u := Art.used_rect("ships/%s/base.png" % def["layered"]["dir"])
+			var k: float = radius * float(def.get("sprite_scale", 3.6)) / maxf(maxf(u.size.x, u.size.y), 1.0)
+			wreck.scale = Vector2(k, k)
+			wreck.velocity = velocity
+			wreck.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			main.add_child(wreck)
 	destroyed.emit(self)
 	queue_free()
 
@@ -325,34 +344,73 @@ func _draw_rcs(accent: Color) -> void:
 		draw_colored_polygon(PackedVector2Array([p + n, p + d * length, p - n]), col)
 
 
-## Modular pixel ships (Foozle's Void pack and the like): engine flame frames
-## that idle or roar with thrust, the engine, the hull in four damage states,
-## and the weapon, whose frames play when it fires. Art is nose-up; ours is
-## nose-right.
+## Modular pixel ships (Foozle's Void packs): an animated engine strip that
+## idles or roars with thrust, the hull (in damage states when the art has
+## them), the weapon strip that plays when it fires, and the shield strip when
+## it takes a hit. Art is nose-up; ours is nose-right.
 func _draw_layered(spec: Dictionary, flash: Color) -> void:
 	var dir: String = "ships/" + spec["dir"]
-	var cell := float(spec.get("cell", 48))
-	var k: float = radius * float(def.get("sprite_scale", 3.6)) / cell
-	draw_set_transform(Vector2.ZERO, PI * 0.5, Vector2(k, k))
-	var half := Vector2(cell, cell) * 0.5
-	var thrusting: bool = thrust_out.x > 0.05
-	var flame := Art.tex("%s/flame_%s_%s.png" % [dir, spec["engine"], "power" if thrusting else "idle"])
-	if flame:
-		var n := int(flame.get_width() / cell)
-		var f := int(_anim_t * 12.0) % maxi(n, 1)
-		draw_texture_rect_region(flame, Rect2(-half, Vector2(cell, cell)), Rect2(f * cell, 0, cell, cell))
-	var eng := Art.tex("%s/engine_%s.png" % [dir, spec["engine"]])
-	if eng:
-		draw_texture_rect(eng, Rect2(-half, Vector2(cell, cell)), false, flash)
 	var frac := hull_hp / maxf(max_hull, 1.0)
 	var state := 0 if frac > 0.75 else (1 if frac > 0.5 else (2 if frac > 0.25 else 3))
 	var base := Art.tex("%s/base_%d.png" % [dir, state])
-	if base:
-		draw_texture_rect(base, Rect2(-half, Vector2(cell, cell)), false, flash)
-	if spec.has("weapon"):
-		var w := Art.tex("%s/weapon_%s.png" % [dir, spec["weapon"]])
-		if w:
-			var n := int(w.get_width() / cell)
-			var f := mini(int(_fired_t * 20.0), n - 1) if _fired_t < 1.0 else 0
-			draw_texture_rect_region(w, Rect2(-half, Vector2(cell, cell)), Rect2(f * cell, 0, cell, cell), flash)
+	if base == null:
+		base = Art.tex(dir + "/base.png")
+	if base == null:
+		return
+	# Fit the visible hull, not the padded frame, to the ship's size.
+	var u := Art.used_rect(dir + "/base.png" if Art.tex(dir + "/base.png") else dir + "/base_0.png")
+	var span := maxf(u.size.x, u.size.y) if u.size != Vector2.ZERO else float(base.get_height())
+	var k: float = radius * float(def.get("sprite_scale", 3.6)) / span
+	draw_set_transform(Vector2.ZERO, PI * 0.5, Vector2(k, k))
+	var thrusting: bool = thrust_out.x > 0.05
+	# Engine: the Void main ship has idle/power flame strips; fleet ships one strip.
+	var flame := Art.tex("%s/flame_%s_%s.png" % [dir, spec.get("engine", ""), "power" if thrusting else "idle"])
+	if flame == null:
+		flame = Art.tex(dir + "/engine.png")
+	if flame:
+		_strip(flame, int(_anim_t * (14.0 if thrusting else 7.0)), Color(1, 1, 1, 1.0 if thrusting else 0.6))
+	var eng := Art.tex("%s/engine_%s.png" % [dir, spec.get("engine", "")])
+	if eng:
+		draw_texture_rect(eng, Rect2(-eng.get_size() * 0.5, eng.get_size()), false, flash)
+	draw_texture_rect(base, Rect2(-base.get_size() * 0.5, base.get_size()), false, flash)
+	var w := Art.tex("%s/weapon_%s.png" % [dir, spec["weapon"]]) if spec.has("weapon") else Art.tex(dir + "/weapons.png")
+	if w:
+		var n := _frames_in(w)
+		_strip(w, mini(int(_fired_t * 20.0), n - 1) if _fired_t < 1.0 else 0, flash)
+	if _shield_flash > 0.0:
+		var sh := Art.tex(dir + "/shield.png")
+		if sh:
+			_strip(sh, int((1.0 - _shield_flash) * _frames_in(sh)), Color(1, 1, 1, _shield_flash))
 	draw_set_transform(Vector2.ZERO)
+
+
+func _frames_in(t: Texture2D) -> int:
+	return maxi(1, roundi(float(t.get_width()) / float(t.get_height())))
+
+
+## Draws frame `f` of a square-frame strip, centered.
+func _strip(t: Texture2D, f: int, mod: Color) -> void:
+	var n := _frames_in(t)
+	var c := float(t.get_width()) / n
+	var h := float(t.get_height())
+	draw_texture_rect_region(t, Rect2(Vector2(-c, -h) * 0.5, Vector2(c, h)), Rect2((f % n) * c, 0, c, h), mod)
+
+
+## A destroyed Void ship's break-up animation, drifting with the wreck.
+class Wreck extends Node2D:
+	var tex: Texture2D
+	var velocity := Vector2.ZERO
+	var t := 0.0
+	func _process(delta: float) -> void:
+		t += delta
+		position += velocity * delta
+		velocity *= 0.98
+		var n := maxi(1, roundi(float(tex.get_width()) / tex.get_height()))
+		if int(t * 12.0) >= n:
+			queue_free()
+		queue_redraw()
+	func _draw() -> void:
+		var n := maxi(1, roundi(float(tex.get_width()) / tex.get_height()))
+		var c := float(tex.get_width()) / n
+		var h := float(tex.get_height())
+		draw_texture_rect_region(tex, Rect2(Vector2(-c, -h) * 0.5, Vector2(c, h)), Rect2(mini(int(t * 12.0), n - 1) * c, 0, c, h))
