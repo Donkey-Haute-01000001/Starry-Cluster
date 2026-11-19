@@ -5,6 +5,28 @@ extends Node
 ## maneuvering thrusters as a fraction of it. "energy" is the built-in reactor's
 ## capacity and "energy_regen" its output per second. Weapons cost "energy" per shot.
 
+## UI font for everything (Exo 2, SIL Open Font License; see fonts/).
+const UI_FONT := "res://fonts/Exo2.ttf"
+const UI_FONT_WEIGHT := 500
+
+
+func _ready() -> void:
+	var base: FontFile = null
+	if ResourceLoader.exists(UI_FONT):
+		base = load(UI_FONT)
+	else:
+		base = FontFile.new()
+		if base.load_dynamic_font(ProjectSettings.globalize_path(UI_FONT)) != OK:
+			return
+	var f := FontVariation.new()
+	f.base_font = base
+	f.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): UI_FONT_WEIGHT}
+	# Every Control without its own theme font, and every draw_string that uses
+	# the fallback font (HUD, labels in space), picks this up.
+	ThemeDB.fallback_font = f
+	ThemeDB.get_default_theme().default_font = f
+
+
 var mode := "sandbox"  ## "sandbox" (combat test) or "merchant" (the demo opening)
 
 var weapons := {
