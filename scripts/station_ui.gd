@@ -74,7 +74,12 @@ func _ready() -> void:
 	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mid.alignment = BoxContainer.ALIGNMENT_CENTER
 	head.add_child(mid)
-	_desc = _label(mid, "", 15, Color(0.85, 0.85, 0.8))
+	# The station's blurb on a small enamel placard, so the stripe runs behind it.
+	var placard := PanelContainer.new()
+	placard.add_theme_stylebox_override("panel", _box(Color(0.08, 0.08, 0.08, 0.9), Color(0.3, 0.3, 0.28), 1, 10))
+	placard.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	mid.add_child(placard)
+	_desc = _label(placard, "", 14, Color(0.85, 0.85, 0.8))
 	_desc.add_theme_font_override("font", Data.font_type)
 	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_desc.custom_minimum_size.x = 520
@@ -103,7 +108,7 @@ func _ready() -> void:
 	_market = GridContainer.new()
 	_market.columns = 7
 	_market.add_theme_constant_override("h_separation", 8)
-	_market.add_theme_constant_override("v_separation", 2)
+	_market.add_theme_constant_override("v_separation", 9)
 	market_card.get_child(0).add_child(_market)
 
 	var side := VBoxContainer.new()
@@ -275,7 +280,7 @@ func _draw_wall() -> void:
 		y += ph
 		row += 1
 	# The painted stripe round the room, chipped.
-	var sy := sz.y * 0.5 - 330.0
+	var sy := sz.y * 0.5 - 392.0  # runs behind the sign plate, clear of the boards
 	var stripe: Color = w["stripe"]
 	_wall.draw_rect(Rect2(0, sy, sz.x, 14), Color(stripe.r, stripe.g, stripe.b, 0.55))
 	for i in int(sz.x / 9.0 * wear):
@@ -318,10 +323,6 @@ func _chalk_dust(c: Control) -> void:
 
 ## Ruled lines and a red margin on your ledger.
 func _ruled(c: Control) -> void:
-	var y := 40.0
-	while y < c.size.y - 6:
-		c.draw_line(Vector2(6, y), Vector2(c.size.x - 6, y), Color(0.45, 0.6, 0.8, 0.3), 1.0)
-		y += 26.0
 	c.draw_line(Vector2(34, 4), Vector2(34, c.size.y - 4), Color(0.8, 0.3, 0.3, 0.4), 1.0)
 
 
@@ -387,7 +388,7 @@ func _refresh() -> void:
 		c.queue_free()
 	var trader: bool = Career.friend_with_you() and Career.friend["role"] == "trader"
 	for h in ["", "price" if not trader else "buy / sell", "in hold", "", "", "", ""]:
-		var hl := _chalk(_market, h, 18, CHALK_DIM)
+		var hl := _chalk(_market, h.to_upper(), 11, CHALK_DIM)
 		if h != "":
 			hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var st: Dictionary = Data.stations[station_id]
@@ -402,30 +403,30 @@ func _refresh() -> void:
 			tag = "NEEDED!"
 		# Name, tag and the dockworkers' slang underneath, all in chalk.
 		var cell := VBoxContainer.new()
-		cell.add_theme_constant_override("separation", -9)
+		cell.add_theme_constant_override("separation", -2)
 		cell.custom_minimum_size.x = 250
 		_market.add_child(cell)
 		var nrow := HBoxContainer.new()
 		nrow.add_theme_constant_override("separation", 10)
 		cell.add_child(nrow)
-		_chalk(nrow, Data.goods[g]["name"], 25, col)
+		_chalk(nrow, Data.goods[g]["name"], 18, col)
 		if tag != "":
-			var tl := _chalk(nrow, tag, 18, col)
+			var tl := _chalk(nrow, tag, 20, col, true)
 			tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			tl.draw.connect(func(): tl.draw_line(Vector2(0, tl.size.y - 4), Vector2(tl.size.x, tl.size.y - 6), Color(col, 0.7), 1.5))
-		_chalk(cell, "\"%s\"" % Data.goods[g]["slang"], 15, CHALK_DIM).tooltip_text = Data.goods[g]["desc"]
+		_typed(cell, "\"%s\"" % Data.goods[g]["slang"], 12, CHALK_DIM).tooltip_text = Data.goods[g]["desc"]
 		cell.tooltip_text = Data.goods[g]["desc"]
 		cell.mouse_filter = Control.MOUSE_FILTER_PASS
 
 		var bp := Career.buy_price(station_id, g)
 		var sp := Career.sell_price(station_id, g)
 		var ptxt := "%s" % Career.fmt(bp) if bp == sp else "%s / %s" % [Career.fmt(bp), Career.fmt(sp)]
-		var pl := _chalk(_market, ptxt, 28, CHALK)
+		var pl := _chalk(_market, ptxt, 20, CHALK)
 		pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		pl.custom_minimum_size.x = 90
 		var owned: int = Career.cargo.get(g, 0)
 		var job: int = Career.job_cargo.get(g, 0)
-		var hl2 := _chalk(_market, (str(owned) if owned > 0 else "-") + (" +%d job" % job if job > 0 else ""), 22, CHALK if owned + job > 0 else CHALK_DIM)
+		var hl2 := _chalk(_market, (str(owned) if owned > 0 else "-") + (" +%d job" % job if job > 0 else ""), 17, CHALK if owned + job > 0 else CHALK_DIM)
 		hl2.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		hl2.custom_minimum_size.x = 80
 		_button(_market, "Buy 1", func(): Career.buy(station_id, g, 1))
@@ -460,7 +461,8 @@ func _refresh() -> void:
 		var slip := PanelContainer.new()
 		slip.add_theme_stylebox_override("panel", _box(UIStyle.PAPER, UIStyle.PAPER_SHADE, 1, 10))
 		slip.rotation = deg_to_rad(0.7 if n % 2 == 0 else -0.6)
-		slip.draw.connect(func(): slip.draw_circle(Vector2(slip.size.x * 0.5, 5), 4.0, Color(0.75, 0.15, 0.12)))
+		# A strip of masking tape holds it to the wall.
+		slip.draw.connect(func(): slip.draw_rect(Rect2(slip.size.x * 0.5 - 28, -7, 56, 15), Color(0.86, 0.8, 0.62, 0.85)))
 		_jobs.add_child(slip)
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 0)
@@ -560,6 +562,8 @@ func _bar() -> void:
 ## A line in your ledger: the printed column, your figures in pen.
 func _stat(name: String, value: String, col := UIStyle.INK_PEN) -> void:
 	var row := HBoxContainer.new()
+	row.custom_minimum_size.y = 32
+	row.draw.connect(func(): row.draw_line(Vector2(-40, row.size.y + 1), Vector2(row.size.x + 4, row.size.y + 1), Color(0.45, 0.6, 0.8, 0.35), 1.0))
 	_stats.add_child(row)
 	var n := _typed(row, name, 13, UIStyle.INK_FADED)
 	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -568,9 +572,10 @@ func _stat(name: String, value: String, col := UIStyle.INK_PEN) -> void:
 	v.add_theme_font_override("font", Data.font_hand)
 
 
-func _chalk(parent: Control, text: String, sz: int, col: Color) -> Label:
+## Chalk on the board: legible print by default, handwriting only for flourishes.
+func _chalk(parent: Control, text: String, sz: int, col: Color, hand := false) -> Label:
 	var l := _label(parent, text, sz, col)
-	l.add_theme_font_override("font", Data.font_hand)
+	l.add_theme_font_override("font", Data.font_hand if hand else Data.font_bold)
 	return l
 
 
@@ -589,8 +594,8 @@ func _button(parent: Control, text: String, cb: Callable, enabled := true, style
 	b.custom_minimum_size = Vector2(0, 30)
 	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var ink := CHALK if style == "chalk" else UIStyle.INK_STAMP
-	b.add_theme_font_override("font", Data.font_hand if style == "chalk" else Data.font_stamp)
-	b.add_theme_font_size_override("font_size", 20 if style == "chalk" else 14)
+	b.add_theme_font_override("font", Data.font_type_bold if style == "chalk" else Data.font_stamp)
+	b.add_theme_font_size_override("font_size", 14)
 	for st in ["normal", "hover", "pressed", "disabled"]:
 		var a := 0.55
 		match st:

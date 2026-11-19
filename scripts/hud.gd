@@ -125,11 +125,16 @@ func _draw() -> void:
 	if p and is_instance_valid(p) and p.alive:
 		base = Vector2(vp.x * 0.5 - 220, vp.y - 108)
 		UIStyle.draw_glass(self, Rect2(base, Vector2(440, 92)))
-		_text(base + Vector2(18, 26), p.def["name"].to_upper(), 15, UIStyle.TEXT, false, true)
-		var spd := "%d m/s" % int(p.velocity.length())
-		_text(base + Vector2(422 - ThemeDB.fallback_font.get_string_size(spd, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x, 26), spd, 15, UIStyle.TEXT_DIM)
+		# The rig's own plate: registration stencilled, speed on an amber readout.
+		var reg := "CC-40817-M" if main.merchant else "FLAGSHIP"
+		draw_string(Data.font_stamp, base + Vector2(18, 28), reg, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.86, 0.62, 0.18))
+		draw_string(Data.font_type, base + Vector2(132, 27), p.def["name"].to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.TEXT_DIM)
+		var spd := "%03d m/s" % int(p.velocity.length())
+		var sr := Rect2(base + Vector2(330, 11), Vector2(94, 22))
+		draw_rect(sr, Color(0.03, 0.02, 0.01))
+		draw_string(Data.font_type_bold, sr.position + Vector2(8, 16), spd, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1.0, 0.6, 0.2))
 		if p.in_brake:
-			_text(base + Vector2(220, 26), "BRAKE", 13, UIStyle.GOLD, true, true)
+			_text(base + Vector2(290, 27), "BRAKE", 12, UIStyle.GOLD, true, true)
 		var rows := [["SHIELDS", p.shields / p.max_shields, COL_SHIELD], ["HULL", p.hull_hp / p.max_hull, COL_HULL], ["ENERGY", p.energy / p.max_energy, COL_ENERGY]]
 		for i in rows.size():
 			var y0 := base.y + 44 + i * 16
@@ -222,16 +227,19 @@ func _pips(at: Vector2, width: float, frac: float, col: Color) -> void:
 		draw_rect(Rect2(at + Vector2(i * seg, 0), Vector2(seg - 1, 3)), col if on else Color(col.r, col.g, col.b, 0.15))
 
 
+## The rig's scope: a green phosphor tube in a riveted bezel.
 func _draw_radar(center: Vector2, r: float) -> void:
-	draw_circle(center, r, Color(UIStyle.GLASS.r, UIStyle.GLASS.g, UIStyle.GLASS.b, 0.8))
-	draw_arc(center, r + 4, 0, TAU, 64, Color(0.37, 0.82, 1.0, 0.12), 6.0, true)
-	draw_arc(center, r, 0, TAU, 64, Color(0.47, 0.78, 1.0, 0.55), 1.2, true)
-	draw_arc(center, r * 0.66, 0, TAU, 48, Color(0.37, 0.82, 1.0, 0.15), 1.0, true)
-	draw_arc(center, r * 0.33, 0, TAU, 32, Color(0.37, 0.82, 1.0, 0.12), 1.0, true)
-	draw_line(center - Vector2(r, 0), center + Vector2(r, 0), Color(0.37, 0.82, 1.0, 0.08), 1.0)
-	draw_line(center - Vector2(0, r), center + Vector2(0, r), Color(0.37, 0.82, 1.0, 0.08), 1.0)
+	const PH := Color(0.45, 1.0, 0.55)
+	UIStyle.draw_glass(self, Rect2(center - Vector2(r + 12, r + 12), Vector2(r + 12, r + 12) * 2.0), 1.0, 0.0, PH)
+	draw_circle(center, r + 3, Color(0.02, 0.025, 0.02))
+	draw_circle(center, r, Color(0.03, 0.08, 0.04))
+	for k in [0.33, 0.66, 1.0]:
+		draw_arc(center, r * k, 0, TAU, 48, Color(PH.r, PH.g, PH.b, 0.14 if k < 1.0 else 0.35), 1.0)
+	draw_line(center - Vector2(r, 0), center + Vector2(r, 0), Color(PH.r, PH.g, PH.b, 0.08), 1.0)
+	draw_line(center - Vector2(0, r), center + Vector2(0, r), Color(PH.r, PH.g, PH.b, 0.08), 1.0)
 	var sweep := fmod(Time.get_ticks_msec() / 1000.0, 4.0) / 4.0 * TAU
-	draw_line(center, center + Vector2.RIGHT.rotated(sweep) * r, Color(0.37, 0.82, 1.0, 0.25), 1.5, true)
+	for k in 8:
+		draw_line(center, center + Vector2.RIGHT.rotated(sweep - k * 0.04) * r, Color(PH.r, PH.g, PH.b, 0.3 - k * 0.035), 2.0)
 	var origin: Vector2 = main.camera.global_position
 	var scale := r / 2400.0
 	for s in get_tree().get_nodes_in_group("ships"):
@@ -241,10 +249,11 @@ func _draw_radar(center: Vector2, r: float) -> void:
 		var rp := (ship.global_position - origin) * scale
 		if rp.length() > r - 3:
 			rp = rp.normalized() * (r - 3)
-		var col := COL_FRIEND if ship.team == 0 else COL_ENEMY
+		var col := Color(0.55, 1.0, 0.65) if ship.team == 0 else Color(1.0, 0.45, 0.3)
 		if ship == main.player:
-			col = Color(1, 1, 1)
-		draw_circle(center + rp, 3.0 if ship.radius > 20 else 2.0, col)
+			col = Color(0.9, 1.0, 0.9)
+		var d := 4.0 if ship.radius > 20 else 3.0
+		draw_rect(Rect2((center + rp - Vector2(d, d) * 0.5).round(), Vector2(d, d)), col)
 
 
 func _order_name(id: String) -> String:

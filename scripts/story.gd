@@ -492,11 +492,11 @@ class Crossroads extends Node2D:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 1453
 		var groups := [
-			["dynasty", ["mjolnir_mark_v", "destructor", "trident", "vangaurd", "starblaster", "mjolnir_mark_v"], 11, Vector2(160, 380), Color(0.5, 1.0, 0.6)],
-			["league", ["cargo", "harbinger", "diverger"], 3, Vector2(120, 200), Color(1.0, 0.85, 0.4)],
+			["dynasty", ["mjolnir_mark_v", "star_marine_trooper", "destructor", "meteor_slicer", "trident", "ultraviolet_intruder", "vangaurd", "starblaster"], 12, Vector2(160, 380), Color(0.5, 1.0, 0.6)],
+			["league", ["transtellar", "dual_striker", "cargo", "harbinger"], 4, Vector2(120, 220), Color(1.0, 0.85, 0.4)],
 			["faithful", ["seraph", "arcblaster"], 2, Vector2(90, 150), Color(0.85, 0.7, 1.0)],
 			["nomad", ["bison", "scorpion"], 2, Vector2(100, 170), Color(0.6, 1.0, 0.9)],
-			["pirate", ["crossbow", "diablo"], 2, Vector2(60, 90), Color(1.0, 0.5, 0.3)],
+			["pirate", ["red_fighter", "galactix_racer", "diablo"], 3, Vector2(60, 90), Color(1.0, 0.5, 0.3)],
 		]
 		for g in groups:
 			var kinds: Array = g[1]

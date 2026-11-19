@@ -16,7 +16,7 @@ func _initialize() -> void:
 		if a.begins_with("--out="):
 			_out = a.substr(6)
 	var data = load("res://scripts/data.gd").new()
-	var ships := ["crossbow", "bison", "pointbreak", "hull", "northstar", "endra", "mjolnir_mark_v", "trident"]
+	var ships := ["warship", "interstellar_runner", "infrared_furtive", "red_fighter", "camo_stellar_jet", "transtellar", "star_marine_trooper", "meteor_slicer"]
 	var facs := ["", "charter", "navy", "pirate", "tally", "dynasty", "karabey", "league", "faithful", "nomad"]
 	root.size = Vector2i(110 * facs.size() + 20, 104 * ships.size() + 40)
 	var bg := ColorRect.new()

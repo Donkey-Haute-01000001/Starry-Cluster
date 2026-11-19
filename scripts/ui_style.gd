@@ -127,27 +127,36 @@ static func chamfer(r: Rect2, cut: float) -> PackedVector2Array:
 
 
 ## A glass panel with a thin frame and a short glowing accent on top.
+## Cockpit panel: a gunmetal plate with a pixel bevel, corner rivets and a
+## painted accent tick, so the HUD reads as the rig's own instruments.
 static func draw_glass(ci: CanvasItem, r: Rect2, alpha := 1.0, cut := 14.0, accent := CYAN) -> void:
-	var pts := chamfer(r, cut)
-	ci.draw_colored_polygon(pts, Color(GLASS.r, GLASS.g, GLASS.b, 0.82 * alpha))
-	var outline := pts.duplicate()
-	outline.append(pts[0])
-	ci.draw_polyline(outline, Color(0.47, 0.78, 1.0, 0.45 * alpha), 1.0, true)
-	var ax := r.position.x + cut
-	ci.draw_line(Vector2(ax, r.position.y + 1), Vector2(ax + minf(110.0, r.size.x * 0.3), r.position.y + 1),
-		Color(accent.r, accent.g, accent.b, 0.95 * alpha), 2.0)
+	r = Rect2(r.position.round(), r.size.round())
+	ci.draw_rect(r.grow(2), Color(0.01, 0.01, 0.02, 0.85 * alpha))
+	ci.draw_rect(r, Color(0.075, 0.085, 0.095, 0.93 * alpha))
+	# Bevel: lit top and left, shadowed bottom and right.
+	ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 2)), Color(0.24, 0.26, 0.28, alpha))
+	ci.draw_rect(Rect2(r.position, Vector2(2, r.size.y)), Color(0.2, 0.22, 0.24, alpha))
+	ci.draw_rect(Rect2(r.position.x, r.end.y - 2, r.size.x, 2), Color(0.03, 0.03, 0.04, alpha))
+	ci.draw_rect(Rect2(r.end.x - 2, r.position.y, 2, r.size.y), Color(0.03, 0.03, 0.04, alpha))
+	for k in [Vector2(5, 5), Vector2(r.size.x - 8, 5), Vector2(5, r.size.y - 8), Vector2(r.size.x - 8, r.size.y - 8)]:
+		ci.draw_rect(Rect2(r.position + k, Vector2(3, 3)), Color(0.32, 0.34, 0.36, alpha))
+		ci.draw_rect(Rect2(r.position + k, Vector2(1, 1)), Color(0.55, 0.57, 0.6, alpha))
+	ci.draw_rect(Rect2(r.position + Vector2(14, 2), Vector2(minf(70.0, r.size.x * 0.25), 3)), Color(accent.r, accent.g, accent.b, 0.9 * alpha))
 
 
-## A slim bar: dim track, bright fill with a faint glow.
+## A segmented LED gauge: lit cells for the value, dark cells for the rest.
 static func draw_bar(ci: CanvasItem, r: Rect2, frac: float, col: Color, alpha := 1.0) -> void:
-	ci.draw_rect(r, Color(col.r, col.g, col.b, 0.12 * alpha))
-	var w := r.size.x * clampf(frac, 0.0, 1.0)
-	if w > 0.0:
-		ci.draw_rect(Rect2(r.position - Vector2(0, 1), Vector2(w, r.size.y + 2)), Color(col.r, col.g, col.b, 0.18 * alpha))
-		ci.draw_rect(Rect2(r.position, Vector2(w, r.size.y)), Color(col.r, col.g, col.b, alpha))
+	var cell := 6.0 if r.size.y >= 5.0 else 4.0
+	var n := int(r.size.x / cell)
+	var lit := frac * n
+	for i in n:
+		var c := Rect2(r.position.x + i * cell, r.position.y, cell - 2.0, r.size.y)
+		if float(i) + 0.5 < lit:
+			ci.draw_rect(c, Color(col.r, col.g, col.b, alpha))
+		else:
+			ci.draw_rect(c, Color(col.r, col.g, col.b, 0.13 * alpha))
 
 
-## Placeholder portrait: head and shoulders in a palette from Data.friend_portraits.
 static func draw_portrait(ci: CanvasItem, r: Rect2, pal: Array, frame := GOLD) -> void:
 	ci.draw_rect(r, Color(0.05, 0.12, 0.2))
 	var c := r.get_center()

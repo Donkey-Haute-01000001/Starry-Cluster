@@ -58,12 +58,21 @@ const SHIELD_ENERGY := 0.5    ## energy per point of shield recharged
 
 var _shield_flash := 0.0
 var _hull_flash := 0.0
+var _anim_t := 0.0
+var _fired_t := 9.0   ## seconds since a gun last fired, for weapon animations
 
 
 func setup(id: String, p_team: int, p_main: Node) -> void:
 	hull_id = id
 	def = Data.hulls[id]
+	# Some hulls come in several models; each ship picks one.
+	if not def.get("sprite_alts", []).is_empty():
+		def = def.duplicate()
+		var alts: Array = def["sprite_alts"]
+		def["sprite"] = alts[randi() % alts.size()]
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	if def.has("layered"):
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if def.has("livery"):
 		material = Art.livery(Data.liveries.get(def["livery"], []), get_instance_id(), Art.main_hue("ships/%s.png" % def.get("sprite", "")))
 	team = p_team
@@ -112,6 +121,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if controller:
 		controller.update(delta)
+	_anim_t += delta
+	_fired_t += delta
 
 	energy = minf(max_energy, energy + energy_regen * delta)
 	var turn := turn_rate * (0.3 if ion_t > 0.0 else 1.0)
@@ -200,6 +211,7 @@ func _update_weapons(delta: float) -> void:
 		m["cooldown"] = w["cooldown"]
 		var dir: float = rotation + m["angle"] + deg_to_rad(randf_range(-w["spread"], w["spread"]) * accuracy)
 		main.spawn_projectile(world_pos, dir, w, self)
+		_fired_t = 0.0
 
 
 func take_damage(amount: float, hit_pos: Vector2) -> void:
@@ -245,7 +257,7 @@ func _draw() -> void:
 	# Engine flames for the main engine, small puffs for maneuvering thrusters.
 	_draw_rcs(accent)
 	var main_t := maxf(thrust_out.x, 0.0)
-	if main_t > 0.05:
+	if main_t > 0.05 and not def.has("layered"):
 		for e in def["engines"]:
 			var length := (10.0 + radius * 0.6) * main_t * randf_range(0.8, 1.15)
 			var ep: Vector2 = e
@@ -256,7 +268,9 @@ func _draw() -> void:
 	# Hull: the sprite when the art is installed, otherwise the polygon.
 	var sprite: String = def.get("sprite", "")
 	var flash := Color(1, 1, 1).lerp(Color(1, 0.45, 0.4), _hull_flash * 0.7)
-	if sprite != "" and Art.draw_fit(self, "ships/%s.png" % sprite, radius * def.get("sprite_scale", 3.6), flash):
+	if def.has("layered"):
+		_draw_layered(def["layered"], flash)
+	elif sprite != "" and Art.draw_fit(self, "ships/%s.png" % sprite, radius * def.get("sprite_scale", 3.6), flash):
 		for m in mounts:
 			if m["weapon"]["kind"] == "turret":
 				var p: Vector2 = m["pos"]
@@ -309,3 +323,36 @@ func _draw_rcs(accent: Color) -> void:
 		var length := (4.0 + radius * 0.35) * float(j[2]) * randf_range(0.7, 1.2)
 		var n := d.orthogonal() * 2.0
 		draw_colored_polygon(PackedVector2Array([p + n, p + d * length, p - n]), col)
+
+
+## Modular pixel ships (Foozle's Void pack and the like): engine flame frames
+## that idle or roar with thrust, the engine, the hull in four damage states,
+## and the weapon, whose frames play when it fires. Art is nose-up; ours is
+## nose-right.
+func _draw_layered(spec: Dictionary, flash: Color) -> void:
+	var dir: String = "ships/" + spec["dir"]
+	var cell := float(spec.get("cell", 48))
+	var k: float = radius * float(def.get("sprite_scale", 3.6)) / cell
+	draw_set_transform(Vector2.ZERO, PI * 0.5, Vector2(k, k))
+	var half := Vector2(cell, cell) * 0.5
+	var thrusting: bool = thrust_out.x > 0.05
+	var flame := Art.tex("%s/flame_%s_%s.png" % [dir, spec["engine"], "power" if thrusting else "idle"])
+	if flame:
+		var n := int(flame.get_width() / cell)
+		var f := int(_anim_t * 12.0) % maxi(n, 1)
+		draw_texture_rect_region(flame, Rect2(-half, Vector2(cell, cell)), Rect2(f * cell, 0, cell, cell))
+	var eng := Art.tex("%s/engine_%s.png" % [dir, spec["engine"]])
+	if eng:
+		draw_texture_rect(eng, Rect2(-half, Vector2(cell, cell)), false, flash)
+	var frac := hull_hp / maxf(max_hull, 1.0)
+	var state := 0 if frac > 0.75 else (1 if frac > 0.5 else (2 if frac > 0.25 else 3))
+	var base := Art.tex("%s/base_%d.png" % [dir, state])
+	if base:
+		draw_texture_rect(base, Rect2(-half, Vector2(cell, cell)), false, flash)
+	if spec.has("weapon"):
+		var w := Art.tex("%s/weapon_%s.png" % [dir, spec["weapon"]])
+		if w:
+			var n := int(w.get_width() / cell)
+			var f := mini(int(_fired_t * 20.0), n - 1) if _fired_t < 1.0 else 0
+			draw_texture_rect_region(w, Rect2(-half, Vector2(cell, cell)), Rect2(f * cell, 0, cell, cell), flash)
+	draw_set_transform(Vector2.ZERO)

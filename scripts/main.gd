@@ -771,6 +771,18 @@ func _run_merchant_test() -> void:
 				if what == "crossroads":
 					story.arrive_crossroads()
 					await _wait(9.0)
+				elif what == "fay":
+					Career.credits += 5000
+					Career.hire("fay")
+					if station_ui.visible:
+						undock()
+					await _wait(1.5)
+					for e in escorts:
+						if is_instance_valid(e):
+							camera.zoom = Vector2(2.2, 2.2)
+							camera.global_position = e.global_position
+							player.position = e.global_position + Vector2(-60, 40)
+					await _wait(0.2)
 				elif what == "rift":
 					if station_ui.visible:
 						undock()
