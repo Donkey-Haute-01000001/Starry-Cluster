@@ -93,13 +93,15 @@ func _ready() -> void:
 		player.controller = PlayerController.new(player, self)
 	for i in 2:
 		add_escort("wasp", Vector2(-80 - 40 * i, 70 * (1 if i % 2 else -1)))
-	show_message("Pirates are inbound. Hold Q to command your wingmen.", 5.0)
+	show_message("Pirates are inbound. Hold Tab to command your wingmen.", 5.0)
 
 
 func _setup_input() -> void:
 	var keys := {
-		"thrust": [KEY_W, KEY_UP], "turn_left": [KEY_A, KEY_LEFT], "turn_right": [KEY_D, KEY_RIGHT],
-		"reverse": [KEY_S, KEY_DOWN], "fire": [KEY_SPACE], "tactics": [KEY_Q], "target": [KEY_T],
+		"thrust_forward": [KEY_W, KEY_UP], "thrust_back": [KEY_S, KEY_DOWN],
+		"strafe_left": [KEY_A], "strafe_right": [KEY_D],
+		"turn_left": [KEY_Q, KEY_LEFT], "turn_right": [KEY_E, KEY_RIGHT],
+		"brake": [KEY_X], "fire_fixed": [KEY_SPACE], "tactics": [KEY_TAB], "target": [KEY_T],
 		"restart": [KEY_R], "toggle_help": [KEY_H, KEY_F1],
 	}
 	for action in keys:
@@ -109,9 +111,11 @@ func _setup_input() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = k
 			InputMap.action_add_event(action, ev)
+	if not InputMap.has_action("fire_aimed"):
+		InputMap.add_action("fire_aimed")
 	var mb := InputEventMouseButton.new()
 	mb.button_index = MOUSE_BUTTON_LEFT
-	InputMap.action_add_event("fire", mb)
+	InputMap.action_add_event("fire_aimed", mb)
 
 
 # --- Spawning ------------------------------------------------------------
@@ -410,7 +414,7 @@ func _autotest_step(delta: float) -> void:
 	if frame % 600 == 0:
 		var hp := "dead"
 		if is_instance_valid(player):
-			hp = "%d/%d" % [int(player.shields), int(player.hull_hp)]
+			hp = "%d/%d e=%d" % [int(player.shields), int(player.hull_hp), int(player.energy)]
 		print("[autotest] t=%.0fs wave=%d kills=%d escort_losses=%d hostiles=%d escorts=%d player=%s projectiles=%d" % [
 			_autotest_t, wave, kills, _losses, hostile_count(), escorts.size(), hp, fx.projectiles.size()])
 	if _autotest_t >= 120.0 or not is_instance_valid(player):
