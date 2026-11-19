@@ -3,6 +3,7 @@ extends Node2D
 ## A ship: flight physics, shields and hull, weapon mounts and drawing.
 ## A controller (player input or AI) sets the in_* inputs each physics tick.
 
+signal disabled_now(ship)
 signal destroyed(ship: Ship)
 
 var hull_id := ""
@@ -41,6 +42,8 @@ var ion_t := 0.0              ## seconds left with engines knocked out by an ion
 var hull_floor := 0.0         ## story ships: hull never drops below this fraction
 var hold_fire := false        ## story: guns cold (ceasefire, hails)
 var damage_taken := 0.0       ## running total, for scenes that score a fight
+var disabled := false         ## dead in space below DISABLE_AT hull: drifts, can't fire, can be boarded
+const DISABLE_AT := 0.15
 
 # Inputs, written by the controller.
 var in_move := Vector2.ZERO   ## ship-relative thrust: x forward(+)/back(-), y right(+)/left(-), each -1..1
@@ -124,7 +127,15 @@ func max_range() -> float:
 func _physics_process(delta: float) -> void:
 	if not alive:
 		return
-	if controller:
+	if disabled:
+		in_move = Vector2.ZERO
+		in_turn = 0.0
+		in_fire_aimed = false
+		in_fire_fixed = false
+		velocity = velocity.move_toward(Vector2.ZERO, 12.0 * delta)
+		if randf() < delta * 2.5:
+			main.spawn_sparks(global_position + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * radius * 0.6, def["accent"], 3)
+	elif controller:
 		controller.update(delta)
 	_anim_t += delta
 	_fired_t += delta
@@ -237,6 +248,19 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		hull_hp = maxf(hull_hp, max_hull * hull_floor)
 	if hull_hp <= 0.0:
 		die()
+	elif not disabled and not is_player and team != 0 and hull_hp <= max_hull * DISABLE_AT:
+		_disable()
+
+
+## Below DISABLE_AT hull the ship goes dead in space. Keep shooting and it dies.
+func _disable() -> void:
+	disabled = true
+	hold_fire = true
+	shields = 0.0
+	max_shields = 0.0
+	main.spawn_sparks(global_position, def["accent"], 14)
+	Sfx.play("hiss", -4.0, 0.7)
+	disabled_now.emit(self)
 
 
 ## An ion bolt: shields soak a little, then the engines go dead for a while.

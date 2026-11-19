@@ -520,7 +520,7 @@ func nearest_enemy(team: int, from: Vector2, max_dist: float, center = null) -> 
 	var best_d := INF
 	for s in get_tree().get_nodes_in_group("ships"):
 		var ship := s as Ship
-		if ship == null or not ship.alive or ship.team == team:
+		if ship == null or not ship.alive or ship.team == team or ship.disabled:
 			continue
 		if c.distance_to(ship.global_position) > max_dist:
 			continue

@@ -99,6 +99,8 @@ func _draw() -> void:
 			continue
 		var sp := _to_screen(ship.global_position)
 		var col := COL_FRIEND if ship.team == 0 else COL_ENEMY
+		if ship.disabled:
+			col = Color(0.75, 0.75, 0.7)
 		var onscreen := Rect2(Vector2.ZERO, vp).grow(-10).has_point(sp)
 		if onscreen:
 			var r: float = ship.radius * main.camera.zoom.x + 8.0
@@ -107,7 +109,10 @@ func _draw() -> void:
 			if ship.max_shields > 0:
 				_pips((sp + Vector2(-hw, r + 6)).round(), hw * 2.0, ship.shields / ship.max_shields, COL_SHIELD)
 			_pips((sp + Vector2(-hw, r + 11)).round(), hw * 2.0, ship.hull_hp / ship.max_hull, COL_HULL)
-		elif ship.team != 0:
+			if ship.disabled:
+				var blink := 0.6 + 0.4 * sin(t * 6.0)
+				draw_string(Data.font_type_bold, (sp + Vector2(-hw, -r - 6)).round(), "DISABLED", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.95, 0.85, 0.5, blink))
+		elif ship.team != 0 and not ship.disabled:
 			var center := vp * 0.5
 			var dir := (sp - center).normalized()
 			var edge := center + dir * minf(absf((vp.x * 0.5 - 30) / dir.x) if dir.x != 0 else 1e9, absf((vp.y * 0.5 - 30) / dir.y) if dir.y != 0 else 1e9)
