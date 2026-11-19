@@ -8,6 +8,12 @@ A top-down space fleet RPG built in Godot 4. You captain a flagship, build a fle
 2. Open Godot, click **Import**, and choose this folder's `project.godot`.
 3. Press **F5** (or the ▶ button) to play.
 
+## Art
+
+The ship, planet and station art comes from bought asset packs, which can't be shared publicly, so `art/` is git-ignored. Without it the game draws simple shapes instead.
+
+To install it, unzip `art.zip` into this folder (so you get `art/ships`, `art/planets`, ...). To rebuild it from the original packs, unpack them all into one folder and run `python tools/prepare_art.py <that folder>` (needs Pillow).
+
 ## Controls
 
 Thrusters are always relative to where your ship points. The camera never rotates.

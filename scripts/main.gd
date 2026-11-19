@@ -157,6 +157,7 @@ func load_system(id: String, from_system: String) -> void:
 			continue
 		var node := _add_body("station", {"pos": st["pos"]})
 		node.id = sid
+		node.set_station_art(st.get("art", ""), st.get("art_size", 220.0))
 		node.label = st["nick"][0].to_upper() + st["nick"].substr(1)
 		node.sublabel = st["name"]
 	for j in sys["jumps"]:
@@ -660,12 +661,18 @@ func _merchant_test_step(delta: float) -> void:
 		92:
 			print("[merchant] at drip: hold=%d/%d job_cargo=%s cargo=%s" % [Career.cargo_used(), Career.cargo_capacity, Career.job_cargo, Career.cargo])
 			undock()
+		99:
+			if shots_dir != "":
+				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_drip.png")
 		100:
 			var target := objective_target()
 			print("[merchant] objective points at: %s %s" % [target.kind if target else "none", target.id if target else ""])
 			player.position = target.global_position
 			player.velocity = Vector2.ZERO
 			_try_interact()
+		290:
+			if shots_dir != "":
+				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_arrival.png")
 		300:
 			print("[merchant] after jump: system=%s" % system_id)
 			player.position = Data.stations["greenhouse"]["pos"] + Vector2(100, 0)
@@ -675,6 +682,9 @@ func _merchant_test_step(delta: float) -> void:
 			Career.sell("greenhouse", "parts", 99)
 			print("[merchant] delivered: credits=%d (parts sold for %d) flags=%s objective=%s" % [Career.credits, Career.credits - before, Career.flags, Career.objective])
 			undock()
+		318:
+			if shots_dir != "":
+				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_greenhouse.png")
 		320:
 			Career.day = 6.99
 		400:

@@ -168,7 +168,7 @@ func on_dock(station: String) -> void:
 				continue
 			j["loaded"] = true
 			job_cargo[j["good"]] = job_cargo.get(j["good"], 0) + j["tons"]
-			say("Dock crew", "%d tons of %s loaded for the %s." % [j["tons"], Data.goods[j["good"]]["name"].to_lower(), Data.stations[j["to"]]["nick"]])
+			say("Dock crew", "%d tons of %s loaded for %s." % [j["tons"], Data.goods[j["good"]]["name"].to_lower(), Data.stations[j["to"]]["nick"]])
 			if j["id"] == "starter_water":
 				_set_objective("Jump to Tiberine and deliver the water to the Greenhouse. Spare room? Buy machine parts at the Bones first.", "greenhouse")
 		elif j["to"] == station and j["loaded"]:

@@ -34,7 +34,7 @@ var weapons := {
 
 var hulls := {
 	"kestrel": {
-		"name": "Kestrel Frigate", "role": "gunship",
+		"name": "Kestrel Frigate", "sprite": "raven", "role": "gunship",
 		"hull": 650.0, "shields": 450.0, "shield_regen": 30.0, "regen_delay": 2.5,
 		"accel": 300.0, "side_thrust": 0.35, "reverse_thrust": 0.35, "max_speed": 330.0, "turn": 150.0, "radius": 24.0,
 		"energy": 260.0, "energy_regen": 50.0,
@@ -51,7 +51,7 @@ var hulls := {
 		],
 	},
 	"light_freighter": {
-		"name": "Light Freighter", "role": "freighter",
+		"name": "Light Freighter", "sprite": "cargo", "role": "freighter",
 		"hull": 520.0, "shields": 260.0, "shield_regen": 18.0, "regen_delay": 3.0,
 		"accel": 210.0, "side_thrust": 0.25, "reverse_thrust": 0.3, "max_speed": 290.0, "turn": 110.0, "radius": 24.0,
 		"energy": 200.0, "energy_regen": 40.0, "cargo": 40,
@@ -64,7 +64,7 @@ var hulls := {
 		],
 	},
 	"wasp": {
-		"name": "Wasp Interceptor", "role": "fighter",
+		"name": "Wasp Interceptor", "sprite": "arachnid", "role": "fighter",
 		"hull": 170.0, "shields": 120.0, "shield_regen": 18.0, "regen_delay": 2.0,
 		"accel": 560.0, "side_thrust": 0.6, "reverse_thrust": 0.55, "max_speed": 470.0, "turn": 290.0, "radius": 13.0,
 		"energy": 140.0, "energy_regen": 38.0,
@@ -78,7 +78,7 @@ var hulls := {
 		],
 	},
 	"raider": {
-		"name": "Pirate Raider", "role": "fighter",
+		"name": "Pirate Raider", "sprite": "crossbow", "role": "fighter",
 		"hull": 140.0, "shields": 70.0, "shield_regen": 12.0, "regen_delay": 2.5,
 		"accel": 480.0, "side_thrust": 0.5, "reverse_thrust": 0.45, "max_speed": 430.0, "turn": 250.0, "radius": 13.0,
 		"energy": 120.0, "energy_regen": 30.0,
@@ -92,7 +92,7 @@ var hulls := {
 		],
 	},
 	"marauder": {
-		"name": "Pirate Marauder", "role": "gunship",
+		"name": "Pirate Marauder", "sprite": "bison", "role": "gunship",
 		"hull": 520.0, "shields": 220.0, "shield_regen": 15.0, "regen_delay": 3.0,
 		"accel": 210.0, "side_thrust": 0.25, "reverse_thrust": 0.3, "max_speed": 250.0, "turn": 100.0, "radius": 26.0,
 		"energy": 220.0, "energy_regen": 35.0,
@@ -146,8 +146,8 @@ var systems := {
 		"name": "Aurelia", "nick": "the Plate", "security": "Core", "danger": 0.0,
 		"desc": "Old industrial world with an ice moon. Factories, shipyard and water in one place; the safe home base.",
 		"bodies": [
-			{"kind": "planet", "pos": Vector2(0, 0), "radius": 420.0, "color": Color(0.42, 0.4, 0.38), "band": Color(0.55, 0.45, 0.35)},
-			{"kind": "planet", "pos": Vector2(-2300, 1500), "radius": 130.0, "color": Color(0.75, 0.85, 0.95), "band": Color(0.6, 0.75, 0.9)},
+			{"kind": "planet", "pos": Vector2(0, 0), "radius": 420.0, "art": "laviria", "color": Color(0.42, 0.4, 0.38), "band": Color(0.55, 0.45, 0.35)},
+			{"kind": "planet", "pos": Vector2(-2300, 1500), "radius": 130.0, "art": "glacia_glassa", "color": Color(0.75, 0.85, 0.95), "band": Color(0.6, 0.75, 0.9)},
 		],
 		"jumps": [
 			{"to": "tiberine", "pos": Vector2(3600, -2100)},
@@ -158,7 +158,7 @@ var systems := {
 		"name": "Tiberine", "nick": "the Garden", "security": "Mid", "danger": 0.0,
 		"desc": "Dry, sunny world farmed under domes. Feeds the sector, but has to import water and parts.",
 		"bodies": [
-			{"kind": "planet", "pos": Vector2(0, 0), "radius": 520.0, "color": Color(0.78, 0.62, 0.38), "band": Color(0.45, 0.6, 0.3)},
+			{"kind": "planet", "pos": Vector2(0, 0), "radius": 520.0, "art": "veriduna_sand", "color": Color(0.78, 0.62, 0.38), "band": Color(0.45, 0.6, 0.3)},
 		],
 		"jumps": [
 			{"to": "aurelia", "pos": Vector2(-3300, 1900)},
@@ -180,7 +180,7 @@ var systems := {
 		"name": "Porta Aquila", "nick": "the Wall", "security": "Fortress", "danger": 0.0,
 		"desc": "Barren rock around the gate rift. Only there because of the gate; imports everything.",
 		"bodies": [
-			{"kind": "planet", "pos": Vector2(0, 0), "radius": 260.0, "color": Color(0.4, 0.37, 0.36), "band": Color(0.3, 0.28, 0.28)},
+			{"kind": "planet", "pos": Vector2(0, 0), "radius": 260.0, "art": "titus", "color": Color(0.4, 0.37, 0.36), "band": Color(0.3, 0.28, 0.28)},
 		],
 		"jumps": [
 			{"to": "tiberine", "pos": Vector2(-3100, 1600)},
@@ -191,28 +191,28 @@ var systems := {
 }
 
 var stations := {
-	"counter": {"name": "Aurelia Highport", "nick": "the Counter", "system": "aurelia", "pos": Vector2(760, -380),
+	"counter": {"art": "hub", "art_size": 300.0, "name": "Aurelia Highport", "nick": "the Counter", "system": "aurelia", "pos": Vector2(760, -380),
 		"makes": ["electronics"], "wants": ["luxuries", "medicine"],
 		"desc": "Charter Company offices and the sector's busiest job board. Dispatch is on the third ring, past the coffee machine that only takes company scrip."},
-	"bones": {"name": "Aurelia Yards", "nick": "the Bones", "system": "aurelia", "pos": Vector2(1250, 560),
+	"bones": {"art": "depot", "art_size": 260.0, "name": "Aurelia Yards", "nick": "the Bones", "system": "aurelia", "pos": Vector2(1250, 560),
 		"makes": ["parts"], "wants": ["alloy"],
 		"desc": "Shipyard and outfitters. Half-built hulls hang in the docks like ribs."},
-	"drip": {"name": "Aurelia Waterworks", "nick": "the Drip", "system": "aurelia", "pos": Vector2(-2050, 1250),
+	"drip": {"art": "rim", "art_size": 220.0, "name": "Aurelia Waterworks", "nick": "the Drip", "system": "aurelia", "pos": Vector2(-2050, 1250),
 		"makes": ["water"], "wants": ["rations"],
 		"desc": "Ice refinery on the moon. It leaks, hence the name."},
-	"greenhouse": {"name": "Corvin Agricultural Ring", "nick": "the Greenhouse", "system": "tiberine", "pos": Vector2(950, -650),
+	"greenhouse": {"art": "loop", "art_size": 260.0, "name": "Corvin Agricultural Ring", "nick": "the Greenhouse", "system": "tiberine", "pos": Vector2(950, -650),
 		"makes": ["rations", "medicine"], "wants": ["water", "parts", "electronics"],
 		"desc": "Domed farm ring above the dry world. Humid, green, and always short of water and pump seals."},
-	"four": {"name": "Ore Platform Four", "nick": "Four", "system": "marcellus", "pos": Vector2(1500, -900),
+	"four": {"art": "depot", "art_size": 220.0, "name": "Ore Platform Four", "nick": "Four", "system": "marcellus", "pos": Vector2(1500, -900),
 		"makes": ["ore"], "wants": ["rations", "water", "parts"],
 		"desc": "Mining hub and the navy's patrol base in the belt. Everything is coated in grey dust."},
-	"saltgate": {"name": "Sal Gatum Transit Depot", "nick": "Saltgate", "system": "marcellus", "pos": Vector2(-1500, 950),
+	"saltgate": {"art": "rim", "art_size": 220.0, "name": "Sal Gatum Transit Depot", "nick": "Saltgate", "system": "marcellus", "pos": Vector2(-1500, 950),
 		"makes": ["alloy"], "wants": ["water", "rations", "medicine"],
 		"desc": "Docks, a smelter and a bar. Ore in, alloy out."},
-	"ambers": {"name": "Santa Ambrosia Station", "nick": "Amber's", "system": "marcellus", "pos": Vector2(3900, 2500),
+	"ambers": {"art": "rim", "art_size": 200.0, "name": "Santa Ambrosia Station", "nick": "Amber's", "system": "marcellus", "pos": Vector2(3900, 2500),
 		"makes": ["electronics", "parts"], "wants": ["medicine", "luxuries"],
 		"desc": "A dead mining station in the outer belt. The bar still wears the sign of Santa Ambrosia's Patisserie. The pastries are bad. Don't ask what's in the back."},
-	"gatehouse": {"name": "Aquila Gatehouse", "nick": "the Gate", "system": "porta_aquila", "pos": Vector2(650, 350),
+	"gatehouse": {"art": "hub", "art_size": 260.0, "name": "Aquila Gatehouse", "nick": "the Gate", "system": "porta_aquila", "pos": Vector2(650, 350),
 		"makes": ["luxuries"], "wants": ["rations", "water", "medicine"],
 		"desc": "Customs, garrison and the checkpoint where they ask for your Writ of Passage. Everybody calls it your papers."},
 }
