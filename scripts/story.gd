@@ -5,6 +5,9 @@ extends Node
 
 const TALLY_FIGHT_TIME := 35.0
 const FOUGHT_WELL_DAMAGE := 600.0
+const HAIL_RING_TIME := 12.0   ## seconds the hail pings before it counts as ignored
+const HAIL_REPLY_TIME := 8.0   ## game seconds to reply (at half speed, ~16 real)
+const SILENCE := -1
 
 var main: Node
 var scene := ""            ## "", "ambush", "ending"
@@ -16,6 +19,11 @@ var _choices: Control
 var _overlay: Control
 var _bounty_ship: Ship = null
 var _saved_order := ""
+var ringing := false       ## a hail is pinging, press C to answer
+var _ring_ping := 0.0
+var _answered_at := -1.0
+var _base_scale := 1.0
+var _reply_bar: ColorRect
 
 
 ## Flies to a point and brakes there. For story ships that aren't fighting.
@@ -133,13 +141,27 @@ func _ambush_step() -> void:
 				_ceasefire()
 				_next("hail")
 		"hail":
-			if _t > 1.0 and not Career.flags.has("tally_hailed"):
+			# The hail pings until you answer (C) or it times out.
+			if _t > 1.0 and _answered_at < 0.0 and not ringing and not Career.flags.has("tally_hailed"):
 				Career.flags["tally_hailed"] = true
-				Career.say("Tallyman", Data.tally["hail"])
-			if _t > 3.5 and _choices == null:
-				_show_choices()
+				ringing = true
+				_ring_ping = 0.0
+			if ringing:
+				if _t >= _ring_ping:
+					_ring_ping = _t + 1.6
+					Sfx.play("radio", -4.0, 1.3)
+				if _t > 1.0 + HAIL_RING_TIME:
+					ringing = false
+					Career.flags["tally_ignored"] = true
+					_reply(SILENCE)
+			elif _choices:
+				var left := 1.0 - (_t - _answered_at) / HAIL_REPLY_TIME
+				if _reply_bar:
+					_reply_bar.size.x = 360.0 * maxf(left, 0.0)
+				if left <= 0.0:
+					choose(SILENCE)
 		"talk":
-			_say_at(2.5, "Tallyman", _chosen_reply())
+			_say_at(1.5 if Career.flags.get("tally_choice", 0) == SILENCE else 2.5, "Tallyman", _chosen_reply())
 			var fought: String = "fought_well" if Career.flags.get("tally_score", 0) >= FOUGHT_WELL_DAMAGE else "fought_poorly"
 			_say_at(8.0, "Tallyman", Data.tally[fought])
 			_say_at(13.0, "Tallyman", Data.tally["spare"])
@@ -214,30 +236,71 @@ func _ceasefire() -> void:
 	main.show_message("They've stopped shooting. Incoming hail.", 3.0)
 
 
+## Answer the ringing hail: his line comes in and time drops to half speed
+## while you pick a reply. Also used by the scripted test.
+func answer() -> void:
+	if not ringing:
+		return
+	ringing = false
+	Sfx.play("radio", -2.0)
+	Career.say("Tallyman", Data.tally["hail"])
+	_base_scale = Engine.time_scale
+	Engine.time_scale = _base_scale * 0.5
+	_answered_at = _t
+	_show_choices()
+
+
+## Reply buttons: a strip of the rig's radio panel, numbered keys, your words
+## in your own hand.
 func _show_choices() -> void:
 	_choices = VBoxContainer.new()
-	_choices.add_theme_constant_override("separation", 8)
+	_choices.add_theme_constant_override("separation", 6)
 	var vp: Vector2 = main.get_viewport().get_visible_rect().size
-	_choices.position = Vector2(24, vp.y - 290)
+	_choices.position = Vector2(24, vp.y - 300)
 	main.hud.get_parent().add_child(_choices)
 	var head := Label.new()
-	head.text = "REPLY"
+	head.text = "TX  ·  OPEN BAND  ·  REPLY OR STAY QUIET"
+	head.add_theme_font_override("font", Data.font_type_bold)
 	head.add_theme_font_size_override("font_size", 12)
 	head.add_theme_color_override("font_color", UIStyle.GOLD)
 	_choices.add_child(head)
 	var opts: Array = Data.tally["choices"]
 	for i in opts.size():
 		var b := Button.new()
-		b.text = "%d   %s" % [i + 1, opts[i]["text"]]
+		b.text = "[%d]  %s" % [i + 1, opts[i]["text"]]
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.custom_minimum_size = Vector2(360, 38)
+		b.custom_minimum_size = Vector2(360, 40)
 		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_override("font", Data.font_type)
+		b.add_theme_font_size_override("font_size", 17)
+		for st in ["normal", "hover", "pressed"]:
+			var box := StyleBoxFlat.new()
+			box.bg_color = Color(0.06, 0.065, 0.07, 0.94) if st == "normal" else Color(0.13, 0.11, 0.07, 0.96)
+			box.border_color = UIStyle.GOLD.darkened(0.35 if st == "normal" else 0.0)
+			box.border_width_left = 4
+			box.border_width_bottom = 2
+			box.content_margin_left = 14
+			b.add_theme_stylebox_override(st, box)
+		b.add_theme_color_override("font_color", Color(0.92, 0.88, 0.78))
+		b.add_theme_color_override("font_hover_color", UIStyle.GOLD)
 		b.pressed.connect(choose.bind(i))
 		_choices.add_child(b)
+	# The countdown: when it runs out, silence is your answer.
+	var track := ColorRect.new()
+	track.color = Color(0.1, 0.1, 0.1, 0.8)
+	track.custom_minimum_size = Vector2(360, 4)
+	_choices.add_child(track)
+	_reply_bar = ColorRect.new()
+	_reply_bar.color = UIStyle.GOLD
+	_reply_bar.size = Vector2(360, 4)
+	track.add_child(_reply_bar)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _choices and event is InputEventKey and event.pressed and not event.echo:
+	if ringing and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C:
+		get_viewport().set_input_as_handled()
+		answer()
+	elif _choices and event is InputEventKey and event.pressed and not event.echo:
 		var i: int = event.keycode - KEY_1
 		if i >= 0 and i < Data.tally["choices"].size():
 			get_viewport().set_input_as_handled()
@@ -249,18 +312,29 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_tree().change_scene_to_file("res://scenes/start.tscn")
 
 
-## Pick a reply in the hail. Also used by the scripted test.
+## Pick a reply in the hail; SILENCE when the clock runs out. Also used by the
+## scripted test.
 func choose(i: int) -> void:
 	if _choices == null:
 		return
 	_choices.queue_free()
 	_choices = null
+	_reply_bar = null
+	Engine.time_scale = _base_scale
+	_reply(i)
+
+
+func _reply(i: int) -> void:
 	Career.flags["tally_choice"] = i
-	Career.say("You", Data.tally["choices"][i]["text"])
+	if i != SILENCE:
+		Career.say("You", Data.tally["choices"][i]["text"])
 	_next("talk")
 
 
 func _chosen_reply() -> String:
+	var i: int = Career.flags.get("tally_choice", 0)
+	if i == SILENCE:
+		return Data.tally["ignored"] if Career.flags.has("tally_ignored") else Data.tally["silence"]
 	return Data.tally["choices"][Career.flags.get("tally_choice", 0)]["reply"]
 
 

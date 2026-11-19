@@ -74,7 +74,11 @@ func _draw() -> void:
 	# During a hail the guns are cold: say so instead of the combat banner.
 	if main.story and main.story.ceasefire():
 		_text(Vector2(vp.x * 0.5, 42), "GUNS COLD", 24, UIStyle.GOLD, true)
-		_text(Vector2(vp.x * 0.5, 64), "You're being hailed. Pick a reply.", 14, Color(1.0, 0.9, 0.7), true)
+		if main.story.ringing:
+			var a := 0.55 + 0.45 * absf(sin(t * 4.0))
+			_text(Vector2(vp.x * 0.5, 64), "INCOMING HAIL  ·  OPEN BAND  ·  [C] answer", 15, Color(1.0, 0.9, 0.6, a), true)
+		elif main.story._choices:
+			_text(Vector2(vp.x * 0.5, 64), "Half speed. Pick a reply, or stay quiet.", 14, Color(1.0, 0.9, 0.7), true)
 	# Combat indicator: pulsing red frame and banner while enemies are close.
 	elif main.in_combat:
 		var a := 0.25 + 0.15 * sin(t * 5.0)
@@ -99,10 +103,10 @@ func _draw() -> void:
 		if onscreen:
 			var r: float = ship.radius * main.camera.zoom.x + 8.0
 			_brackets(sp, r, Color(col.r, col.g, col.b, 0.55))
-			var hw := r
+			var hw := roundf(r)
 			if ship.max_shields > 0:
-				draw_rect(Rect2(sp + Vector2(-hw, r + 4), Vector2(hw * 2.0 * ship.shields / ship.max_shields, 2)), COL_SHIELD)
-			draw_rect(Rect2(sp + Vector2(-hw, r + 7), Vector2(hw * 2.0 * ship.hull_hp / ship.max_hull, 2)), COL_HULL)
+				_pips((sp + Vector2(-hw, r + 6)).round(), hw * 2.0, ship.shields / ship.max_shields, COL_SHIELD)
+			_pips((sp + Vector2(-hw, r + 11)).round(), hw * 2.0, ship.hull_hp / ship.max_hull, COL_HULL)
 		elif ship.team != 0:
 			var center := vp * 0.5
 			var dir := (sp - center).normalized()
@@ -185,13 +189,37 @@ func _draw() -> void:
 		_text(Vector2(vp.x - 230, vp.y - 214), "H   controls", 13, Color(UIStyle.TEXT_DIM.r, UIStyle.TEXT_DIM.g, UIStyle.TEXT_DIM.b, 0.7))
 
 
+## Pixel-art brackets: chunky stepped corners on a pixel grid with a dark
+## outline, so they sit with the sprites instead of floating over them.
 func _brackets(c: Vector2, r: float, col: Color, w := 1.5) -> void:
-	var l := r * 0.45
+	var px := 2.0 if w < 2.5 else 3.0
+	c = (c / px).round() * px
+	r = roundf(r / px) * px
+	var l := roundf(r * 0.4 / px) * px
+	var ink := Color(0.02, 0.03, 0.05, col.a * 0.8)
 	for sx in [-1.0, 1.0]:
 		for sy in [-1.0, 1.0]:
-			var corner := c + Vector2(sx * r, sy * r)
-			draw_line(corner, corner - Vector2(sx * l, 0), col, w)
-			draw_line(corner, corner - Vector2(0, sy * l), col, w)
+			var k := c + Vector2(sx * r, sy * r)
+			# Arms as filled rects; the corner pixel steps outward one cell.
+			var arms := [
+				Rect2(Vector2(minf(k.x, k.x - sx * l), k.y - px * 0.5 * (1.0 + sy)), Vector2(l, px)),
+				Rect2(Vector2(k.x - px * 0.5 * (1.0 + sx), minf(k.y, k.y - sy * l)), Vector2(px, l)),
+			]
+			for a in arms:
+				draw_rect(a.grow(px * 0.5), ink)
+			for a in arms:
+				draw_rect(a, col)
+			draw_rect(Rect2(k + Vector2(sx * px, sy * px) - Vector2(px, px) * 0.5 * Vector2(1.0 - sx, 1.0 - sy), Vector2(px, px)), col.lightened(0.3))
+
+
+## Segmented pixel pip bar under a bracket.
+func _pips(at: Vector2, width: float, frac: float, col: Color) -> void:
+	var n := clampi(int(width / 6.0), 4, 14)
+	var seg := floorf(width / n)
+	draw_rect(Rect2(at - Vector2(1, 1), Vector2(seg * n + 1, 5)), Color(0.02, 0.03, 0.05, 0.7))
+	for i in n:
+		var on := float(i) + 0.5 < frac * n
+		draw_rect(Rect2(at + Vector2(i * seg, 0), Vector2(seg - 1, 3)), col if on else Color(col.r, col.g, col.b, 0.15))
 
 
 func _draw_radar(center: Vector2, r: float) -> void:

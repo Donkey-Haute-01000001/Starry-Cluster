@@ -472,6 +472,8 @@ var tally := {
 		{"text": "Maybe.", "reply": "Maybe. Ha. That's what I used to say."},  # DRAFT reply
 		{"text": "Seven years, actually.", "reply": "Seven. They'll make it eleven. They always do."},  # DRAFT reply
 	],
+	"silence": "Nothing? Fine. Quiet ones last longer out here.",  # DRAFT: you let the clock run out
+	"ignored": "Not picking up? Charter teach you that? I'll talk, you listen.",  # DRAFT: you never answered
 	# DRAFT: what he thinks of how you fought.
 	"fought_well": "You fly that brick like you mean it. Most Charter boys just cry on the open channel.",
 	"fought_poorly": "Relax. If I wanted you dead, you'd know it.",

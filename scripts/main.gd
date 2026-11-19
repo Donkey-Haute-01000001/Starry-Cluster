@@ -805,12 +805,17 @@ func _run_merchant_test() -> void:
 	print("[tally] scene=%s ion=%.0f tally_ships=%d engines_dead=%s" % [story.scene, player.ion_t, story._tally.size(), player.ion_t > 0.0])
 	_shot("m_tally_fight")
 	var waited := 0.0
-	while story._choices == null and waited < 60.0:
+	while not story.ringing and waited < 60.0:
 		await _wait(0.5)
 		waited += 0.5
 	print("[tally] hail after %.0fs: score=%d player_hull=%d/%d alive=%s" % [waited, Career.flags.get("tally_score", -1), int(player.hull_hp), int(player.max_hull), is_instance_valid(player)])
-	_shot("m_tally_hail")
-	story.choose(1)
+	_shot("m_tally_ring")
+	if "--tally-ignore" not in OS.get_cmdline_user_args():
+		story.answer()
+		await _wait(1.0)
+		_shot("m_tally_hail")
+		if "--tally-silent" not in OS.get_cmdline_user_args():
+			story.choose(1)
 	waited = 0.0
 	while story.scene != "" and waited < 90.0:
 		await _wait(0.5)
