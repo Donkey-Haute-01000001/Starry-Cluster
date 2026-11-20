@@ -42,6 +42,11 @@ var ion_t := 0.0              ## seconds left with engines knocked out by an ion
 var hull_floor := 0.0         ## story ships: hull never drops below this fraction
 var hold_fire := false        ## story: guns cold (ceasefire, hails)
 var damage_taken := 0.0       ## running total, for scenes that score a fight
+var cruise_on := false        ## cruise drive wanted: spools up, weapons offline
+var cruise_k := 0.0           ## 0..1 spool
+var cruise_cap := 1400.0      ## top cruise speed here, set by main from nearby mass
+const CRUISE_SPOOL := 2.0
+const CRUISE_DROP := 0.7
 var disabled := false         ## dead in space below DISABLE_AT hull: drifts, can't fire, can be boarded
 const DISABLE_AT := 0.15
 
@@ -140,6 +145,9 @@ func _physics_process(delta: float) -> void:
 	_anim_t += delta
 	_fired_t += delta
 
+	if cruise_on and (disabled or ion_t > 0.0):
+		cruise_on = false
+	cruise_k = move_toward(cruise_k, 1.0 if cruise_on else 0.0, delta / (CRUISE_SPOOL if cruise_on else CRUISE_DROP))
 	energy = minf(max_energy, energy + energy_regen * delta)
 	var turn := turn_rate * (0.3 if ion_t > 0.0 else 1.0)
 	rotation = wrapf(rotation + clampf(in_turn, -1.0, 1.0) * turn * delta, -PI, PI)
@@ -182,6 +190,7 @@ func _apply_thrust(delta: float) -> void:
 		if cmd.y == 0.0:
 			cmd.y = by
 	var a := Vector2(cmd.x * (accel if cmd.x > 0.0 else reverse_accel), cmd.y * side_accel)
+	a *= 1.0 + 4.0 * cruise_k
 	# Thrusters draw on the reactor. On an empty bar they still fire at half power.
 	var draw := (absf(a.x) + absf(a.y)) / accel * THRUST_ENERGY * delta
 	var power := 1.0
@@ -193,7 +202,7 @@ func _apply_thrust(delta: float) -> void:
 			energy = 0.0
 	velocity += a.rotated(rotation) * power * delta
 	# Hard top speed: thrust past it only changes direction, never adds speed.
-	velocity = velocity.limit_length(max_speed)
+	velocity = velocity.limit_length(lerpf(max_speed, maxf(cruise_cap, max_speed), cruise_k))
 	thrust_out = thrust_out.lerp(cmd * power, clampf(12.0 * delta, 0.0, 1.0))
 
 
@@ -210,7 +219,7 @@ func _update_weapons(delta: float) -> void:
 			var g := deg_to_rad(w["gimbal"])
 			m["angle"] = rotate_toward(m["angle"], clampf(desired_local, -g, g), deg_to_rad(240.0) * delta)
 			firing = in_fire_fixed
-		if not firing or hold_fire or m["cooldown"] > 0.0:
+		if not firing or hold_fire or cruise_k > 0.0 or m["cooldown"] > 0.0:
 			continue
 		# The AI only fires a mount when it is actually lined up and in range.
 		if not is_player:

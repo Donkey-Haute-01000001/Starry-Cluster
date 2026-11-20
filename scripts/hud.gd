@@ -67,9 +67,32 @@ func _sp(s: String) -> String:
 	return " ".join(s.split(""))
 
 
+## Cruise streaks: thin lines sliding past along your heading.
+func _draw_streaks(vp: Vector2) -> void:
+	var p: Ship = main.player
+	if p == null or not is_instance_valid(p) or p.cruise_k <= 0.05:
+		return
+	var v := p.velocity
+	var spd := v.length()
+	if spd < 400.0:
+		return
+	var dir := -v / spd
+	var k := p.cruise_k * clampf((spd - 400.0) / 900.0, 0.0, 1.0)
+	var t := Time.get_ticks_msec() / 1000.0
+	for i in 46:
+		var h := float(i) * 12.9898
+		var bx := fposmod(sin(h) * 43758.5453, 1.0) * vp.x
+		var by := fposmod(sin(h + 1.7) * 24634.6345, 1.0) * vp.y
+		var travel := fposmod(t * spd * 0.9 + i * 137.0, vp.length())
+		var pt := Vector2(fposmod(bx + dir.x * travel, vp.x), fposmod(by + dir.y * travel, vp.y))
+		var ln := 40.0 + 120.0 * k
+		draw_line(pt, pt - dir * ln, Color(0.75, 0.88, 1.0, 0.22 * k), 1.5)
+
+
 func _draw() -> void:
 	var vp := size
 	var t := Time.get_ticks_msec() / 1000.0
+	_draw_streaks(vp)
 
 	# During a hail the guns are cold: say so instead of the combat banner.
 	if main.story and main.story.ceasefire():
@@ -138,8 +161,16 @@ func _draw() -> void:
 		var sr := Rect2(base + Vector2(330, 11), Vector2(94, 22))
 		draw_rect(sr, Color(0.03, 0.02, 0.01))
 		draw_string(Data.font_type_bold, sr.position + Vector2(8, 16), spd, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1.0, 0.6, 0.2))
-		if p.in_brake:
+		if p.cruise_k > 0.0 or p.cruise_on:
+			# Cruise: spool bar under the readout, and the drive state.
+			var full := p.cruise_k >= 1.0
+			var tag := "CRUISE" if full else ("SPOOL" if p.cruise_on else "DROP")
+			_text(base + Vector2(286, 27), tag, 12, Color(0.45, 0.85, 1.0) if full else UIStyle.GOLD, true, true)
+			draw_rect(Rect2(sr.position + Vector2(0, 24), Vector2(94 * p.cruise_k, 3)), Color(0.45, 0.85, 1.0))
+		elif p.in_brake:
 			_text(base + Vector2(290, 27), "BRAKE", 12, UIStyle.GOLD, true, true)
+		elif main.merchant and not main.in_combat:
+			_text(base + Vector2(286, 27), "[C] CRUISE", 10, Color(UIStyle.TEXT_DIM.r, UIStyle.TEXT_DIM.g, UIStyle.TEXT_DIM.b, 0.8), true)
 		var rows := [["SHIELDS", p.shields / p.max_shields, COL_SHIELD], ["HULL", p.hull_hp / p.max_hull, COL_HULL], ["ENERGY", p.energy / p.max_energy, COL_ENERGY]]
 		for i in rows.size():
 			var y0 := base.y + 44 + i * 16
@@ -189,7 +220,7 @@ func _draw() -> void:
 	if show_help:
 		var lines := ["W / S   forward / back", "A / D   strafe", "Q / E   turn", "X   brake", "F   dock / jump",
 			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons",
-			"Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
+			"C   cruise drive", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
 		UIStyle.draw_glass(self, hr, 1.0, 10.0)
 		_text(hr.position + Vector2(14, 24), _sp("CONTROLS"), 11, UIStyle.KICKER)

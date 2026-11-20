@@ -13,6 +13,10 @@ const StoryScript := preload("res://scripts/story.gd")
 const JUMP_CHARGE := 3.0
 
 const COMBAT_RANGE := 1500.0
+const CRUISE_MAX := 1500.0       ## open space
+const CRUISE_MIN := 420.0        ## hugging a station, planet, rift or inside a belt
+const CRUISE_CLEAR := 1300.0     ## distance from mass where cruise reaches full speed
+const CRUISE_CONTACT := 2400.0   ## hostiles this close pull you out
 const WHEEL_TIME_SCALE := 0.2
 
 var world: Node2D
@@ -594,6 +598,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().change_scene_to_file("res://scenes/start.tscn")
 		else:
 			get_tree().reload_current_scene()
+	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C and is_instance_valid(player):
+		toggle_cruise()
 	elif merchant and event.is_action_pressed("interact") and is_instance_valid(player):
 		_try_interact()
 	elif event.is_action_pressed("toggle_help"):
@@ -631,6 +637,7 @@ func _physics_process(delta: float) -> void:
 		fleet_order = "engage"
 
 	if merchant:
+		_cruise_step(delta)
 		_merchant_step(delta)
 		if _merchant_test:
 			_merchant_test_step(delta)
@@ -648,6 +655,76 @@ func _physics_process(delta: float) -> void:
 
 	if autotest:
 		_autotest_step(delta)
+
+
+# --- Cruise drive ----------------------------------------------------------------
+
+## Top cruise speed at a point: mass drags the drive down, so it's fastest in
+## open space and crawls near stations, planets, rifts and inside belts. Those
+## slow spots are where ambushes happen.
+func cruise_cap(pos: Vector2) -> float:
+	var d := INF
+	for b in bodies:
+		if not is_instance_valid(b):
+			continue
+		var c: float = pos.distance_to(b.global_position)
+		var edge: float
+		match b.kind:
+			"belt":
+				# Loose rock, not a gravity well: slower, but you can still run it.
+				edge = maxf(absf(c - b.radius) - b.width * 0.5, 0.0) + 300.0
+			"jump":
+				edge = c - 150.0
+			_:
+				edge = c - b.radius
+		d = minf(d, maxf(edge, 0.0))
+	return lerpf(CRUISE_MIN, CRUISE_MAX, smoothstep(200.0, CRUISE_CLEAR, d))
+
+
+func toggle_cruise() -> void:
+	if player.cruise_on:
+		drop_cruise("")
+		return
+	if story.busy() or story.boarding != null:
+		return
+	var foe := nearest_enemy(0, player.global_position, CRUISE_CONTACT)
+	if foe:
+		show_message("Hostiles on sensors. Cruise won't spool.", 2.0)
+		return
+	if player.ion_t > 0.0:
+		show_message("Engines are dead. No cruise.", 2.0)
+		return
+	player.cruise_on = true
+	Sfx.play("dock_hum", -4.0, 0.6)
+	show_message("Cruise spooling. Weapons offline.  [C] to drop out", 2.5)
+
+
+func drop_cruise(why: String) -> void:
+	if not player.cruise_on:
+		return
+	player.cruise_on = false
+	Sfx.play("hiss", -6.0, 1.3)
+	_shake = maxf(_shake, 6.0)
+	if why != "":
+		show_message(why, 2.5)
+
+
+func _cruise_step(_delta: float) -> void:
+	if not is_instance_valid(player):
+		return
+	player.cruise_cap = cruise_cap(player.global_position)
+	if player.cruise_on:
+		if player.since_hit < 0.1:
+			drop_cruise("Taking fire! Dropped out of cruise.")
+		elif nearest_enemy(0, player.global_position, CRUISE_CONTACT) != null:
+			drop_cruise("Contact on sensors. Dropped out of cruise.")
+		elif story.busy():
+			drop_cruise("")
+	# The escorts' drives slave to yours, with headroom to catch up.
+	for e in escorts:
+		if is_instance_valid(e):
+			e.cruise_on = player.cruise_on
+			e.cruise_cap = player.cruise_cap * 1.15
 
 
 ## Soft collisions: ships that overlap gently push apart instead of stacking.
@@ -696,7 +773,10 @@ func _process(delta: float) -> void:
 			look = Vector2.ZERO
 		var target := player.global_position + look + player.velocity * 0.15
 		camera.global_position = camera.global_position.lerp(target, clampf(8.0 * delta, 0.0, 1.0))
-	var z := lerpf(camera.zoom.x, _zoom, clampf(6.0 * delta, 0.0, 1.0))
+	var want := _zoom
+	if is_instance_valid(player):
+		want *= 1.0 - 0.3 * player.cruise_k
+	var z := lerpf(camera.zoom.x, want, clampf(6.0 * delta, 0.0, 1.0))
 	camera.zoom = Vector2(z, z)
 	_shake = maxf(0.0, _shake - 40.0 * delta)
 	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake
@@ -783,6 +863,33 @@ func _run_merchant_test() -> void:
 							camera.global_position = e.global_position
 							player.position = e.global_position + Vector2(-60, 40)
 					await _wait(0.2)
+				elif what == "cruise":
+					# Open space between the belt and the rifts, then toward Four.
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					load_system("marcellus", "aurelia")
+					player.global_position = Vector2(-3600, -1900) + Vector2(500, 300)
+					player.rotation = (Vector2.ZERO - player.global_position).angle()
+					player.velocity = Vector2.ZERO
+					await _wait(0.3)
+					print("[cruise] cap at start=%d" % int(cruise_cap(player.global_position)))
+					toggle_cruise()
+					Input.action_press("thrust_forward")
+					for i in 8:
+						await _wait(0.5)
+						print("[cruise] t=%.1f k=%.2f speed=%d cap=%d" % [i * 0.5 + 0.5, player.cruise_k, int(player.velocity.length()), int(player.cruise_cap)])
+					_shot("look_cruise")
+					await _wait(2.5)
+					print("[cruise] near belt: speed=%d cap=%d" % [int(player.velocity.length()), int(player.cruise_cap)])
+					_shot("look_cruise_belt")
+					var foe: Ship = spawn_ship("raider", 1, player.global_position + player.velocity.normalized() * 2000.0, 0.0)
+					await _wait(0.3)
+					print("[cruise] contact: on=%s" % player.cruise_on)
+					await _wait(1.0)
+					print("[cruise] after drop: speed=%d k=%.2f" % [int(player.velocity.length()), player.cruise_k])
+					Input.action_release("thrust_forward")
+					foe.die()
 				elif what == "board":
 					if station_ui.visible:
 						undock()
@@ -818,7 +925,7 @@ func _run_merchant_test() -> void:
 					load_system("marcellus", "aurelia")
 					await _wait(0.5)
 					var j: Node2D = null
-					for b in get_tree().get_nodes_in_group("bodies"):
+					for b in bodies:
 						if b.kind == "jump":
 							j = b
 					if j:
