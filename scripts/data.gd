@@ -497,35 +497,35 @@ var friend_lines := {
 
 
 # --- The rest of the Merchant opening ---------------------------------------------
-# Lines marked DRAFT are mine; everything else is from the script doc, which wins.
+# All lines approved by Vishnu (2026-11-20); the script doc wins on any change.
 
 ## The Tallyman's ambush on your first run into Marcellus (script doc: Tallyman).
 var tally := {
 	"hail": "Easy, easy. Charter colors on a rig that old? Let me guess. Eleven years, company terms, weekly payments.",
 	"choices": [
-		{"text": "Maybe.", "reply": "Maybe. Ha. That's what I used to say."},  # DRAFT reply
-		{"text": "Seven years, actually.", "reply": "Seven. They'll make it eleven. They always do."},  # DRAFT reply
+		{"text": "Maybe.", "reply": "Maybe. Ha. That's what I used to say."},
+		{"text": "Seven years, actually.", "reply": "Seven. They'll make it eleven. They always do."},
 	],
-	"silence": "Nothing? Fine. Quiet ones last longer out here.",  # DRAFT: you let the clock run out
-	"ignored": "Not picking up? Charter teach you that? I'll talk, you listen.",  # DRAFT: you never answered
-	# DRAFT: what he thinks of how you fought.
+	"silence": "Nothing? Fine. Quiet ones last longer out here.",
+	"ignored": "Not picking up? Charter teach you that? I'll talk, you listen.",
+	# what he thinks of how you fought.
 	"fought_well": "You fly that brick like you mean it. Most Charter boys just cry on the open channel.",
 	"fought_poorly": "Relax. If I wanted you dead, you'd know it.",
 	"spare": "I'm not taking your cargo. Not this time. Keep paying them. You'll see.",
 	"signoff": "Name's Tallyn. They call me the Tallyman. I keep count.",
-	"dez": "He let us go. Why'd he let us go?",  # DRAFT, Dez's conscience
+	"dez": "He let us go. Why'd he let us go?",
 }
 
 ## Lt. Franz Kessler (script doc: Franz).
 var franz := {
 	"arrival": "Federation Navy, Marcellus patrol. Captain, you hurt? ...The Tallyman. Again. That's the fourth Charter rig this month. He takes the rig, lets the crew walk, and paints another mark on his hull. But he left you alone. Huh.",
 	"intro": "Lieutenant Franz Kessler. If you're hauling through the belt, you'll want friends out here. I post bounties at Four. Pays better than water.",
-	"patched": "Engines are back. My crew can't fix the paint job. Finish your run, captain. We'll keep the belt quiet for an hour.",  # DRAFT
-	"at_four": "Five now. Another Charter rig this morning. He never takes the cargo. He just counts.",  # DRAFT, from the brief
+	"patched": "Engines are back. My crew can't fix the paint job. Finish your run, captain. We'll keep the belt quiet for an hour.",
+	"at_four": "Five now. Another Charter rig this morning. He never takes the cargo. He just counts.",
 	"pitch": "We're stretched thin, and honest pilots are rare out here. If you ever get tired of hauling for the Charter, the navy's hiring.",
-	"paid": "Mud Lark's done. Good work, captain. Bounty's yours.",  # DRAFT
-	"marines": "Take four of my marines. Knock her dead in the water, get alongside, and they'll do the rest. Alive pays better.",  # DRAFT
-	"paid_alive": "Prize crew brought the Mud Lark in an hour ago. Clean work, captain. Alive rate, plus your share of her hold.",  # DRAFT
+	"paid": "Mud Lark's done. Good work, captain. Bounty's yours.",
+	"marines": "Take four of my marines. Knock her dead in the water, get alongside, and they'll do the rest. Alive pays better.",
+	"paid_alive": "Prize crew brought the Mud Lark in an hour ago. Clean work, captain. Alive rate, plus your share of her hold.",
 }
 
 ## Kessler's board at Four. "alive" waits for boarding.
@@ -549,7 +549,7 @@ var board_plans := [
 		"atk": 1.0, "def": 0.5, "share": 0.4, "order": "Seal them in. No heroics."},
 ]
 
-## Marines on comms during a boarding. DRAFT
+## Marines on comms during a boarding.
 var marine_lines := {
 	"ready": "Alongside. Pick a plan, captain.",
 	"taken": "Ship's ours! Prize crew's taking her to Four.",
@@ -569,17 +569,17 @@ var captains := {
 		"note": "Clan Karabey ace. Expensive. Flies point."},
 }
 var captain_order := ["fay", "mersham"]
-## DRAFT: the discovered bond when you hire both.
+## the discovered bond when you hire both.
 var captains_bond := ["Mersham", "Stay on my wing, girl. Watch what I do, not what I say.", "Fay", "...Yes, sir! I mean. Yes."]
 var captain_lines := {
-	"unpaid": "No pay, no wings. Find me at Saltgate when your books are better.",  # DRAFT
-	"down": "Punching out! Pick me up at the next dock.",  # DRAFT
+	"unpaid": "No pay, no wings. Find me at Saltgate when your books are better.",
+	"down": "Punching out! Pick me up at the next dock.",
 }
 
 ## The ending (script doc: Ending).
 var ending := {
-	"customs": "Writ of Passage, Charter file CC-40817-M... paid in full. Stamped. You're cleared to jump, captain. Don't come back broke.",  # DRAFT
-	"mersham": "...Home. Or what they made of it.",  # DRAFT
+	"customs": "Writ of Passage, Charter file CC-40817-M... paid in full. Stamped. You're cleared to jump, captain. Don't come back broke.",
+	"mersham": "...Home. Or what they made of it.",
 	"line": "The crossroads. Every road in the cluster, and not one of them owes you anything.",
 }
 
