@@ -46,3 +46,4 @@ func update(_delta: float) -> void:
 	var free: bool = not main.wheel_open()
 	ship.in_fire_aimed = free and Input.is_action_pressed("fire_aimed")
 	ship.in_fire_fixed = free and Input.is_action_pressed("fire_fixed")
+	ship.in_fire_secondary = free and Input.is_action_pressed("fire_secondary")

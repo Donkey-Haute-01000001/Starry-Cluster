@@ -280,6 +280,7 @@ func dock(id: String) -> void:
 		player.hull_hp = player.max_hull
 		player.shields = player.max_shields
 		player.energy = player.max_energy
+		player.restock()
 	for e in escorts:
 		if is_instance_valid(e):
 			e.hull_hp = e.max_hull
@@ -378,6 +379,11 @@ func _setup_input() -> void:
 	var mb := InputEventMouseButton.new()
 	mb.button_index = MOUSE_BUTTON_LEFT
 	InputMap.action_add_event("fire_aimed", mb)
+	if not InputMap.has_action("fire_secondary"):
+		InputMap.add_action("fire_secondary")
+	var rb := InputEventMouseButton.new()
+	rb.button_index = MOUSE_BUTTON_RIGHT
+	InputMap.action_add_event("fire_secondary", rb)
 
 
 # --- Spawning ------------------------------------------------------------
@@ -469,8 +475,8 @@ func spawn_wave() -> void:
 	show_message("Wave %d: %d pirate ships detected" % [wave, raiders + marauders], 3.0)
 
 
-func spawn_projectile(pos: Vector2, angle: float, w: Dictionary, shooter: Ship) -> void:
-	fx.spawn_projectile(pos, angle, w, shooter)
+func spawn_projectile(pos: Vector2, angle: float, w: Dictionary, shooter: Ship, fuse := -1.0) -> void:
+	fx.spawn_projectile(pos, angle, w, shooter, fuse)
 
 
 func spawn_sparks(pos: Vector2, color: Color, count: int) -> void:
@@ -604,6 +610,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().change_scene_to_file("res://scenes/start.tscn")
 		else:
 			get_tree().reload_current_scene()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R and is_instance_valid(player):
+		var nm: String = player.cycle_secondary()
+		if nm != "":
+			show_message("Secondary: %s" % nm, 1.5)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
 		PlayerController.assist = not PlayerController.assist
 		show_message("Flight assist %s" % ("ON: drift damped" if PlayerController.assist else "OFF: pure drift"), 2.0)
@@ -884,6 +894,44 @@ func _run_merchant_test() -> void:
 					player.global_position = Vector2(1200, 900)
 					player.velocity = Vector2(200, 0)
 					await _wait(1.5)
+				elif what == "turret":
+					# The freighter's flak turret on a raider, aimed by hand.
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					load_system("marcellus", "")
+					player.global_position = Vector2(1500, 900)
+					player.velocity = Vector2.ZERO
+					var pc = player.controller
+					player.controller = null
+					var foe: Ship = spawn_ship("raider", 1, player.global_position + Vector2(380, -160), PI)
+					foe.controller = null
+					foe.hold_fire = true
+					for k in 50:
+						player.aim_point = foe.global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
+						player.in_fire_aimed = true
+						await _wait(0.02)
+					player.in_fire_aimed = false
+					print("[turret] foe hull=%d/%d shields=%d" % [int(foe.hull_hp), int(foe.max_hull), int(foe.shields)])
+					_shot("look_turret_flak")
+					# Ion bolt, then a torpedo.
+					player.in_turn = 0.0
+					player.rotation = (foe.global_position - player.global_position).angle()
+					player.aim_point = foe.global_position
+					player.in_fire_secondary = true
+					await _wait(0.1)
+					player.in_fire_secondary = false
+					await _wait(0.6)
+					print("[secondary] after ion: foe ion_t=%.1f shields=%d" % [foe.ion_t, int(foe.shields)])
+					player.cycle_secondary()
+					player.in_fire_secondary = true
+					await _wait(0.1)
+					player.in_fire_secondary = false
+					await _wait(0.35)
+					_shot("look_torpedo")
+					await _wait(0.8)
+					print("[secondary] after torpedo: foe alive=%s hull=%d ammo=%d" % [is_instance_valid(foe) and foe.alive, int(foe.hull_hp) if is_instance_valid(foe) else 0, player.secondaries[1]["ammo"]])
+					player.controller = pc
 				elif what == "assist":
 					# Drift check: sideways and forward drift, no input.
 					if station_ui.visible:

@@ -69,11 +69,14 @@ var weapons := {
 		"damage": 9.0, "cooldown": 0.22, "energy": 2.0, "speed": 900.0, "range": 650.0,
 		"gimbal": 5.0, "spread": 3.0, "color": Color(1.0, 0.55, 0.3), "size": 3.0,
 	},
-	# Turrets: rotate toward the aim point at a limited traverse speed.
+	# Turrets: rotate toward the aim point at a limited traverse speed. Rapid
+	# tracer rounds with flak fuzes: each round bursts at the aim point, so a
+	# near miss still chips the target. Low damage, high rate of fire.
 	"light_turret": {
 		"name": "Light Turret", "kind": "turret",
-		"damage": 9.0, "cooldown": 0.2, "energy": 2.5, "speed": 820.0, "range": 640.0,
-		"traverse": 200.0, "spread": 2.0, "color": Color(0.7, 1.0, 0.6), "size": 2.5,
+		"damage": 3.5, "cooldown": 0.07, "energy": 0.9, "speed": 1150.0, "range": 640.0,
+		"traverse": 200.0, "spread": 3.0, "color": Color(1.0, 0.86, 0.5), "size": 1.6,
+		"flak": 30.0, "tracer": true,
 	},
 	# Story only: the Tallyman's opener. Knocks the engines out instead of killing.
 	"ion_bolt": {
@@ -81,10 +84,23 @@ var weapons := {
 		"damage": 10.0, "cooldown": 9.0, "energy": 0.0, "speed": 700.0, "range": 2400.0,
 		"gimbal": 30.0, "spread": 0.0, "color": Color(0.7, 0.5, 1.0), "size": 7.0, "ion": 14.0,
 	},
+	# Secondaries: right click fires the selected one, R swaps.
+	"ion_cannon": {
+		"name": "Ion Bolt", "kind": "secondary",
+		"damage": 6.0, "cooldown": 3.5, "energy": 40.0, "speed": 760.0, "range": 900.0,
+		"gimbal": 20.0, "spread": 0.0, "color": Color(0.7, 0.5, 1.0), "size": 6.0, "ion": 3.0,
+	},
+	"torpedo": {
+		"name": "Torpedo", "kind": "secondary",
+		"damage": 110.0, "cooldown": 1.2, "energy": 0.0, "speed": 430.0, "range": 1500.0,
+		"gimbal": 20.0, "spread": 0.0, "color": Color(1.0, 0.5, 0.3), "size": 4.0,
+		"torp": true, "ammo": 6, "blast": 55.0, "turn": 100.0,
+	},
 	"pirate_turret": {
 		"name": "Rusty Turret", "kind": "turret",
-		"damage": 8.0, "cooldown": 0.28, "energy": 2.0, "speed": 700.0, "range": 600.0,
-		"traverse": 120.0, "spread": 4.0, "color": Color(1.0, 0.75, 0.35), "size": 2.5,
+		"damage": 3.0, "cooldown": 0.1, "energy": 0.7, "speed": 1000.0, "range": 600.0,
+		"traverse": 120.0, "spread": 5.0, "color": Color(1.0, 0.7, 0.4), "size": 1.6,
+		"flak": 26.0, "tracer": true,
 	},
 }
 
@@ -118,6 +134,7 @@ var hulls := {
 		"mounts": [
 			{"pos": Vector2(4, 0), "weapon": "light_turret"},
 		],
+		"secondaries": ["ion_cannon", "torpedo"],
 	},
 	# The old friend's ships, one per role. Picked by Dez's background.
 	"friend_gunboat": {

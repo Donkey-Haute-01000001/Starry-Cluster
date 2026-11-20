@@ -55,6 +55,9 @@ const DISABLE_AT := 0.15
 var in_move := Vector2.ZERO   ## ship-relative thrust: x forward(+)/back(-), y right(+)/left(-), each -1..1
 var in_turn := 0.0            ## -1..1
 var in_brake := false         ## brake assist: fire whichever thrusters oppose the drift
+var secondaries: Array = []   ## [{weapon, cooldown, ammo (-1 = unlimited)}]
+var sec_index := 0
+var in_fire_secondary := false
 var in_fire_aimed := false    ## turrets (and gimbals) at the aim point
 var in_fire_fixed := false    ## forward cannons
 var aim_point := Vector2.ZERO ## world-space point turrets and gimbals aim at
@@ -106,6 +109,10 @@ func setup(id: String, p_team: int, p_main: Node) -> void:
 	energy_regen = def["energy_regen"]
 	turn_rate = deg_to_rad(def["turn"])
 	radius = def["radius"]
+	secondaries.clear()
+	for sid in def.get("secondaries", []):
+		var sw: Dictionary = Data.weapons[sid]
+		secondaries.append({"weapon": sw, "cooldown": 0.0, "ammo": sw.get("ammo", -1)})
 	mounts.clear()
 	for m in def["mounts"]:
 		var w: Dictionary = Data.weapons[m["weapon"]]
@@ -138,6 +145,7 @@ func _physics_process(delta: float) -> void:
 		in_turn = 0.0
 		in_fire_aimed = false
 		in_fire_fixed = false
+		in_fire_secondary = false
 		velocity = velocity.move_toward(Vector2.ZERO, 12.0 * delta)
 		if randf() < delta * 2.5:
 			main.spawn_sparks(global_position + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * radius * 0.6, def["accent"], 3)
@@ -169,6 +177,7 @@ func _physics_process(delta: float) -> void:
 		energy -= amount * SHIELD_ENERGY
 
 	_update_weapons(delta)
+	_update_secondary(delta)
 	_shield_flash = maxf(0.0, _shield_flash - delta * 3.0)
 	_hull_flash = maxf(0.0, _hull_flash - delta * 4.0)
 	queue_redraw()
@@ -245,8 +254,49 @@ func _update_weapons(delta: float) -> void:
 		energy -= cost
 		m["cooldown"] = w["cooldown"]
 		var dir: float = rotation + m["angle"] + deg_to_rad(randf_range(-w["spread"], w["spread"]) * accuracy)
-		main.spawn_projectile(world_pos, dir, w, self)
+		var fuse := -1.0
+		if w.has("flak"):
+			fuse = clampf(world_pos.distance_to(aim_point), 60.0, w["range"])
+		main.spawn_projectile(world_pos, dir, w, self, fuse)
 		_fired_t = 0.0
+
+
+## The selected secondary, fired straight ahead with a small gimbal toward
+## the aim point. Torpedoes home on whatever was nearest the crosshair.
+func _update_secondary(delta: float) -> void:
+	for sec in secondaries:
+		sec["cooldown"] -= delta
+	if secondaries.is_empty() or not in_fire_secondary or hold_fire or cruise_k > 0.0:
+		return
+	var sec: Dictionary = secondaries[sec_index]
+	var w: Dictionary = sec["weapon"]
+	if sec["cooldown"] > 0.0 or sec["ammo"] == 0 or energy < w["energy"]:
+		return
+	energy -= w["energy"]
+	sec["cooldown"] = w["cooldown"]
+	if sec["ammo"] > 0:
+		sec["ammo"] -= 1
+	var g := deg_to_rad(w["gimbal"])
+	var off := clampf(wrapf((aim_point - global_position).angle() - rotation, -PI, PI), -g, g)
+	var target: Ship = null
+	if w.get("torp", false):
+		target = main.nearest_enemy(team, aim_point, 500.0)
+	main.fx.spawn_projectile(global_position + forward() * radius, rotation + off, w, self, -1.0, target)
+	Sfx.play("hiss" if w.get("torp", false) else "radio", -6.0, 0.5 if w.get("torp", false) else 1.8)
+	_fired_t = 0.0
+
+
+func cycle_secondary() -> String:
+	if secondaries.is_empty():
+		return ""
+	sec_index = (sec_index + 1) % secondaries.size()
+	return secondaries[sec_index]["weapon"]["name"]
+
+
+## Docking restocks torpedoes.
+func restock() -> void:
+	for sec in secondaries:
+		sec["ammo"] = sec["weapon"].get("ammo", -1)
 
 
 func take_damage(amount: float, hit_pos: Vector2) -> void:

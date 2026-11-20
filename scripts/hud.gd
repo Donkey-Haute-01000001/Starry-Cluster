@@ -174,6 +174,26 @@ func _draw() -> void:
 			_text(base + Vector2(290, 27), "BRAKE", 12, UIStyle.GOLD, true, true)
 		elif main.merchant and not main.in_combat:
 			_text(base + Vector2(286, 27), "[C] CRUISE", 10, Color(UIStyle.TEXT_DIM.r, UIStyle.TEXT_DIM.g, UIStyle.TEXT_DIM.b, 0.8), true)
+		if not p.secondaries.is_empty():
+			# Secondary tab on top of the plate: what right click fires.
+			var sec: Dictionary = p.secondaries[p.sec_index]
+			var sw: Dictionary = sec["weapon"]
+			var state := "READY"
+			var sc := UIStyle.GREEN
+			if sec["ammo"] == 0:
+				state = "EMPTY"
+				sc = UIStyle.RED
+			elif sec["cooldown"] > 0.0:
+				state = "LOADING"
+				sc = UIStyle.GOLD
+			var label: String = sw["name"].to_upper() + ("  %d/%d" % [sec["ammo"], sw["ammo"]] if sw.has("ammo") else "")
+			var tab := Rect2(base + Vector2(0, -24), Vector2(300, 22))
+			draw_rect(tab, Color(0.05, 0.055, 0.06, 0.92))
+			draw_rect(Rect2(tab.position, Vector2(3, tab.size.y)), sw["color"])
+			draw_string(Data.font_type_bold, tab.position + Vector2(12, 16), "RMB  " + label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.TEXT)
+			var stw := Data.font_type_bold.get_string_size(state, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+			draw_string(Data.font_type_bold, tab.position + Vector2(tab.size.x - 10 - stw, 16), state, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, sc)
+			draw_string(Data.font_type, tab.position + Vector2(tab.size.x + 10, 16), "[R] swap", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.TEXT_DIM)
 		var rows := [["SHIELDS", p.shields / p.max_shields, COL_SHIELD], ["HULL", p.hull_hp / p.max_hull, COL_HULL], ["ENERGY", p.energy / p.max_energy, COL_ENERGY]]
 		for i in rows.size():
 			var y0 := base.y + 44 + i * 16
@@ -222,7 +242,7 @@ func _draw() -> void:
 
 	if show_help:
 		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer (M toggles)", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
-			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons",
+			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons", "Right click   fire secondary", "R   swap secondary",
 			"C   cruise drive", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
 		UIStyle.draw_glass(self, hr, 1.0, 10.0)
