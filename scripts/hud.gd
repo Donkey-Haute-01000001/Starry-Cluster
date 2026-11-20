@@ -22,8 +22,8 @@ const COL_ENERGY := Color(0.75, 0.55, 1.0)
 ## Each shows once per career, when it's useful, and clears once you've done it.
 const TIPS := {
 	"fly": [["W", "thrust"], ["MOUSE", "steer"], ["X", "brake"]],
-	"travel": [["G", "autopilot to the job"], ["C", "cruise"], ["HOLD Z", "fast-forward"]],
-	"guns": [["LMB", "turrets"], ["SPACE", "nose gun"], ["RMB", "ion / torpedo"], ["R", "swap"]],
+	"travel": [["G", "autopilot to the job"], ["C", "cruise"]],
+	"guns": [["LMB", "turrets"], ["RMB", "ion / torpedo"], ["R", "swap"]],
 	"tactics": [["HOLD TAB", "fleet orders"]],
 }
 var tip := ""          ## the prompt on screen ("" = none)
@@ -73,7 +73,7 @@ func _tip_finished(p: Ship) -> bool:
 		"fly":
 			return _tip_moved > 900.0 or _tip_t > 25.0
 		"travel":
-			return main.autopilot_on() or p.cruise_on or main._fast or _tip_t > 30.0
+			return main.autopilot_on() or p.cruise_on or _tip_t > 30.0
 		"guns":
 			return (_tip_t > 5.0 and (p.in_fire_aimed or p.in_fire_fixed)) or _tip_t > 16.0 or not main.in_combat
 		"tactics":
@@ -330,8 +330,6 @@ func _draw() -> void:
 		_draw_tip(vp)
 		if main.autopilot_on():
 			_text(Vector2(vp.x * 0.5, 160), _sp("AUTOPILOT") + "   →   " + str(main.player.controller.autopilot.label), 13, Color(0.55, 0.9, 1.0, 0.9), true, true)
-		if main._fast:
-			_text(Vector2(vp.x * 0.5, 180 if main.autopilot_on() else 160), "▶▶  ×3", 14, Color(1, 1, 1, 0.9), true, true)
 	if main.message_t > 0:
 		_text(Vector2(vp.x * 0.5, vp.y * 0.25), main.message, 20, Color(0.92, 0.97, 1.0, minf(1.0, main.message_t)), true, true)
 
@@ -339,8 +337,8 @@ func _draw() -> void:
 
 	if show_help:
 		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer (M toggles)", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
-			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire nose gun / cannons", "Right click   fire secondary", "R   swap secondary",
-			"C   cruise drive", "G   autopilot to the job", "Z (hold)   fast-forward", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
+			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons (if fitted)", "Right click   fire secondary", "R   swap secondary",
+			"C   cruise drive", "G   autopilot to the job", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
 		UIStyle.draw_glass(self, hr, 1.0, 10.0)
 		_text(hr.position + Vector2(14, 24), _sp("CONTROLS"), 11, UIStyle.KICKER)

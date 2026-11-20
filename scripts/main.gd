@@ -684,10 +684,6 @@ func _physics_process(delta: float) -> void:
 
 # --- Autopilot and fast travel ----------------------------------------------------
 
-const FAST_SCALE := 3.0
-var _fast := false   ## Z held and the coast is clear: time runs FAST_SCALE x
-
-
 func autopilot_on() -> bool:
 	return is_instance_valid(player) and player.controller is PlayerController and player.controller.autopilot != null
 
@@ -719,8 +715,7 @@ func autopilot_off(why: String) -> void:
 		show_message(why, 2.0)
 
 
-## Runs every physics frame in merchant mode: autopilot cruise and arrival,
-## and the Z fast-forward.
+## Runs every physics frame in merchant mode: autopilot cruise and arrival.
 func _travel_step() -> void:
 	if not is_instance_valid(player):
 		return
@@ -740,13 +735,6 @@ func _travel_step() -> void:
 				dock(t.id)
 			else:
 				show_message("At the jump point.  [F] to jump", 2.5)
-	var want: bool = Input.is_physical_key_pressed(KEY_Z) and docked_at == "" and not contact \
-		and not story.busy() and story.boarding == null and not wheel_open()
-	if want != _fast:
-		_fast = want
-		Engine.time_scale = FAST_SCALE if want else 1.0
-		if want:
-			Career.flags["used_fast"] = true
 
 
 # --- Cruise drive ----------------------------------------------------------------
