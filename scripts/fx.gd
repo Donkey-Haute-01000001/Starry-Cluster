@@ -17,6 +17,7 @@ func spawn_projectile(pos: Vector2, angle: float, w: Dictionary, shooter: Ship) 
 		"team": shooter.team,
 		"color": w["color"],
 		"size": w["size"],
+		"ion": w.get("ion", 0.0),
 	})
 	particles.append({"pos": pos, "vel": shooter.velocity + dir * 60.0, "life": 0.08, "max": 0.08,
 		"color": w["color"].lightened(0.5), "size": w["size"] + 2.0})
@@ -60,6 +61,8 @@ func _physics_process(delta: float) -> void:
 			var closest := Geometry2D.get_closest_point_to_segment(ship.global_position, prev, p["pos"])
 			if closest.distance_squared_to(ship.global_position) < ship.radius * ship.radius:
 				ship.take_damage(p["damage"], closest)
+				if p["ion"] > 0.0:
+					ship.ion_hit(p["ion"])
 				spawn_sparks(closest, p["color"], 3)
 				hit = true
 				break

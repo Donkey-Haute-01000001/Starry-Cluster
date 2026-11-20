@@ -6,6 +6,8 @@ signal comms(speaker: String, text: String)
 signal changed
 signal friend_joined
 signal friend_back
+signal crew_joined(id: String)
+signal crew_left(id: String)
 
 var active := false
 var credits := 0
@@ -21,6 +23,7 @@ var flags := {}
 var objective := {}         ## {"text": String, "station": String} or empty
 ## The old friend: name, portrait, role, memory, met, down. Empty until designed.
 var friend := {}
+var crew := {}              ## hired bar captains: id -> {"down": bool}
 var visited := {}           ## system ids you've been to
 var _once := {}             ## friend lines that only play once
 var _prices := {}           ## station id -> good id -> price this week
@@ -32,6 +35,7 @@ func start_merchant(p_friend: Dictionary = {}) -> void:
 	friend["met"] = false
 	friend["down"] = false
 	visited = {"aurelia": true}
+	crew = {}
 	_once = {}
 	credits = Data.START_CREDITS
 	loan_balance = Data.LOAN_TOTAL
@@ -45,6 +49,7 @@ func start_merchant(p_friend: Dictionary = {}) -> void:
 	flags = {}
 	objective = {}
 	_roll_prices(1)
+	resume_station = ""
 	changed.emit()
 
 
@@ -66,6 +71,7 @@ func week() -> int:
 
 
 func _weekly_payment() -> void:
+	_pay_wages()
 	if loan_balance <= 0:
 		return
 	var due := mini(Data.LOAN_WEEKLY, loan_balance)
@@ -103,6 +109,57 @@ func _paid_off() -> void:
 	flags["papers"] = true
 	say("Charlie", Data.charlie["paid_off"])
 	friend_say("paid_off", true)
+
+
+## Bar captains are on weekly contracts. No pay, and they walk.
+func _pay_wages() -> void:
+	for id in crew.keys():
+		var c: Dictionary = Data.captains[id]
+		if credits >= c["wage"]:
+			credits -= c["wage"]
+		else:
+			say(c["name"], Data.captain_lines["unpaid"])
+			crew.erase(id)
+			crew_left.emit(id)
+
+
+func hire(id: String) -> bool:
+	var c: Dictionary = Data.captains[id]
+	if crew.has(id) or credits < c["wage"]:
+		return false
+	credits -= c["wage"]   # first week up front
+	crew[id] = {"down": false}
+	say(c["name"], c["hired"])
+	crew_joined.emit(id)
+	# Hire both and something comes out between them.
+	if crew.has("fay") and crew.has("mersham") and not flags.get("bond", false):
+		flags["bond"] = true
+		var b: Array = Data.captains_bond
+		for i in range(0, b.size(), 2):
+			say(b[i], b[i + 1])
+	changed.emit()
+	return true
+
+
+func crew_with_you(id: String) -> bool:
+	return crew.has(id) and not crew[id]["down"]
+
+
+func captain_down(id: String) -> void:
+	if not crew.has(id):
+		return
+	crew[id]["down"] = true
+	say(Data.captains[id]["name"], Data.captain_lines["down"])
+
+
+func take_bounty() -> void:
+	if flags.get("bounty_taken", false):
+		return
+	flags["bounty_taken"] = true
+	flags["marines"] = Data.bounty["marines"]
+	say("Franz", Data.franz["marines"])
+	set_objective("Hunt the Mud Lark near Amber's, in the outer belt.", Data.bounty["station"])
+	changed.emit()
 
 
 # --- Market ------------------------------------------------------------------
@@ -222,6 +279,33 @@ func on_dock(station: String) -> void:
 		friend_say("back")
 	if station == "ambers" and friend_with_you() and friend["memory"] == "lost":
 		friend_say("callback", true)
+	for id in crew:
+		if crew[id]["down"]:
+			crew[id]["down"] = false
+			crew_joined.emit(id)
+	# Saltgate's bar: two captains looking for work.
+	if station == "saltgate" and not flags.get("bar_pitch", false):
+		flags["bar_pitch"] = true
+		for id in Data.captain_order:
+			say(Data.captains[id]["name"], Data.captains[id]["pitch"])
+	# Kessler at Four: the count, the bounty, and later the pitch.
+	if station == "four" and flags.get("franz_met", false):
+		var first: bool = not flags.get("franz_four", false)
+		if first:
+			flags["franz_four"] = true
+			say("Franz", Data.franz["at_four"])
+		if flags.get("bounty_killed", false) and not flags.get("bounty_paid", false):
+			flags["bounty_paid"] = true
+			if flags.get("bounty_alive", false):
+				credits += Data.bounty["pay_alive"] + int(flags.get("prize_share", 0))
+				say("Franz", Data.franz["paid_alive"])
+			else:
+				credits += Data.bounty["pay"]
+				say("Franz", Data.franz["paid"])
+			set_objective("", "")
+		elif not first and flags.get("bounty_paid", false) and not flags.get("franz_pitch", false):
+			flags["franz_pitch"] = true
+			say("Franz", Data.franz["pitch"])
 	changed.emit()
 
 
@@ -277,6 +361,10 @@ func on_enter_system(id: String) -> void:
 		changed.emit()
 
 
+func set_objective(text: String, station: String) -> void:
+	_set_objective(text, station)
+
+
 func _set_objective(text: String, station: String) -> void:
 	objective = {} if text == "" else {"text": text, "station": station}
 
@@ -318,3 +406,62 @@ static func _fmt(n: int) -> String:
 
 func fmt(n: int) -> String:
 	return _fmt(n)
+
+
+## Your prize-court cut of the Mud Lark's hold, at base prices.
+func prize_share(keep: float) -> int:
+	var total := 0
+	for row in Data.bounty["hold"]:
+		total += int(Data.goods[row[0]]["base"]) * int(row[1])
+	return int(total * Data.bounty["share"] * keep)
+
+
+# --- Saving ------------------------------------------------------------------
+## Like Endless Sky: the game saves every time you dock, and Continue puts you
+## back at that station's counter.
+
+const SAVE_PATH := "user://merchant_save.txt"
+const SAVE_KEYS := ["credits", "loan_balance", "cargo", "job_cargo", "cargo_capacity", "day",
+	"next_payment_day", "system_id", "jobs", "flags", "objective", "friend", "crew", "visited", "_once", "_prices"]
+var resume_station := ""
+
+
+func save_game(station: String) -> void:
+	var d := {"version": 1, "station": station}
+	for k in SAVE_KEYS:
+		d[k] = get(k)
+	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(var_to_str(d))
+
+
+static func has_save() -> bool:
+	return FileAccess.file_exists(SAVE_PATH)
+
+
+## Short line for the Continue button: where and when.
+static func save_summary() -> String:
+	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return ""
+	var d = str_to_var(f.get_as_text())
+	if typeof(d) != TYPE_DICTIONARY:
+		return ""
+	var st: Dictionary = Data.stations.get(d.get("station", ""), {})
+	return "%s, day %d" % [st.get("nick", "?"), int(d.get("day", 0.0)) + 1]
+
+
+func load_game() -> bool:
+	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return false
+	var d = str_to_var(f.get_as_text())
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	for k in SAVE_KEYS:
+		if d.has(k):
+			set(k, d[k])
+	resume_station = d.get("station", "")
+	active = true
+	changed.emit()
+	return true

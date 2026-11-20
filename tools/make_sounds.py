@@ -98,6 +98,13 @@ s = int(0.32 * SR)
 c2[s:] = (np.sin(2 * np.pi * 523 * tt[: n - s]) * env(n - s, 0.01, 0.45))
 save("chime", c1 + c2 + 0.3 * np.sin(2 * np.pi * 1318 * tt) * env(n, 0.01, 0.2), 0.35)
 
+# Radio squelch: a click, a burst of band-limited static, a click.
+n = int(SR * 0.3)
+st = bandpass(noise(0.3), 400, 3200) * np.concatenate([np.ones(int(SR * 0.22)), np.linspace(1, 0, n - int(SR * 0.22))])
+click = np.zeros(n)
+click[:60] = np.sin(np.linspace(0, np.pi * 6, 60))
+save("radio", st * 0.7 + click, 0.4)
+
 # Dock hum: a seamless 8 s loop of low machinery drone.
 L = 8.0
 tt = t(L)

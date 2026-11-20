@@ -27,6 +27,11 @@ func _load_font(path: String) -> FontFile:
 
 
 func _ready() -> void:
+	for id in hull_variants:
+		var v: Array = hull_variants[id]
+		var h: Dictionary = hulls[v[0]].duplicate(true)
+		h.merge(v[1], true)
+		hulls[id] = h
 	font_type = _load_font("res://fonts/CourierPrime.ttf")
 	font_type_bold = _load_font("res://fonts/CourierPrime-Bold.ttf")
 	font_stamp = _load_font("res://fonts/BlackOpsOne.ttf")
@@ -69,6 +74,12 @@ var weapons := {
 		"name": "Light Turret", "kind": "turret",
 		"damage": 9.0, "cooldown": 0.2, "energy": 2.5, "speed": 820.0, "range": 640.0,
 		"traverse": 200.0, "spread": 2.0, "color": Color(0.7, 1.0, 0.6), "size": 2.5,
+	},
+	# Story only: the Tallyman's opener. Knocks the engines out instead of killing.
+	"ion_bolt": {
+		"name": "Ion Bolt", "kind": "gun",
+		"damage": 10.0, "cooldown": 9.0, "energy": 0.0, "speed": 700.0, "range": 2400.0,
+		"gimbal": 30.0, "spread": 0.0, "color": Color(0.7, 0.5, 1.0), "size": 7.0, "ion": 14.0,
 	},
 	"pirate_turret": {
 		"name": "Rusty Turret", "kind": "turret",
@@ -177,7 +188,9 @@ var hulls := {
 		],
 	},
 	"raider": {
-		"name": "Pirate Raider", "sprite": "crossbow", "role": "fighter",
+		"name": "Pirate Raider", "sprite": "crossbow", "role": "fighter", "livery": "pirate",
+		"sprite_alts": ["crossbow", "red_fighter", "galactix_racer", "micro_recon"],
+		"layered_alts": ["nautolan/fighter", "nautolan/scout", "nautolan/bomber"],
 		"hull": 140.0, "shields": 70.0, "shield_regen": 12.0, "regen_delay": 2.5,
 		"accel": 480.0, "side_thrust": 0.5, "reverse_thrust": 0.45, "max_speed": 430.0, "turn": 250.0, "radius": 13.0,
 		"energy": 120.0, "energy_regen": 30.0,
@@ -191,7 +204,9 @@ var hulls := {
 		],
 	},
 	"marauder": {
-		"name": "Pirate Marauder", "sprite": "bison", "role": "gunship",
+		"name": "Pirate Marauder", "sprite": "bison", "role": "gunship", "livery": "pirate",
+		"sprite_alts": ["bison", "camo_stellar_jet"],
+		"layered_alts": ["nautolan/frigate", "nautolan/torpedo_ship"],
 		"hull": 520.0, "shields": 220.0, "shield_regen": 15.0, "regen_delay": 3.0,
 		"accel": 210.0, "side_thrust": 0.25, "reverse_thrust": 0.3, "max_speed": 250.0, "turn": 100.0, "radius": 26.0,
 		"energy": 220.0, "energy_regen": 35.0,
@@ -289,6 +304,39 @@ var systems := {
 	},
 }
 
+## Faction paint: main color and trim. One model reads as many owners.
+var liveries := {
+	"charter": [Color(0.86, 0.62, 0.18), Color(0.92, 0.9, 0.84)],   # company amber, white trim
+	"navy": [Color(0.32, 0.42, 0.58), Color(0.9, 0.92, 0.96)],      # Federation slate blue, white
+	"pirate": [Color(0.55, 0.26, 0.16), Color(0.85, 0.6, 0.3)],     # rust, scavenged brass
+	"tally": [Color(0.32, 0.12, 0.1), Color(0.85, 0.82, 0.74)],     # oxblood, bone tally marks
+	"dynasty": [Color(0.22, 0.45, 0.32), Color(0.88, 0.7, 0.32)],   # Dynasty green, brass
+	"karabey": [Color(0.6, 0.12, 0.12), Color(0.2, 0.18, 0.18)],    # Clan Karabey crimson and black
+	"league": [Color(0.18, 0.4, 0.55), Color(0.9, 0.78, 0.4)],      # Merchant League teal, gold
+	"faithful": [Color(0.78, 0.75, 0.66), Color(0.45, 0.3, 0.45)],   # pilgrim white, violet
+	"nomad": [Color(0.6, 0.5, 0.3), Color(0.35, 0.6, 0.55)],        # patched ochre, verdigris
+}
+
+
+## Story ships, built from a base hull plus overrides (Data._ready merges them).
+var hull_variants := {
+	"tally_gunboat": ["marauder", {"name": "Tally's Gunboat", "sprite": "hull", "sprite_scale": 3.2, "livery": "tally",
+		"layered": {"dir": "nautolan/battlecruiser"}, "layered_alts": [],
+		"hull": 1600.0, "shields": 800.0, "shield_regen": 30.0, "accel": 300.0, "max_speed": 330.0, "turn": 140.0, "radius": 30.0,
+		"mounts": [{"pos": Vector2(24, -6), "weapon": "pulse_cannon"}, {"pos": Vector2(24, 6), "weapon": "pulse_cannon"},
+			{"pos": Vector2(2, -13), "weapon": "light_turret"}, {"pos": Vector2(2, 13), "weapon": "light_turret"}]}],
+	"tally_escort": ["raider", {"name": "Tally's Raider", "sprite": "infrared_furtive", "livery": "tally", "sprite_alts": [],
+		"layered": {"dir": "nautolan/bomber"}, "layered_alts": [], "hull": 420.0, "shields": 220.0,
+		"mounts": [{"pos": Vector2(6, -3), "weapon": "pulse_cannon"}, {"pos": Vector2(6, 3), "weapon": "pulse_cannon"}]}],
+	"navy_cutter": ["kestrel", {"name": "FNS Halberd", "sprite": "warship", "livery": "navy", "layered": {"dir": "klaed/frigate"}, "hull": 900.0, "shields": 600.0, "radius": 27.0}],
+	"navy_wing": ["wasp", {"name": "Navy Interceptor", "sprite": "interstellar_runner", "livery": "navy", "layered": {"dir": "klaed/fighter"}, "radius": 15.0}],
+	"mud_lark": ["raider", {"name": "Mud Lark", "sprite": "switchblade", "sprite_alts": [], "layered": {"dir": "nautolan/scout"}, "layered_alts": [], "hull": 380.0, "shields": 160.0, "radius": 15.0}],
+	"fay_skiff": ["wasp", {"name": "Fay's Skiff", "sprite": "areisu",
+		"layered": {"dir": "void", "engine": "burst", "weapon": "cannon"}, "role": "fighter", "hull": 220.0, "shields": 140.0, "radius": 15.0}],
+	"karabey_fighter": ["wasp", {"name": "Karabey Lancer", "sprite": "endra", "livery": "karabey", "layered": {"dir": "nairan/fighter"}, "hull": 320.0, "shields": 240.0, "accel": 600.0, "max_speed": 490.0, "radius": 17.0,
+		"mounts": [{"pos": Vector2(8, -5), "weapon": "pulse_cannon"}, {"pos": Vector2(8, 5), "weapon": "pulse_cannon"}, {"pos": Vector2(10, 0), "weapon": "pulse_cannon"}]}],
+}
+
 var stations := {
 	"counter": {"art": "hub", "art_size": 300.0, "name": "Aurelia Highport", "nick": "the Counter", "system": "aurelia", "pos": Vector2(760, -380),
 		"makes": ["electronics"], "wants": ["luxuries", "medicine"],
@@ -314,6 +362,19 @@ var stations := {
 	"gatehouse": {"art": "hub", "art_size": 260.0, "name": "Aquila Gatehouse", "nick": "the Gate", "system": "porta_aquila", "pos": Vector2(650, 350),
 		"makes": ["luxuries"], "wants": ["rations", "water", "medicine"],
 		"desc": "Customs, garrison and the checkpoint where they ask for your Writ of Passage. Everybody calls it your papers."},
+}
+
+## Each station's wall when you're docked: bulkhead paint, the stripe they
+## painted round it, and how worn it is. The boards hang on this.
+var station_walls := {
+	"counter": {"wall": Color(0.2, 0.23, 0.27), "stripe": Color(0.86, 0.62, 0.18), "wear": 0.2},   # Charter grey, company amber
+	"bones": {"wall": Color(0.22, 0.2, 0.18), "stripe": Color(0.9, 0.72, 0.12), "wear": 0.8, "hazard": true},
+	"drip": {"wall": Color(0.14, 0.22, 0.24), "stripe": Color(0.5, 0.75, 0.78), "wear": 0.7},
+	"greenhouse": {"wall": Color(0.2, 0.25, 0.2), "stripe": Color(0.85, 0.88, 0.8), "wear": 0.4},
+	"four": {"wall": Color(0.23, 0.24, 0.21), "stripe": Color(0.38, 0.47, 0.6), "wear": 0.9},     # dust grey, navy blue
+	"saltgate": {"wall": Color(0.21, 0.16, 0.13), "stripe": Color(0.75, 0.38, 0.18), "wear": 0.7},
+	"ambers": {"wall": Color(0.2, 0.14, 0.15), "stripe": Color(0.82, 0.55, 0.6), "wear": 1.0},     # old patisserie pink
+	"gatehouse": {"wall": Color(0.24, 0.26, 0.3), "stripe": Color(0.88, 0.9, 0.95), "wear": 0.1},
 }
 
 ## Start screen. Only the Merchant start is playable in the demo.
@@ -414,6 +475,8 @@ var speaker_portraits := {
 
 
 func portrait_for(speaker: String) -> Array:
+	if story_portraits.has(speaker):
+		return story_portraits[speaker]
 	return speaker_portraits.get(speaker, [Color(0.75, 0.7, 0.65), Color(0.3, 0.3, 0.3), Color(0.35, 0.4, 0.45)])
 
 
@@ -431,3 +494,125 @@ var friend_lines := {
 	"down": "I'm out! Pod's fine. Meet you at the next dock.",
 	"back": "Patched her up. Where were we?",
 }
+
+
+# --- The rest of the Merchant opening ---------------------------------------------
+# All lines approved by Vishnu (2026-11-20); the script doc wins on any change.
+
+## The Tallyman's ambush on your first run into Marcellus (script doc: Tallyman).
+var tally := {
+	"hail": "Easy, easy. Charter colors on a rig that old? Let me guess. Eleven years, company terms, weekly payments.",
+	"choices": [
+		{"text": "Maybe.", "reply": "Maybe. Ha. That's what I used to say."},
+		{"text": "Seven years, actually.", "reply": "Seven. They'll make it eleven. They always do."},
+	],
+	"silence": "Nothing? Fine. Quiet ones last longer out here.",
+	"ignored": "Not picking up? Charter teach you that? I'll talk, you listen.",
+	# what he thinks of how you fought.
+	"fought_well": "You fly that brick like you mean it. Most Charter boys just cry on the open channel.",
+	"fought_poorly": "Relax. If I wanted you dead, you'd know it.",
+	"spare": "I'm not taking your cargo. Not this time. Keep paying them. You'll see.",
+	"signoff": "Name's Tallyn. They call me the Tallyman. I keep count.",
+	"dez": "He let us go. Why'd he let us go?",
+}
+
+## Lt. Franz Kessler (script doc: Franz).
+var franz := {
+	"arrival": "Federation Navy, Marcellus patrol. Captain, you hurt? ...The Tallyman. Again. That's the fourth Charter rig this month. He takes the rig, lets the crew walk, and paints another mark on his hull. But he left you alone. Huh.",
+	"intro": "Lieutenant Franz Kessler. If you're hauling through the belt, you'll want friends out here. I post bounties at Four. Pays better than water.",
+	"patched": "Engines are back. My crew can't fix the paint job. Finish your run, captain. We'll keep the belt quiet for an hour.",
+	"at_four": "Five now. Another Charter rig this morning. He never takes the cargo. He just counts.",
+	"pitch": "We're stretched thin, and honest pilots are rare out here. If you ever get tired of hauling for the Charter, the navy's hiring.",
+	"paid": "Mud Lark's done. Good work, captain. Bounty's yours.",
+	"marines": "Take four of my marines. Knock her dead in the water, get alongside, and they'll do the rest. Alive pays better.",
+	"paid_alive": "Prize crew brought the Mud Lark in an hour ago. Clean work, captain. Alive rate, plus your share of her hold.",
+}
+
+## Kessler's board at Four. "alive" waits for boarding.
+var bounty := {
+	"id": "mud_lark", "hull": "mud_lark", "station": "ambers",
+	"title": "BOUNTY: pirate skiff Mud Lark",
+	"text": "Last seen near Amber's. 3,000 credits; alive pays 4,500.",
+	"sign": "Lt. F. Kessler",
+	"pay": 3000, "pay_alive": 4500,
+	"crew": 3, "marines": 4,
+	"hold": [["medicine", 8], ["electronics", 6]],
+	"share": 0.2,   ## prize court: your cut of the hold's value
+}
+
+## Boarding plans (demo: Franz's marines). atk/def weight each round; share is
+## how much of the hold survives.
+var board_plans := [
+	{"id": "storm", "name": "Storm the bridge", "note": "Fast and loud. The hold stays intact.",
+		"atk": 1.1, "def": 1.0, "share": 1.0, "order": "Marines, storm the bridge."},
+	{"id": "seal", "name": "Seal the crew in", "note": "Weld the hatches. Safer, but they'll vent cargo.",
+		"atk": 1.0, "def": 0.5, "share": 0.4, "order": "Seal them in. No heroics."},
+]
+
+## Marines on comms during a boarding.
+var marine_lines := {
+	"ready": "Alongside. Pick a plan, captain.",
+	"taken": "Ship's ours! Prize crew's taking her to Four.",
+	"repelled": "They're dug in! Falling back, lost %d.",
+	"none": "No marines left. Finish her for the dead bounty.",
+}
+
+## Bar captains at Saltgate, hired on weekly contracts (script doc: Phaedra, Mersham).
+var captains := {
+	"fay": {"name": "Fay", "full": "Phaedra \"Fay\" Andreou", "hull": "fay_skiff", "ship": "skiff", "wage": 150,
+		"pitch": "You're the one with the freighter? Hire me. I've loaded, fixed, flown and fueled every ship that's ever docked at Saltgate. I'm cheap, I learn fast, and I really, really want to see the gate.",
+		"hired": "You won't regret this! ...Probably!",
+		"note": "Cheap, eager, green. Flies a patched-up skiff."},
+	"mersham": {"name": "Mersham", "full": "Mersham Ali of Clan Karabey", "hull": "karabey_fighter", "ship": "lancer", "wage": 600, "ace": true,
+		"pitch": "You fly a hauler, and your escorts fly like cargo. I flew for Clan Karabey, until the court decided my clan backed the wrong prince. My price is high. My aim is better.",
+		"hired": "Point me at whoever's bothering you.",
+		"note": "Clan Karabey ace. Expensive. Flies point."},
+}
+var captain_order := ["fay", "mersham"]
+## the discovered bond when you hire both.
+var captains_bond := ["Mersham", "Stay on my wing, girl. Watch what I do, not what I say.", "Fay", "...Yes, sir! I mean. Yes."]
+var captain_lines := {
+	"unpaid": "No pay, no wings. Find me at Saltgate when your books are better.",
+	"down": "Punching out! Pick me up at the next dock.",
+}
+
+## The ending (script doc: Ending).
+var ending := {
+	"customs": "Writ of Passage, Charter file CC-40817-M... paid in full. Stamped. You're cleared to jump, captain. Don't come back broke.",
+	"mersham": "...Home. Or what they made of it.",
+	"line": "The crossroads. Every road in the cluster, and not one of them owes you anything.",
+}
+
+var crossroads := {
+	"name": "The Crossroads", "nick": "Dynasty gate", "security": "Dynasty", "danger": 0.0,
+	"desc": "", "bodies": [], "jumps": [],
+}
+
+var story_portraits := {
+	"Tallyman": [Color(0.72, 0.55, 0.42), Color(0.35, 0.33, 0.3), Color(0.28, 0.24, 0.22)],
+	"Franz": [Color(0.93, 0.8, 0.68), Color(0.78, 0.6, 0.32), Color(0.2, 0.28, 0.42)],
+	"Fay": [Color(0.86, 0.68, 0.54), Color(0.18, 0.12, 0.1), Color(0.55, 0.42, 0.25)],
+	"Mersham": [Color(0.62, 0.45, 0.32), Color(0.1, 0.09, 0.08), Color(0.5, 0.18, 0.16)],
+	"Gate customs": [Color(0.8, 0.66, 0.55), Color(0.25, 0.22, 0.2), Color(0.25, 0.3, 0.36)],
+}
+
+
+## Who's on the radio: channel, role and the file number on their ID photo.
+var speakers := {
+	"Charlie": {"channel": "CH 03  ·  CHARTER DISPATCH", "role": "Dispatch", "serial": "CC-0042-D", "color": Color(1.0, 0.77, 0.42)},
+	"Dock crew": {"channel": "CH 05  ·  DOCK CONTROL", "role": "Loading crew", "serial": "DOCK", "color": Color(0.75, 0.75, 0.7)},
+	"Dez": {"channel": "CH 09  ·  PRIVATE", "role": "Old friend", "serial": "NK-40817-1", "color": Color(0.56, 0.94, 0.64)},
+	"Fay": {"channel": "CH 09  ·  CREW", "role": "Bar captain", "serial": "SG-1187", "color": Color(0.56, 0.94, 0.64)},
+	"Mersham": {"channel": "CH 09  ·  CREW", "role": "Bar captain", "serial": "FED-INT-0031", "color": Color(0.56, 0.94, 0.64)},
+	"Franz": {"channel": "CH 16  ·  FEDERATION NAVY", "role": "Lt., Marcellus patrol", "serial": "FN-2231-LT", "color": Color(0.45, 0.7, 1.0)},
+	"Tallyman": {"channel": "OPEN BAND  ·  UNREGISTERED", "role": "", "serial": "NO FILE", "color": Color(1.0, 0.45, 0.35)},
+	"Marines": {"channel": "CH 16  ·  BOARDING TEAM", "role": "Kessler's marines", "serial": "FN-MAR-04", "color": Color(0.45, 0.7, 1.0)},
+	"Gate customs": {"channel": "CH 01  ·  AQUILA CUSTOMS", "role": "Gatehouse", "serial": "AQ-CUSTOMS", "color": Color(0.85, 0.85, 0.95)},
+	"You": {"channel": "OUTBOUND", "role": "", "serial": "CC-40817-M", "color": Color(0.85, 0.92, 0.98)},
+}
+
+
+func speaker_info(who: String) -> Dictionary:
+	if speakers.has(who):
+		return speakers[who]
+	return {"channel": "OPEN BAND", "role": "", "serial": "", "color": Color(0.75, 0.8, 0.85)}

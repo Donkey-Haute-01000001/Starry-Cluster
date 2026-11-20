@@ -3,6 +3,7 @@ extends Node2D
 ## A ship: flight physics, shields and hull, weapon mounts and drawing.
 ## A controller (player input or AI) sets the in_* inputs each physics tick.
 
+signal disabled_now(ship)
 signal destroyed(ship: Ship)
 
 var hull_id := ""
@@ -33,9 +34,21 @@ var mounts: Array = []
 var alive := true
 var display_name := ""        ## shown on the roster instead of the hull name
 var is_friend := false        ## the old friend's ship
+var captain_id := ""          ## a hired bar captain's ship (Data.captains)
 var ace := false              ## jinks under fire (pilot friend)
 var accuracy := 1.0           ## multiplies weapon spread (gunner friend: lower is better)
 var traverse_mult := 1.0      ## multiplies turret traverse speed
+var ion_t := 0.0              ## seconds left with engines knocked out by an ion hit
+var hull_floor := 0.0         ## story ships: hull never drops below this fraction
+var hold_fire := false        ## story: guns cold (ceasefire, hails)
+var damage_taken := 0.0       ## running total, for scenes that score a fight
+var cruise_on := false        ## cruise drive wanted: spools up, weapons offline
+var cruise_k := 0.0           ## 0..1 spool
+var cruise_cap := 1400.0      ## top cruise speed here, set by main from nearby mass
+const CRUISE_SPOOL := 2.0
+const CRUISE_DROP := 0.7
+var disabled := false         ## dead in space below DISABLE_AT hull: drifts, can't fire, can be boarded
+const DISABLE_AT := 0.15
 
 # Inputs, written by the controller.
 var in_move := Vector2.ZERO   ## ship-relative thrust: x forward(+)/back(-), y right(+)/left(-), each -1..1
@@ -53,12 +66,28 @@ const SHIELD_ENERGY := 0.5    ## energy per point of shield recharged
 
 var _shield_flash := 0.0
 var _hull_flash := 0.0
+var _anim_t := 0.0
+var _fired_t := 9.0   ## seconds since a gun last fired, for weapon animations
 
 
 func setup(id: String, p_team: int, p_main: Node) -> void:
 	hull_id = id
 	def = Data.hulls[id]
+	# Some hulls come in several models; each ship picks one.
+	if not def.get("layered_alts", []).is_empty():
+		def = def.duplicate()
+		var la: Array = def["layered_alts"]
+		def["layered"] = {"dir": la[randi() % la.size()]}
+	if not def.get("sprite_alts", []).is_empty():
+		def = def.duplicate()
+		var alts: Array = def["sprite_alts"]
+		def["sprite"] = alts[randi() % alts.size()]
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	if def.has("layered"):
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if def.has("livery"):
+		var art_rel: String = "ships/%s/base.png" % def["layered"]["dir"] if def.has("layered") else "ships/%s.png" % def.get("sprite", "")
+		material = Art.livery(Data.liveries.get(def["livery"], []), get_instance_id(), Art.main_hue(art_rel))
 	team = p_team
 	main = p_main
 	max_hull = def["hull"]
@@ -103,12 +132,32 @@ func max_range() -> float:
 func _physics_process(delta: float) -> void:
 	if not alive:
 		return
-	if controller:
+	if disabled:
+		in_move = Vector2.ZERO
+		in_turn = 0.0
+		in_fire_aimed = false
+		in_fire_fixed = false
+		velocity = velocity.move_toward(Vector2.ZERO, 12.0 * delta)
+		if randf() < delta * 2.5:
+			main.spawn_sparks(global_position + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * radius * 0.6, def["accent"], 3)
+	elif controller:
 		controller.update(delta)
+	_anim_t += delta
+	_fired_t += delta
 
+	if cruise_on and (disabled or ion_t > 0.0):
+		cruise_on = false
+	cruise_k = move_toward(cruise_k, 1.0 if cruise_on else 0.0, delta / (CRUISE_SPOOL if cruise_on else CRUISE_DROP))
 	energy = minf(max_energy, energy + energy_regen * delta)
-	rotation = wrapf(rotation + clampf(in_turn, -1.0, 1.0) * turn_rate * delta, -PI, PI)
-	_apply_thrust(delta)
+	var turn := turn_rate * (0.3 if ion_t > 0.0 else 1.0)
+	rotation = wrapf(rotation + clampf(in_turn, -1.0, 1.0) * turn * delta, -PI, PI)
+	if ion_t > 0.0:
+		# Engines dead: no thrust at all, just a slow drift down.
+		ion_t -= delta
+		velocity = velocity.move_toward(Vector2.ZERO, 20.0 * delta)
+		thrust_out = Vector2.ZERO
+	else:
+		_apply_thrust(delta)
 	position += velocity * delta
 
 	# Shields recharge after a short delay without taking hits, paid for with energy.
@@ -141,6 +190,7 @@ func _apply_thrust(delta: float) -> void:
 		if cmd.y == 0.0:
 			cmd.y = by
 	var a := Vector2(cmd.x * (accel if cmd.x > 0.0 else reverse_accel), cmd.y * side_accel)
+	a *= 1.0 + 4.0 * cruise_k
 	# Thrusters draw on the reactor. On an empty bar they still fire at half power.
 	var draw := (absf(a.x) + absf(a.y)) / accel * THRUST_ENERGY * delta
 	var power := 1.0
@@ -152,7 +202,7 @@ func _apply_thrust(delta: float) -> void:
 			energy = 0.0
 	velocity += a.rotated(rotation) * power * delta
 	# Hard top speed: thrust past it only changes direction, never adds speed.
-	velocity = velocity.limit_length(max_speed)
+	velocity = velocity.limit_length(lerpf(max_speed, maxf(cruise_cap, max_speed), cruise_k))
 	thrust_out = thrust_out.lerp(cmd * power, clampf(12.0 * delta, 0.0, 1.0))
 
 
@@ -169,7 +219,7 @@ func _update_weapons(delta: float) -> void:
 			var g := deg_to_rad(w["gimbal"])
 			m["angle"] = rotate_toward(m["angle"], clampf(desired_local, -g, g), deg_to_rad(240.0) * delta)
 			firing = in_fire_fixed
-		if not firing or m["cooldown"] > 0.0:
+		if not firing or hold_fire or cruise_k > 0.0 or m["cooldown"] > 0.0:
 			continue
 		# The AI only fires a mount when it is actually lined up and in range.
 		if not is_player:
@@ -186,12 +236,14 @@ func _update_weapons(delta: float) -> void:
 		m["cooldown"] = w["cooldown"]
 		var dir: float = rotation + m["angle"] + deg_to_rad(randf_range(-w["spread"], w["spread"]) * accuracy)
 		main.spawn_projectile(world_pos, dir, w, self)
+		_fired_t = 0.0
 
 
 func take_damage(amount: float, hit_pos: Vector2) -> void:
 	if not alive:
 		return
 	since_hit = 0.0
+	damage_taken += amount
 	if shields > 0.0:
 		var absorbed := minf(shields, amount)
 		shields -= absorbed
@@ -201,8 +253,30 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		hull_hp -= amount
 		_hull_flash = 1.0
 		main.spawn_sparks(hit_pos, def["accent"], 4)
+	if hull_floor > 0.0:
+		hull_hp = maxf(hull_hp, max_hull * hull_floor)
 	if hull_hp <= 0.0:
 		die()
+	elif not disabled and not is_player and team != 0 and hull_hp <= max_hull * DISABLE_AT:
+		_disable()
+
+
+## Below DISABLE_AT hull the ship goes dead in space. Keep shooting and it dies.
+func _disable() -> void:
+	disabled = true
+	hold_fire = true
+	shields = 0.0
+	max_shields = 0.0
+	main.spawn_sparks(global_position, def["accent"], 14)
+	Sfx.play("hiss", -4.0, 0.7)
+	disabled_now.emit(self)
+
+
+## An ion bolt: shields soak a little, then the engines go dead for a while.
+func ion_hit(seconds: float) -> void:
+	ion_t = maxf(ion_t, seconds)
+	shields = maxf(0.0, shields - max_shields * 0.5)
+	_shield_flash = 1.0
 
 
 func die() -> void:
@@ -210,6 +284,20 @@ func die() -> void:
 		return
 	alive = false
 	main.spawn_explosion(global_position, radius, velocity)
+	# Void fleet ships break apart in their own frames.
+	if def.has("layered"):
+		var t := Art.tex("ships/%s/destruction.png" % def["layered"]["dir"])
+		if t:
+			var wreck := Wreck.new()
+			wreck.tex = t
+			wreck.global_position = global_position
+			wreck.rotation = rotation + PI * 0.5
+			var u := Art.used_rect("ships/%s/base.png" % def["layered"]["dir"])
+			var k: float = radius * float(def.get("sprite_scale", 3.6)) / maxf(maxf(u.size.x, u.size.y), 1.0)
+			wreck.scale = Vector2(k, k)
+			wreck.velocity = velocity
+			wreck.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			main.add_child(wreck)
 	destroyed.emit(self)
 	queue_free()
 
@@ -221,7 +309,7 @@ func _draw() -> void:
 	# Engine flames for the main engine, small puffs for maneuvering thrusters.
 	_draw_rcs(accent)
 	var main_t := maxf(thrust_out.x, 0.0)
-	if main_t > 0.05:
+	if main_t > 0.05 and not def.has("layered"):
 		for e in def["engines"]:
 			var length := (10.0 + radius * 0.6) * main_t * randf_range(0.8, 1.15)
 			var ep: Vector2 = e
@@ -232,7 +320,9 @@ func _draw() -> void:
 	# Hull: the sprite when the art is installed, otherwise the polygon.
 	var sprite: String = def.get("sprite", "")
 	var flash := Color(1, 1, 1).lerp(Color(1, 0.45, 0.4), _hull_flash * 0.7)
-	if sprite != "" and Art.draw_fit(self, "ships/%s.png" % sprite, radius * def.get("sprite_scale", 3.6), flash):
+	if def.has("layered"):
+		_draw_layered(def["layered"], flash)
+	elif sprite != "" and Art.draw_fit(self, "ships/%s.png" % sprite, radius * def.get("sprite_scale", 3.6), flash):
 		for m in mounts:
 			if m["weapon"]["kind"] == "turret":
 				var p: Vector2 = m["pos"]
@@ -255,6 +345,11 @@ func _draw() -> void:
 				draw_line(p, p + Vector2.RIGHT.rotated(a) * 9.0, col.lightened(0.6), 2.0)
 			else:
 				draw_line(p, p + Vector2.RIGHT.rotated(a) * 7.0, col.lightened(0.5), 2.0)
+	# Ion crackle while the engines are dead.
+	if ion_t > 0.0:
+		for k in 3:
+			var a0 := randf() * TAU
+			draw_arc(Vector2.ZERO, radius * randf_range(0.6, 1.1), a0, a0 + randf_range(0.4, 1.0), 6, Color(0.7, 0.55, 1.0, 0.8), 1.5)
 	# Shield shimmer when hit.
 	if _shield_flash > 0.0 and shields > 0.0:
 		draw_arc(Vector2.ZERO, radius + 6.0, 0.0, TAU, 32, Color(0.4, 0.75, 1.0, 0.6 * _shield_flash), 2.0, true)
@@ -280,3 +375,75 @@ func _draw_rcs(accent: Color) -> void:
 		var length := (4.0 + radius * 0.35) * float(j[2]) * randf_range(0.7, 1.2)
 		var n := d.orthogonal() * 2.0
 		draw_colored_polygon(PackedVector2Array([p + n, p + d * length, p - n]), col)
+
+
+## Modular pixel ships (Foozle's Void packs): an animated engine strip that
+## idles or roars with thrust, the hull (in damage states when the art has
+## them), the weapon strip that plays when it fires, and the shield strip when
+## it takes a hit. Art is nose-up; ours is nose-right.
+func _draw_layered(spec: Dictionary, flash: Color) -> void:
+	var dir: String = "ships/" + spec["dir"]
+	var frac := hull_hp / maxf(max_hull, 1.0)
+	var state := 0 if frac > 0.75 else (1 if frac > 0.5 else (2 if frac > 0.25 else 3))
+	var base := Art.tex("%s/base_%d.png" % [dir, state])
+	if base == null:
+		base = Art.tex(dir + "/base.png")
+	if base == null:
+		return
+	# Fit the visible hull, not the padded frame, to the ship's size.
+	var u := Art.used_rect(dir + "/base.png" if Art.tex(dir + "/base.png") else dir + "/base_0.png")
+	var span := maxf(u.size.x, u.size.y) if u.size != Vector2.ZERO else float(base.get_height())
+	var k: float = radius * float(def.get("sprite_scale", 3.6)) / span
+	draw_set_transform(Vector2.ZERO, PI * 0.5, Vector2(k, k))
+	var thrusting: bool = thrust_out.x > 0.05
+	# Engine: the Void main ship has idle/power flame strips; fleet ships one strip.
+	var flame := Art.tex("%s/flame_%s_%s.png" % [dir, spec.get("engine", ""), "power" if thrusting else "idle"])
+	if flame == null:
+		flame = Art.tex(dir + "/engine.png")
+	if flame:
+		_strip(flame, int(_anim_t * (14.0 if thrusting else 7.0)), Color(1, 1, 1, 1.0 if thrusting else 0.6))
+	var eng := Art.tex("%s/engine_%s.png" % [dir, spec.get("engine", "")])
+	if eng:
+		draw_texture_rect(eng, Rect2(-eng.get_size() * 0.5, eng.get_size()), false, flash)
+	draw_texture_rect(base, Rect2(-base.get_size() * 0.5, base.get_size()), false, flash)
+	var w := Art.tex("%s/weapon_%s.png" % [dir, spec["weapon"]]) if spec.has("weapon") else Art.tex(dir + "/weapons.png")
+	if w:
+		var n := _frames_in(w)
+		_strip(w, mini(int(_fired_t * 20.0), n - 1) if _fired_t < 1.0 else 0, flash)
+	if _shield_flash > 0.0:
+		var sh := Art.tex(dir + "/shield.png")
+		if sh:
+			_strip(sh, int((1.0 - _shield_flash) * _frames_in(sh)), Color(1, 1, 1, _shield_flash))
+	draw_set_transform(Vector2.ZERO)
+
+
+func _frames_in(t: Texture2D) -> int:
+	return maxi(1, roundi(float(t.get_width()) / float(t.get_height())))
+
+
+## Draws frame `f` of a square-frame strip, centered.
+func _strip(t: Texture2D, f: int, mod: Color) -> void:
+	var n := _frames_in(t)
+	var c := float(t.get_width()) / n
+	var h := float(t.get_height())
+	draw_texture_rect_region(t, Rect2(Vector2(-c, -h) * 0.5, Vector2(c, h)), Rect2((f % n) * c, 0, c, h), mod)
+
+
+## A destroyed Void ship's break-up animation, drifting with the wreck.
+class Wreck extends Node2D:
+	var tex: Texture2D
+	var velocity := Vector2.ZERO
+	var t := 0.0
+	func _process(delta: float) -> void:
+		t += delta
+		position += velocity * delta
+		velocity *= 0.98
+		var n := maxi(1, roundi(float(tex.get_width()) / tex.get_height()))
+		if int(t * 12.0) >= n:
+			queue_free()
+		queue_redraw()
+	func _draw() -> void:
+		var n := maxi(1, roundi(float(tex.get_width()) / tex.get_height()))
+		var c := float(tex.get_width()) / n
+		var h := float(tex.get_height())
+		draw_texture_rect_region(tex, Rect2(Vector2(-c, -h) * 0.5, Vector2(c, h)), Rect2(mini(int(t * 12.0), n - 1) * c, 0, c, h))

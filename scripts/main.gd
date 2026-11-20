@@ -8,10 +8,15 @@ const HudScript := preload("res://scripts/hud.gd")
 const WheelScript := preload("res://scripts/tactics_wheel.gd")
 const BodyScript := preload("res://scripts/body.gd")
 const StationUIScript := preload("res://scripts/station_ui.gd")
+const StoryScript := preload("res://scripts/story.gd")
 
 const JUMP_CHARGE := 3.0
 
 const COMBAT_RANGE := 1500.0
+const CRUISE_MAX := 1500.0       ## open space
+const CRUISE_MIN := 420.0        ## hugging a station, planet, rift or inside a belt
+const CRUISE_CLEAR := 1300.0     ## distance from mass where cruise reaches full speed
+const CRUISE_CONTACT := 2400.0   ## hostiles this close pull you out
 const WHEEL_TIME_SCALE := 0.2
 
 var world: Node2D
@@ -39,6 +44,7 @@ var merchant := false
 var system_id := ""
 var bodies: Array = []
 var station_ui: Control
+var story: Node
 var docked_at := ""
 var jump_charge := -1.0      ## seconds charged, or -1 when not charging
 var jump_target: Node2D = null
@@ -114,17 +120,29 @@ func _ready() -> void:
 		Career.comms.connect(hud.on_comms)
 		Career.friend_joined.connect(spawn_friend)
 		Career.friend_back.connect(spawn_friend)
+		Career.crew_joined.connect(spawn_captain)
+		Career.crew_left.connect(_captain_leaves)
+		story = StoryScript.new()
+		story.main = self
+		add_child(story)
 		player = spawn_ship("light_freighter", 0, Vector2.ZERO)
 		player.is_player = true
 		player.controller = PlayerController.new(player, self)
 		load_system(Career.system_id, "")
 		if Career.friend_with_you():
 			spawn_friend()
+		for id in Career.crew:
+			if Career.crew_with_you(id):
+				spawn_captain(id)
 		# The opening: you start docked at the Counter, where Charlie is waiting.
-		var st: Dictionary = Data.stations["counter"]
+		# A continued run starts docked wherever you last saved.
+		var at := "counter"
+		if Career.resume_station != "" and Data.stations.has(Career.resume_station):
+			at = Career.resume_station
+		var st: Dictionary = Data.stations[at]
 		player.position = st["pos"] + Vector2(0, 120)
 		camera.global_position = player.position
-		dock("counter")
+		dock(at)
 		return
 
 	player = spawn_ship("kestrel", 0, Vector2.ZERO)
@@ -144,18 +162,10 @@ func _ready() -> void:
 
 ## Load a star system. `from_system` places the player at the matching jump point.
 func load_system(id: String, from_system: String) -> void:
-	for b in bodies:
-		if is_instance_valid(b):
-			b.queue_free()
-	bodies.clear()
-	for s in get_tree().get_nodes_in_group("ships"):
-		if s != player and not (s in escorts):
-			s.remove_from_group("ships")
-			s.queue_free()
+	clear_system()
 	if from_system != "" and hostile_count_before_jump > 0:
 		Career.friend_say("fled", true)
 	hostile_count_before_jump = 0
-	fx.projectiles.clear()
 	system_id = id
 	Career.system_id = id
 	var sys: Dictionary = Data.systems[id]
@@ -193,6 +203,21 @@ func load_system(id: String, from_system: String) -> void:
 	_pirate_t = randf_range(25.0, 45.0)
 	Career.on_enter_system(id)
 	show_message("%s  ·  %s  ·  %s" % [sys["name"], sys["nick"], sys["security"]], 4.0)
+	if story:
+		story.on_enter_system(id, from_system)
+
+
+## Remove the current system's bodies, strangers and shots. Your fleet stays.
+func clear_system() -> void:
+	for b in bodies:
+		if is_instance_valid(b):
+			b.queue_free()
+	bodies.clear()
+	for s in get_tree().get_nodes_in_group("ships"):
+		if s != player and not (s in escorts):
+			s.remove_from_group("ships")
+			s.queue_free()
+	fx.projectiles.clear()
 
 
 func _add_body(kind: String, data: Dictionary) -> Node2D:
@@ -235,7 +260,7 @@ func _try_interact() -> void:
 			if Career.friend_with_you() and Career.friend["memory"] == "gate":
 				Career.friend_say("callback", true)
 			if Career.flags.get("papers", false):
-				show_message("Your papers check out. The crossroads await... (the ending arrives in a later build)", 4.0)
+				story.start_gate(b)
 			else:
 				show_message("Gate customs: no Writ of Passage, no jump. Pay off your Charter loan.", 3.5)
 			return
@@ -262,6 +287,8 @@ func dock(id: String) -> void:
 	get_tree().paused = true
 	station_ui.open(id)
 	Career.on_dock(id)
+	if not _merchant_test:
+		Career.save_game(id)
 
 
 func undock() -> void:
@@ -289,15 +316,18 @@ func _merchant_step(delta: float) -> void:
 				hostile_count_before_jump = hostile_count()
 				jump_charge = -1.0
 				_shake = 12.0
-				load_system(dest, from)
+				if dest == "crossroads":
+					story.arrive_crossroads()
+				else:
+					load_system(dest, from)
 	# An engineer friend patches the fleet up whenever nobody's shooting.
 	if Career.friend_with_you() and Career.friend["role"] == "engineer" and hostile_count() == 0:
 		for s in [player] + escorts:
 			if is_instance_valid(s) and s.alive:
 				s.hull_hp = minf(s.max_hull, s.hull_hp + s.max_hull * 0.02 * delta)
 	# Pirates hide in the rough systems' rocks.
-	var danger: float = Data.systems[system_id]["danger"]
-	if danger > 0.0 and hostile_count() == 0:
+	var danger: float = Data.systems.get(system_id, Data.crossroads)["danger"]
+	if danger > 0.0 and hostile_count() == 0 and not story.busy():
 		_pirate_t -= delta
 		if _pirate_t <= 0.0:
 			_pirate_t = randf_range(70.0, 120.0) / danger
@@ -398,6 +428,29 @@ func spawn_friend() -> void:
 			s.hull_hp = s.max_hull
 
 
+## A hired bar captain flies with you as an escort.
+func spawn_captain(id: String) -> void:
+	if not is_instance_valid(player):
+		return
+	for e in escorts:
+		if is_instance_valid(e) and e.captain_id == id:
+			return
+	var c: Dictionary = Data.captains[id]
+	var s := add_escort(c["hull"], Vector2(-150, -80).rotated(player.rotation))
+	s.captain_id = id
+	s.display_name = "%s (%s)" % [c["name"], c["ship"]]
+	s.ace = c.get("ace", false)
+
+
+func _captain_leaves(id: String) -> void:
+	for e in escorts.duplicate():
+		if is_instance_valid(e) and e.captain_id == id:
+			escorts.erase(e)
+			e.remove_from_group("ships")
+			e.queue_free()
+	_reassign_slots()
+
+
 func spawn_wave() -> void:
 	wave += 1
 	var center := player.global_position if is_instance_valid(player) else Vector2.ZERO
@@ -477,7 +530,7 @@ func nearest_enemy(team: int, from: Vector2, max_dist: float, center = null) -> 
 	var best_d := INF
 	for s in get_tree().get_nodes_in_group("ships"):
 		var ship := s as Ship
-		if ship == null or not ship.alive or ship.team == team:
+		if ship == null or not ship.alive or ship.team == team or ship.disabled:
 			continue
 		if c.distance_to(ship.global_position) > max_dist:
 			continue
@@ -551,6 +604,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().change_scene_to_file("res://scenes/start.tscn")
 		else:
 			get_tree().reload_current_scene()
+	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C and is_instance_valid(player):
+		toggle_cruise()
 	elif merchant and event.is_action_pressed("interact") and is_instance_valid(player):
 		_try_interact()
 	elif event.is_action_pressed("toggle_help"):
@@ -588,6 +643,7 @@ func _physics_process(delta: float) -> void:
 		fleet_order = "engage"
 
 	if merchant:
+		_cruise_step(delta)
 		_merchant_step(delta)
 		if _merchant_test:
 			_merchant_test_step(delta)
@@ -605,6 +661,76 @@ func _physics_process(delta: float) -> void:
 
 	if autotest:
 		_autotest_step(delta)
+
+
+# --- Cruise drive ----------------------------------------------------------------
+
+## Top cruise speed at a point: mass drags the drive down, so it's fastest in
+## open space and crawls near stations, planets, rifts and inside belts. Those
+## slow spots are where ambushes happen.
+func cruise_cap(pos: Vector2) -> float:
+	var d := INF
+	for b in bodies:
+		if not is_instance_valid(b):
+			continue
+		var c: float = pos.distance_to(b.global_position)
+		var edge: float
+		match b.kind:
+			"belt":
+				# Loose rock, not a gravity well: slower, but you can still run it.
+				edge = maxf(absf(c - b.radius) - b.width * 0.5, 0.0) + 300.0
+			"jump":
+				edge = c - 150.0
+			_:
+				edge = c - b.radius
+		d = minf(d, maxf(edge, 0.0))
+	return lerpf(CRUISE_MIN, CRUISE_MAX, smoothstep(200.0, CRUISE_CLEAR, d))
+
+
+func toggle_cruise() -> void:
+	if player.cruise_on:
+		drop_cruise("")
+		return
+	if story.busy() or story.boarding != null:
+		return
+	var foe := nearest_enemy(0, player.global_position, CRUISE_CONTACT)
+	if foe:
+		show_message("Hostiles on sensors. Cruise won't spool.", 2.0)
+		return
+	if player.ion_t > 0.0:
+		show_message("Engines are dead. No cruise.", 2.0)
+		return
+	player.cruise_on = true
+	Sfx.play("dock_hum", -4.0, 0.6)
+	show_message("Cruise spooling. Weapons offline.  [C] to drop out", 2.5)
+
+
+func drop_cruise(why: String) -> void:
+	if not player.cruise_on:
+		return
+	player.cruise_on = false
+	Sfx.play("hiss", -6.0, 1.3)
+	_shake = maxf(_shake, 6.0)
+	if why != "":
+		show_message(why, 2.5)
+
+
+func _cruise_step(_delta: float) -> void:
+	if not is_instance_valid(player):
+		return
+	player.cruise_cap = cruise_cap(player.global_position)
+	if player.cruise_on:
+		if player.since_hit < 0.1:
+			drop_cruise("Taking fire! Dropped out of cruise.")
+		elif nearest_enemy(0, player.global_position, CRUISE_CONTACT) != null:
+			drop_cruise("Contact on sensors. Dropped out of cruise.")
+		elif story.busy():
+			drop_cruise("")
+	# The escorts' drives slave to yours, with headroom to catch up.
+	for e in escorts:
+		if is_instance_valid(e):
+			e.cruise_on = player.cruise_on
+			e.cruise_cap = player.cruise_cap * 1.15
 
 
 ## Soft collisions: ships that overlap gently push apart instead of stacking.
@@ -653,7 +779,10 @@ func _process(delta: float) -> void:
 			look = Vector2.ZERO
 		var target := player.global_position + look + player.velocity * 0.15
 		camera.global_position = camera.global_position.lerp(target, clampf(8.0 * delta, 0.0, 1.0))
-	var z := lerpf(camera.zoom.x, _zoom, clampf(6.0 * delta, 0.0, 1.0))
+	var want := _zoom
+	if is_instance_valid(player):
+		want *= 1.0 - 0.3 * player.cruise_k
+	var z := lerpf(camera.zoom.x, want, clampf(6.0 * delta, 0.0, 1.0))
 	camera.zoom = Vector2(z, z)
 	_shake = maxf(0.0, _shake - 40.0 * delta)
 	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake
@@ -694,76 +823,299 @@ func _autotest_step(delta: float) -> void:
 		get_tree().quit()
 
 
-## Automated check of the Merchant opening: `-- --merchant-test`.
-## Flies the starter job by teleporting between stops and prints the state.
-func _merchant_test_step(delta: float) -> void:
-	_test_t += delta
-	var step := int(_test_t * 60.0)
-	var shots_dir := ""
+## Automated check of the Merchant opening: `-- --merchant-test`. Plays the
+## whole opening by teleporting between stops and prints the state as it goes.
+## Add `--shots=DIR` to save screenshots along the way.
+func _merchant_test_step(_delta: float) -> void:
+	if _test_t == 0.0:
+		_test_t = 1.0
+		_run_merchant_test()
+
+
+func _wait(sec: float) -> void:
+	await get_tree().create_timer(sec, true, true).timeout
+
+
+func _shot(name: String) -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shots="):
-			shots_dir = a.substr(8)
-	match step:
-		30:
-			print("[merchant] start: day=%.2f credits=%d loan=%d jobs=%d objective=%s" % [Career.day, Career.credits, Career.loan_balance, Career.jobs.size(), Career.objective.get("station", "")])
-			if shots_dir != "":
-				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_flight.png")
-		60:
-			player.position = Data.stations["bones"]["pos"] + Vector2(100, 0)
-			player.velocity = Vector2.ZERO
-			dock("bones")
-		62:
-			Career.buy("bones", "parts", 20)
-			if shots_dir != "":
-				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_station.png")
-			undock()
-		90:
-			player.position = Data.stations["drip"]["pos"] + Vector2(100, 0)
-			dock("drip")
-		92:
-			print("[merchant] at drip: hold=%d/%d job_cargo=%s cargo=%s" % [Career.cargo_used(), Career.cargo_capacity, Career.job_cargo, Career.cargo])
-			undock()
-		99:
-			if shots_dir != "":
-				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_drip.png")
-		100:
-			var target := objective_target()
-			print("[merchant] objective points at: %s %s" % [target.kind if target else "none", target.id if target else ""])
-			player.position = target.global_position
-			player.velocity = Vector2.ZERO
-			_try_interact()
-		290:
-			if shots_dir != "":
-				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_arrival.png")
-		300:
-			print("[merchant] after jump: system=%s" % system_id)
-			player.position = Data.stations["greenhouse"]["pos"] + Vector2(100, 0)
-			dock("greenhouse")
-		302:
-			var before := Career.credits
-			Career.sell("greenhouse", "parts", 99)
-			print("[merchant] delivered: credits=%d (parts sold for %d) flags=%s objective=%s" % [Career.credits, Career.credits - before, Career.flags, Career.objective])
-			print("[merchant] friend: met=%s escorts=%s capacity=%d" % [Career.friend.get("met"), escorts.map(func(e): return e.display_name), Career.cargo_capacity])
-			undock()
-		318:
-			if shots_dir != "":
-				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_greenhouse.png")
-		320:
-			Career.day = 6.99
-		400:
-			print("[merchant] after week 1: credits=%d loan=%d" % [Career.credits, Career.loan_balance])
-			load_system("marcellus", "tiberine")
-			_pirate_t = 0.1
-		700:
-			print("[merchant] marcellus: hostiles=%d player_alive=%s escorts=%d" % [hostile_count(), is_instance_valid(player), escorts.size()])
-			for e in escorts:
-				if is_instance_valid(e) and e.is_friend:
-					e.die()
-			print("[merchant] friend down=%s" % Career.friend.get("down"))
-			dock("four")
-			print("[merchant] after dock: down=%s escorts=%d" % [Career.friend.get("down"), escorts.size()])
-			undock()
-			if shots_dir != "":
-				get_viewport().get_texture().get_image().save_png(shots_dir + "/m_marcellus.png")
-			print("[merchant] done")
+			get_viewport().get_texture().get_image().save_png("%s/%s.png" % [a.substr(8), name])
+
+
+func _go(station: String) -> void:
+	player.position = Data.stations[station]["pos"] + Vector2(100, 0)
+	player.velocity = Vector2.ZERO
+	dock(station)
+
+
+func _run_merchant_test() -> void:
+	# --look=a,b,...: quick screenshots only (station ids, "rift", "crossroads").
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--look="):
+			await _wait(0.3)
+			for what in a.substr(7).split(","):
+				if what == "crossroads":
+					story.arrive_crossroads()
+					await _wait(9.0)
+				elif what == "fay":
+					Career.credits += 5000
+					Career.hire("fay")
+					if station_ui.visible:
+						undock()
+					await _wait(1.5)
+					for e in escorts:
+						if is_instance_valid(e):
+							camera.zoom = Vector2(2.2, 2.2)
+							camera.global_position = e.global_position
+							player.position = e.global_position + Vector2(-60, 40)
+					await _wait(0.2)
+				elif what.begins_with("sys_"):
+					# Fly-by of one system's backdrop, away from stations.
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					load_system(what.substr(4), "")
+					player.global_position = Vector2(1200, 900)
+					player.velocity = Vector2(200, 0)
+					await _wait(1.5)
+				elif what == "hail":
+					# The Tallyman's reply card over his longest line.
+					if station_ui.visible:
+						undock()
+					Career.say("Tallyman", Data.tally["hail"])
+					story._show_choices()
+					await _wait(4.0)
+					_shot("look_hail_card")
+					story.choose(0)
+				elif what == "cruise":
+					# Open space between the belt and the rifts, then toward Four.
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					load_system("marcellus", "aurelia")
+					player.global_position = Vector2(-3600, -1900) + Vector2(500, 300)
+					player.rotation = (Vector2.ZERO - player.global_position).angle()
+					player.velocity = Vector2.ZERO
+					await _wait(0.3)
+					print("[cruise] cap at start=%d" % int(cruise_cap(player.global_position)))
+					toggle_cruise()
+					Input.action_press("thrust_forward")
+					for i in 8:
+						await _wait(0.5)
+						print("[cruise] t=%.1f k=%.2f speed=%d cap=%d" % [i * 0.5 + 0.5, player.cruise_k, int(player.velocity.length()), int(player.cruise_cap)])
+					_shot("look_cruise")
+					await _wait(2.5)
+					print("[cruise] near belt: speed=%d cap=%d" % [int(player.velocity.length()), int(player.cruise_cap)])
+					_shot("look_cruise_belt")
+					var foe: Ship = spawn_ship("raider", 1, player.global_position + player.velocity.normalized() * 2000.0, 0.0)
+					await _wait(0.3)
+					print("[cruise] contact: on=%s" % player.cruise_on)
+					await _wait(1.0)
+					print("[cruise] after drop: speed=%d k=%.2f" % [int(player.velocity.length()), player.cruise_k])
+					Input.action_release("thrust_forward")
+					foe.die()
+				elif what == "board":
+					if station_ui.visible:
+						undock()
+					Career.flags["franz_met"] = true
+					Career.take_bounty()
+					Career.flags["tally_done"] = true
+					load_system("marcellus", "aurelia")
+					player.position = Data.stations["ambers"]["pos"] + Vector2(300, 0)
+					await _wait(1.0)
+					var lark: Ship = story._bounty_ship
+					for sh in get_tree().get_nodes_in_group("ships"):
+						if sh.team == 1 and sh != lark:
+							sh.die()
+					while not lark.disabled:
+						lark.take_damage(lark.max_hull * 0.1, lark.global_position)
+					player.global_position = lark.global_position + Vector2(170, 60)
+					player.velocity = lark.velocity
+					await _wait(0.5)
+					story.board()
+					await _wait(0.6)
+					_shot("look_board_plan")
+					story.boarding.pick(0)
+					await _wait(2.8)
+					_shot("look_board_breach")
+					while story.boarding != null and story.boarding.phase == "breach":
+						await _wait(0.2)
+					await _wait(0.12)
+					_shot("look_board_stinger")
+					await _wait(2.6)
+				elif what == "rift":
+					if station_ui.visible:
+						undock()
+					load_system("marcellus", "aurelia")
+					await _wait(0.5)
+					var j: Node2D = null
+					for b in bodies:
+						if b.kind == "jump":
+							j = b
+					if j:
+						player.position = j.global_position + Vector2(320, 120)
+					await _wait(1.0)
+				else:
+					Career.flags["franz_met"] = true
+					_go(what)
+					await _wait(0.3)
+				_shot("look_" + what)
 			get_tree().quit()
+			return
+	# --fast: bigger time steps, so rendered runs (screenshots) finish sooner.
+	if "--fast" in OS.get_cmdline_user_args():
+		Engine.time_scale = 4.0
+	await _wait(0.5)
+	print("[merchant] start: day=%.2f credits=%d loan=%d jobs=%d objective=%s" % [Career.day, Career.credits, Career.loan_balance, Career.jobs.size(), Career.objective.get("station", "")])
+	_shot("m_flight")
+	_go("bones")
+	Career.buy("bones", "parts", 20)
+	await _wait(0.05)
+	_shot("m_station")
+	undock()
+	_go("drip")
+	print("[merchant] at drip: hold=%d/%d job_cargo=%s cargo=%s" % [Career.cargo_used(), Career.cargo_capacity, Career.job_cargo, Career.cargo])
+	undock()
+	await _wait(0.1)
+	_shot("m_drip")
+	var target := objective_target()
+	print("[merchant] objective points at: %s %s" % [target.kind if target else "none", target.id if target else ""])
+	player.position = target.global_position
+	player.velocity = Vector2.ZERO
+	_try_interact()
+	await _wait(3.3)
+	_shot("m_arrival")
+	print("[merchant] after jump: system=%s" % system_id)
+	_go("greenhouse")
+	var before := Career.credits
+	Career.sell("greenhouse", "parts", 99)
+	print("[merchant] delivered: credits=%d (parts sold for %d) flags=%s objective=%s" % [Career.credits, Career.credits - before, Career.flags, Career.objective])
+	print("[merchant] friend: met=%s escorts=%s capacity=%d" % [Career.friend.get("met"), escorts.map(func(e): return e.display_name), Career.cargo_capacity])
+	undock()
+	await _wait(0.3)
+	_shot("m_greenhouse")
+	Career.day = 6.99
+	await _wait(1.0)
+	print("[merchant] after week 1: credits=%d loan=%d" % [Career.credits, Career.loan_balance])
+
+	# The Tallyman waits at the Marcellus jump exit.
+	load_system("marcellus", "aurelia")
+	await _wait(6.0)
+	print("[tally] scene=%s ion=%.0f tally_ships=%d engines_dead=%s" % [story.scene, player.ion_t, story._tally.size(), player.ion_t > 0.0])
+	_shot("m_tally_fight")
+	var waited := 0.0
+	while not story.ringing and waited < 60.0:
+		await _wait(0.5)
+		waited += 0.5
+	print("[tally] hail after %.0fs: score=%d player_hull=%d/%d alive=%s" % [waited, Career.flags.get("tally_score", -1), int(player.hull_hp), int(player.max_hull), is_instance_valid(player)])
+	_shot("m_tally_ring")
+	if "--tally-ignore" not in OS.get_cmdline_user_args():
+		story.answer()
+		await _wait(1.0)
+		_shot("m_tally_hail")
+		if "--tally-silent" not in OS.get_cmdline_user_args():
+			story.choose(1)
+	waited = 0.0
+	while story.scene != "" and waited < 90.0:
+		await _wait(0.5)
+		waited += 0.5
+		if story._phase == "navy" and story._t > 3.0 and not Career.flags.has("test_navy_shot"):
+			Career.flags["test_navy_shot"] = true
+			_shot("m_franz")
+	print("[tally] done after %.0fs: tally_done=%s franz_met=%s engines=%s escorts=%d cargo=%s job_cargo=%s" % [waited, Career.flags.get("tally_done"), Career.flags.get("franz_met"), player.ion_t <= 0.0, escorts.size(), Career.cargo, Career.job_cargo])
+
+	# Kessler's board at Four, then the Mud Lark near Amber's.
+	_go("four")
+	Career.take_bounty()
+	await _wait(0.05)
+	_shot("m_four")
+	undock()
+	player.position = Data.stations["ambers"]["pos"] + Vector2(300, 0)
+	await _wait(1.0)
+	var lark: Ship = story._bounty_ship
+	print("[bounty] spawned=%s objective=%s" % [lark != null and is_instance_valid(lark), Career.objective.get("station", "")])
+	for s in get_tree().get_nodes_in_group("ships"):
+		if s.team == 1 and s != lark:
+			s.die()
+	if lark:
+		# Knock it dead in the water, pull alongside, and board until taken.
+		while not lark.disabled:
+			lark.take_damage(lark.max_hull * 0.1, lark.global_position)
+		print("[board] disabled=%s hull=%d/%d" % [lark.disabled, int(lark.hull_hp), int(lark.max_hull)])
+		var tries := 0
+		while is_instance_valid(lark) and lark.team == 1 and Career.flags.get("marines", 0) > 0 and tries < 4:
+			tries += 1
+			player.global_position = lark.global_position + Vector2(160, 0)
+			player.velocity = lark.velocity
+			story.board()
+			await _wait(0.6)
+			if tries == 1:
+				_shot("m_board_plan")
+			story.boarding.pick(0)
+			var w := 0.0
+			while story.boarding != null and story.boarding.phase == "breach" and w < 15.0:
+				await _wait(0.5)
+				w += 0.5
+				if tries == 1 and w == 2.0:
+					_shot("m_board_breach")
+			await _wait(2.6)
+			_shot("m_board_end_%d" % tries)
+			await _wait(3.0)
+		print("[board] tries=%d alive=%s marines=%d share=%s" % [tries, Career.flags.get("bounty_alive"), Career.flags.get("marines", 0), Career.flags.get("prize_share")])
+		if not Career.flags.get("bounty_alive", false) and is_instance_valid(lark):
+			lark.die()
+	_go("four")
+	print("[bounty] killed=%s paid=%s credits=%d" % [Career.flags.get("bounty_killed"), Career.flags.get("bounty_paid"), Career.credits])
+	undock()
+	_go("four")
+	print("[bounty] pitch=%s" % Career.flags.get("franz_pitch"))
+	undock()
+
+	# Dez goes down and comes back at the next dock.
+	for e in escorts:
+		if is_instance_valid(e) and e.is_friend:
+			e.die()
+	print("[merchant] friend down=%s" % Career.friend.get("down"))
+	_go("saltgate")
+	print("[merchant] after dock: down=%s escorts=%d" % [Career.friend.get("down"), escorts.size()])
+
+	# Saltgate's bar.
+	Career.credits += 2000
+	print("[bar] hire fay=%s mersham=%s escorts=%s bond=%s" % [Career.hire("fay"), Career.hire("mersham"), escorts.map(func(e): return e.display_name), Career.flags.get("bond")])
+	# Save and load round trip.
+	var save_before := [Career.credits, Career.loan_balance, snappedf(Career.day, 0.01), Career.crew.keys(), Career.flags.get("bounty_paid"), Career.friend.get("role")]
+	Career.save_game("saltgate")
+	Career.credits = 1
+	Career.crew = {}
+	Career.flags = {}
+	var loaded := Career.load_game()
+	var save_after := [Career.credits, Career.loan_balance, snappedf(Career.day, 0.01), Career.crew.keys(), Career.flags.get("bounty_paid"), Career.friend.get("role")]
+	print("[save] loaded=%s match=%s resume=%s summary=%s\n  before=%s\n  after=%s" % [loaded, str(save_before) == str(save_after), Career.resume_station, Career.save_summary(), save_before, save_after])
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Career.SAVE_PATH))
+	await _wait(0.05)
+	_shot("m_saltgate")
+	undock()
+
+	# Pay it off and go see the gate.
+	Career.credits += Career.loan_balance
+	_go("counter")
+	Career.pay_extra(Career.loan_balance)
+	print("[ending] papers=%s loan=%d" % [Career.flags.get("papers"), Career.loan_balance])
+	undock()
+	load_system("porta_aquila", "tiberine")
+	await _wait(0.5)
+	for b in bodies:
+		if b.kind == "jump" and b.locked:
+			player.position = b.global_position
+			player.velocity = Vector2.ZERO
+	_try_interact()
+	print("[ending] scene=%s charging=%s" % [story.scene, jump_charge >= 0.0])
+	await _wait(4.0)
+	print("[ending] system=%s hud=%s" % [system_id, hud.visible])
+	await _wait(10.0)
+	_shot("m_crossroads")
+	await _wait(14.0)
+	print("[ending] phase=%s" % story._phase)
+	_shot("m_title")
+	print("[merchant] done")
+	get_tree().quit()

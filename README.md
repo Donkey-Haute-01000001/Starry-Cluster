@@ -52,9 +52,14 @@ The game opens on a start screen with four starts. Merchant is playable; Scrappe
 - Loan payments come out every week (a day is 60 s of flight). Miss one and interest is added. Pay extra or pay it off at the Counter.
 - Marcellus is the rough system: more profit, pirate raiders.
 - The title screen is a live shot of your rig in its Charter berth at the Counter, with the paperwork on a clipboard. Sign the loan, then fill in the Charter's emergency-contact form: your old friend Dez Okafor. You pick how you know him (rift pilot, ex-navy gunner, yard mechanic, dock hustler); each background sets his ship, bonuses and callback lines. You meet him at the Greenhouse after the first delivery and he flies with you as a free escort, following you through jumps, and comments on what you do. If his ship goes down he pods out and rejoins at your next dock.
-- Not in yet: the Tallyman and Franz, the ending, cruise, saving.
+- Your first jump into Marcellus: the Tallyman is waiting at the exit. An ion bolt kills your engines, and you fight three ships you can't beat (nobody on your side dies). He hails you; pick a reply. How well you fought changes what he says. He spares you and leaves, and Lt. Kessler's patrol arrives, gets your engines running and heads for Four.
+- At Four, Kessler is counting the Tallyman's marks and pins a bounty notice: the pirate skiff Mud Lark near Amber's. Kill it and collect at Four. Come back again and he makes the navy pitch.
+- At Saltgate's bar, Fay and Mersham pitch themselves. Hire them on weekly contracts (wages come out with the loan; no pay, and they walk). Hire both and Mersham takes Fay under his wing.
+- Pay off the loan and your papers come through. At the Wall's gate, customs stamps your Writ of Passage, you jump, and the crossroads open up under the Dynasty's gate fortress while their fleet drifts past. One line, then the title card. The demo ends there.
+- Lines marked DRAFT in `scripts/data.gd` are placeholders; the script doc wins.
+- Not in yet: boarding (the bounty's "alive" price), cruise, saving.
 
-Scripted check: `godot --headless --fixed-fps 60 -- --merchant-test` runs the opening end to end and prints each step. Add `--friend-bg=rift_pilot|navy_gunner|yard_mechanic|dock_hustler` (or `--friend-role=pilot|gunner|engineer|trader`) to test Dez's backgrounds. `-- --start-shot=out.png` and `-- --creator-shot=out.png` screenshot the title and the contact form.
+Scripted check: `godot --headless --fixed-fps 60 -- --merchant-test` runs the opening end to end and prints each step. Add `--friend-bg=rift_pilot|navy_gunner|yard_mechanic|dock_hustler` (or `--friend-role=pilot|gunner|engineer|trader`) to test Dez's backgrounds. It plays through the Tallyman, the bounty, the bar and the ending too. `--shots=DIR` saves screenshots along the way (with `--fast` for 4x time steps under slow software rendering). `-- --start-shot=out.png` and `-- --creator-shot=out.png` screenshot the title and the contact form.
 
 ### Combat sandbox
 
