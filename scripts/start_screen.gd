@@ -127,10 +127,10 @@ func _build_menu() -> void:
 		for i in 24:
 			var a := float(i) / 24.0
 			strip.draw_rect(Rect2(0, strip.size.y * (1.0 - a), strip.size.x, strip.size.y / 24.0 + 1.0), Color(0.02, 0.022, 0.03, 0.88 * a))
-		strip.draw_line(Vector2(48, 28), Vector2(strip.size.x - 48, 28), Color(1.0, 0.75, 0.35, 0.25), 1.0))
+		pass)
 	add_child(strip)
 	_menu = HBoxContainer.new()
-	_menu.add_theme_constant_override("separation", 72)
+	_menu.add_theme_constant_override("separation", 88)
 	_menu.position = Vector2(48, 44)
 	_menu.size = Vector2(vp.x - 96, 60)
 	_menu.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -147,28 +147,45 @@ func _build_menu() -> void:
 	_menu_button("QUIT", func(): get_tree().quit())
 
 
+## Pure white, clean and tracked out; a thin white rule slides in under the hovered one.
 func _menu_button(text: String, cb: Callable, sub := "") -> void:
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 0)
+	col.add_theme_constant_override("separation", 2)
 	_menu.add_child(col)
+	var f := FontVariation.new()
+	f.base_font = Data.font_bold.base_font if Data.font_bold is FontVariation else Data.font_bold
+	f.spacing_glyph = 5
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_override("font", Data.font_stamp)
-	b.add_theme_font_size_override("font_size", 28)
+	b.add_theme_font_override("font", f)
+	b.add_theme_font_size_override("font_size", 24)
 	var none := StyleBoxEmpty.new()
 	for st in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
 		b.add_theme_stylebox_override(st, none)
-	b.add_theme_color_override("font_color", Color(0.85, 0.86, 0.84))
-	b.add_theme_color_override("font_hover_color", Color(1.0, 0.75, 0.35))
-	b.add_theme_color_override("font_pressed_color", Color(1.0, 0.85, 0.5))
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(c, Color.WHITE)
+	b.set_meta("u", 0.0)
+	b.draw.connect(func():
+		var u: float = b.get_meta("u")
+		if u > 0.0:
+			var w := (b.size.x - 5.0) * u
+			b.draw_rect(Rect2((b.size.x - 5.0 - w) * 0.5, b.size.y - 4, w, 1.5), Color.WHITE))
+	var slide := func(to: float):
+		create_tween().tween_method(func(v: float):
+			b.set_meta("u", v)
+			b.queue_redraw(), float(b.get_meta("u")), to, 0.15)
 	b.pressed.connect(func():
 		Sfx.play("tick", -6.0)
 		cb.call())
-	b.mouse_entered.connect(func(): Sfx.play("tick", -16.0, 1.4))
+	b.mouse_entered.connect(func():
+		Sfx.play("tick", -16.0, 1.4)
+		slide.call(1.0))
+	b.mouse_exited.connect(func(): slide.call(0.0))
 	col.add_child(b)
-	var l := _label(col, sub, Data.font_type, 12, Color(1.0, 0.75, 0.35, 0.8))
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if sub != "":
+		var l := _label(col, sub, Data.font_type, 12, Color(1, 1, 1, 0.55))
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
 ## Top right: the sector bulletin, printed and pinned. Flavour for the
