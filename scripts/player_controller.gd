@@ -6,6 +6,8 @@ extends RefCounted
 
 var ship: Ship
 var main: Node
+static var assist := true        ## V toggles: thrusters damp drift
+static var mouse_steer := true   ## M toggles: the ship turns to face the cursor
 
 
 func _init(p_ship: Ship, p_main: Node) -> void:
@@ -30,7 +32,14 @@ func update(_delta: float) -> void:
 		turn -= 1.0
 	if Input.is_action_pressed("turn_right"):
 		turn += 1.0
+	if turn == 0.0 and mouse_steer and not main.wheel_open():
+		# Turn toward the cursor, easing in over the last few degrees so the
+		# nose settles instead of wobbling.
+		var want: float = (main.mouse_world() - ship.global_position).angle()
+		var diff := wrapf(want - ship.rotation, -PI, PI)
+		turn = clampf(diff / deg_to_rad(12.0), -1.0, 1.0)
 	ship.in_turn = turn
+	ship.assist = assist
 	ship.in_brake = Input.is_action_pressed("brake")
 
 	ship.aim_point = main.mouse_world()

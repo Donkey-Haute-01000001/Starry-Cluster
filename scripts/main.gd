@@ -604,6 +604,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().change_scene_to_file("res://scenes/start.tscn")
 		else:
 			get_tree().reload_current_scene()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
+		PlayerController.assist = not PlayerController.assist
+		show_message("Flight assist %s" % ("ON: drift damped" if PlayerController.assist else "OFF: pure drift"), 2.0)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
+		PlayerController.mouse_steer = not PlayerController.mouse_steer
+		show_message("Mouse steering %s" % ("ON: ship faces the cursor" if PlayerController.mouse_steer else "OFF: Q/E to turn"), 2.0)
 	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C and is_instance_valid(player):
 		toggle_cruise()
 	elif merchant and event.is_action_pressed("interact") and is_instance_valid(player):
@@ -878,6 +884,17 @@ func _run_merchant_test() -> void:
 					player.global_position = Vector2(1200, 900)
 					player.velocity = Vector2(200, 0)
 					await _wait(1.5)
+				elif what == "assist":
+					# Drift check: sideways and forward drift, no input.
+					if station_ui.visible:
+						undock()
+					player.global_position = Vector2(1200, 900)
+					player.rotation = 0.0
+					player.velocity = Vector2(200, 200)
+					for i in 4:
+						await _wait(0.5)
+						var lv: Vector2 = player.velocity.rotated(-player.rotation)
+						print("[assist] t=%.1f forward=%d side=%d" % [0.5 + i * 0.5, int(lv.x), int(lv.y)])
 				elif what == "hail":
 					# The Tallyman's reply card over his longest line.
 					if station_ui.visible:

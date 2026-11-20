@@ -42,6 +42,7 @@ var ion_t := 0.0              ## seconds left with engines knocked out by an ion
 var hull_floor := 0.0         ## story ships: hull never drops below this fraction
 var hold_fire := false        ## story: guns cold (ceasefire, hails)
 var damage_taken := 0.0       ## running total, for scenes that score a fight
+var assist := false           ## flight assist: thrusters damp drift you aren't asking for
 var cruise_on := false        ## cruise drive wanted: spools up, weapons offline
 var cruise_k := 0.0           ## 0..1 spool
 var cruise_cap := 1400.0      ## top cruise speed here, set by main from nearby mass
@@ -189,6 +190,15 @@ func _apply_thrust(delta: float) -> void:
 			cmd.x = bx
 		if cmd.y == 0.0:
 			cmd.y = by
+	if assist and not in_brake and velocity.length() > 1.0:
+		# Flight assist: sideways drift always cancelled, coasting forward bleeds
+		# off gently, so the ship goes where it points and stops when you let go.
+		var lv := (-velocity).rotated(-rotation)
+		var cx := accel if lv.x > 0.0 else reverse_accel
+		if cmd.y == 0.0:
+			cmd.y = clampf(lv.y / maxf(side_accel * delta, 0.001), -1.0, 1.0)
+		if cmd.x == 0.0:
+			cmd.x = clampf(lv.x / maxf(cx * delta, 0.001), -1.0, 1.0) * 0.45
 	var a := Vector2(cmd.x * (accel if cmd.x > 0.0 else reverse_accel), cmd.y * side_accel)
 	a *= 1.0 + 4.0 * cruise_k
 	# Thrusters draw on the reactor. On an empty bar they still fire at half power.

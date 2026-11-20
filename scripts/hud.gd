@@ -221,7 +221,7 @@ func _draw() -> void:
 	_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)
 
 	if show_help:
-		var lines := ["W / S   forward / back", "A / D   strafe", "Q / E   turn", "X   brake", "F   dock / jump",
+		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer (M toggles)", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
 			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons",
 			"C   cruise drive", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
