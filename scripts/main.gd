@@ -56,6 +56,8 @@ var _test_t := 0.0
 
 var _wheel_mouse_world := Vector2.ZERO
 var _shake := 0.0
+var _was_burning := false
+var _rumble: AudioStreamPlayer
 var _zoom := 0.9
 
 # Automated self-test: `godot --headless -- --autotest` runs a fight and prints stats.
@@ -855,10 +857,40 @@ func _process(delta: float) -> void:
 	var want := _zoom
 	if is_instance_valid(player):
 		want *= 1.0 - 0.3 * player.cruise_k
+		# Pull back a little as you pick up speed.
+		var sk := clampf(player.velocity.length() / maxf(player.max_speed, 1.0), 0.0, 1.0)
+		want *= 1.0 - 0.1 * sk
+		# Kicks: punching the main engine, and taking hits.
+		var burn := player.thrust_out.x > 0.6
+		if burn and not _was_burning:
+			_shake = maxf(_shake, 2.5)
+		_was_burning = burn
+		if player.since_hit < delta and player.alive:
+			_shake = maxf(_shake, 5.0)
+		_engine_sound(delta)
 	var z := lerpf(camera.zoom.x, want, clampf(6.0 * delta, 0.0, 1.0))
 	camera.zoom = Vector2(z, z)
 	_shake = maxf(0.0, _shake - 40.0 * delta)
 	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake
+
+
+## Engine rumble: a low loop that swells and rises with the main engine.
+func _engine_sound(delta: float) -> void:
+	if _rumble == null:
+		_rumble = Sfx.loop("engine", -40.0)
+		if _rumble.stream == null:
+			return
+		_rumble.bus = "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
+		add_child(_rumble)
+	if _rumble.stream == null:
+		return
+	var k := clampf(absf(player.thrust_out.x) + absf(player.thrust_out.y) * 0.4, 0.0, 1.0)
+	if not player.alive or docked_at != "" or player.ion_t > 0.0:
+		k = 0.0
+	var spd := clampf(player.velocity.length() / 600.0, 0.0, 1.0)
+	var want_db := lerpf(-30.0, -9.0, k) + 3.0 * player.cruise_k
+	_rumble.volume_db = lerpf(_rumble.volume_db, want_db, clampf(6.0 * delta, 0.0, 1.0))
+	_rumble.pitch_scale = lerpf(_rumble.pitch_scale, 0.75 + 0.35 * k + 0.2 * spd + 0.25 * player.cruise_k, clampf(4.0 * delta, 0.0, 1.0))
 
 
 func _autotest_step(delta: float) -> void:

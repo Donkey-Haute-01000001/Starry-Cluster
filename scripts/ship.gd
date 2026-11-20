@@ -65,6 +65,10 @@ var aim_point := Vector2.ZERO ## world-space point turrets and gimbals aim at
 ## Thrust actually produced last tick, ship-relative and 0..1 per axis, for drawing.
 var thrust_out := Vector2.ZERO
 
+## Pace: every hull's numbers are scaled up so a screen goes by in a couple of
+## seconds (tune here, not per hull).
+const PACE_SPEED := 1.35
+const PACE_ACCEL := 1.3
 const THRUST_ENERGY := 12.0   ## energy per second at full main-engine thrust
 const SHIELD_ENERGY := 0.5    ## energy per point of shield recharged
 
@@ -100,10 +104,10 @@ func setup(id: String, p_team: int, p_main: Node) -> void:
 	shields = max_shields
 	shield_regen = def["shield_regen"]
 	regen_delay = def["regen_delay"]
-	accel = def["accel"]
+	accel = def["accel"] * PACE_ACCEL
 	side_accel = accel * def["side_thrust"]
 	reverse_accel = accel * def["reverse_thrust"]
-	max_speed = def["max_speed"]
+	max_speed = def["max_speed"] * PACE_SPEED
 	max_energy = def["energy"]
 	energy = max_energy
 	energy_regen = def["energy_regen"]
@@ -369,14 +373,7 @@ func _draw() -> void:
 	# Engine flames for the main engine, small puffs for maneuvering thrusters.
 	_draw_rcs(accent)
 	var main_t := maxf(thrust_out.x, 0.0)
-	if main_t > 0.05 and not def.has("layered"):
-		for e in def["engines"]:
-			var length := (10.0 + radius * 0.6) * main_t * randf_range(0.8, 1.15)
-			var ep: Vector2 = e
-			draw_colored_polygon(PackedVector2Array([ep + Vector2(0, -3), ep + Vector2(-length, 0), ep + Vector2(0, 3)]),
-				Color(accent.r, accent.g, accent.b, 0.85))
-			draw_colored_polygon(PackedVector2Array([ep + Vector2(0, -1.5), ep + Vector2(-length * 0.55, 0), ep + Vector2(0, 1.5)]),
-				Color(1, 1, 0.9, 0.9))
+	_draw_plume(main_t, accent)
 	# Hull: the sprite when the art is installed, otherwise the polygon.
 	var sprite: String = def.get("sprite", "")
 	var flash := Color(1, 1, 1).lerp(Color(1, 0.45, 0.4), _hull_flash * 0.7)
@@ -416,9 +413,40 @@ func _draw() -> void:
 
 
 ## Small jets on the hull edges: nose jets for reverse thrust, flank jets for strafing.
+## Main engine plume: a long hot exhaust that swells and flickers with thrust,
+## a soft glow around the nozzles even at idle, and a white-hot core.
+func _draw_plume(k: float, accent: Color) -> void:
+	if not def.has("engines") or ion_t > 0.0:
+		return
+	var tail_x := -radius * (1.05 if def.get("sprite", "") != "" or def.has("layered") else 0.0)
+	var flick := 0.85 + 0.3 * sin(_anim_t * 47.0) * sin(_anim_t * 13.0 + radius)
+	var boost := 1.0 + 0.8 * cruise_k
+	for e in def["engines"]:
+		var ep: Vector2 = e
+		var o := Vector2(minf(ep.x, tail_x) if tail_x != 0.0 else ep.x, ep.y * (0.9 if tail_x != 0.0 else 1.0))
+		# idle glow
+		draw_circle(o, 3.0 + radius * 0.12, Color(accent.r, accent.g, accent.b, 0.18 + 0.25 * k))
+		if k < 0.05:
+			continue
+		var length := (radius * 1.6 + 18.0) * k * flick * boost
+		var w := 3.5 + radius * 0.14
+		# outer flame, mid, core: overlapping tapered polygons
+		for layer in [[1.0, 1.0, Color(accent.r, accent.g * 0.8, accent.b * 0.6, 0.35)], [0.7, 0.62, Color(accent.r, accent.g, accent.b, 0.75)], [0.42, 0.32, Color(1.0, 0.97, 0.88, 0.95)]]:
+			var lw: float = w * float(layer[1])
+			var ll: float = length * float(layer[0])
+			draw_colored_polygon(PackedVector2Array([o + Vector2(2, -lw), o + Vector2(-ll * 0.35, -lw * 0.8), o + Vector2(-ll, 0), o + Vector2(-ll * 0.35, lw * 0.8), o + Vector2(2, lw)]), layer[2])
+		# glow halo
+		draw_circle(o + Vector2(-length * 0.25, 0), w * 2.2, Color(accent.r, accent.g, accent.b, 0.10 * k))
+
+
 func _draw_rcs(accent: Color) -> void:
-	var col := Color(accent.r, accent.g, accent.b, 0.7)
+	var col := Color(0.92, 0.95, 1.0, 0.75)
 	var jets: Array = []
+	if absf(in_turn) > 0.3 and not is_zero_approx(turn_rate):
+		# Turning: nose and tail jets fire opposite ways.
+		var sd := signf(in_turn)
+		jets.append([Vector2(radius * 0.8, -sd * radius * 0.35), Vector2(0, -sd), absf(in_turn) * 0.6])
+		jets.append([Vector2(-radius * 0.8, sd * radius * 0.35), Vector2(0, sd), absf(in_turn) * 0.6])
 	if thrust_out.x < -0.05:
 		var k := -thrust_out.x
 		jets.append([Vector2(radius * 0.7, -radius * 0.35), Vector2(1, -0.3), k])
@@ -432,9 +460,10 @@ func _draw_rcs(accent: Color) -> void:
 	for j in jets:
 		var p: Vector2 = j[0]
 		var d: Vector2 = (j[1] as Vector2).normalized()
-		var length := (4.0 + radius * 0.35) * float(j[2]) * randf_range(0.7, 1.2)
-		var n := d.orthogonal() * 2.0
+		var length := (6.0 + radius * 0.5) * float(j[2]) * randf_range(0.7, 1.2)
+		var n := d.orthogonal() * 2.5
 		draw_colored_polygon(PackedVector2Array([p + n, p + d * length, p - n]), col)
+		draw_circle(p + d * length * 0.8, 2.0 + length * 0.18, Color(col, 0.25))
 
 
 ## Modular pixel ships (Foozle's Void packs): an animated engine strip that
