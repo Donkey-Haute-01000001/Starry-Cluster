@@ -282,7 +282,7 @@ func _update_secondary(delta: float) -> void:
 	if w.get("torp", false):
 		target = main.nearest_enemy(team, aim_point, 500.0)
 	main.fx.spawn_projectile(global_position + forward() * radius, rotation + off, w, self, -1.0, target)
-	Sfx.play("hiss" if w.get("torp", false) else "radio", -6.0, 0.5 if w.get("torp", false) else 1.8)
+	Sfx.play("hiss", -6.0, 0.5 if w.get("torp", false) else 1.6)
 	_fired_t = 0.0
 
 

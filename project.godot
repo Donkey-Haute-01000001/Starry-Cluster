@@ -12,6 +12,7 @@ config/features=PackedStringArray("4.3", "GL Compatibility")
 
 Data="*res://scripts/data.gd"
 Career="*res://scripts/career.gd"
+Music="*res://scripts/music.gd"
 
 [display]
 

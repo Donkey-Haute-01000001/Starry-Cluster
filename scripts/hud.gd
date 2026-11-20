@@ -43,10 +43,6 @@ func _show_comms(speaker: String, text: String) -> void:
 	_comms_text = text
 	_comms_t = 6.0 + text.length() * 0.04
 	_comms_age = 0.0
-	if main.docked_at == "":
-		Sfx.play("radio", -12.0, randf_range(0.9, 1.1))
-	if main.docked_at == "":
-		Sfx.play("radio", -8.0)
 
 
 func _to_screen(world_pos: Vector2) -> Vector2:
@@ -469,7 +465,7 @@ func _draw_comms(vp: Vector2) -> void:
 	var col: Color = info["color"]
 	# The panel grows upward to fit the whole line.
 	var body_w := 560.0 - 110.0 - 16.0
-	var text_h := ThemeDB.fallback_font.get_multiline_string_size(_comms_text, HORIZONTAL_ALIGNMENT_LEFT, body_w, 15).y
+	var text_h := ThemeDB.fallback_font.get_multiline_string_size(_comms_text, HORIZONTAL_ALIGNMENT_LEFT, body_w, 17).y
 	var h := maxf(152.0, 70.0 + text_h + 18.0)
 	var r := Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
 	comms_top = r.position.y
@@ -510,4 +506,4 @@ func _draw_comms(vp: Vector2) -> void:
 	var role_w := (Data.font_bold if Data.font_bold else ThemeDB.fallback_font).get_string_size(_comms_speaker.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	_text(Vector2(x + role_w + 10, r.position.y + 44), info["role"], 12, Color(col.r, col.g, col.b, 0.85 * a))
 	var shown := _comms_text.substr(0, int(_comms_age * 55.0))
-	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, body_w, 15, -1, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))
+	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, body_w, 17, -1, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))

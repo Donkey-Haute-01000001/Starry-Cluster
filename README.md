@@ -10,7 +10,7 @@ A top-down space fleet RPG built in Godot 4. You captain a flagship, build a fle
 
 ## Fonts
 
-UI text uses Exo 2. The paperwork uses Courier Prime (typed forms), Caveat (handwriting) and Black Ops One (rubber stamps). All are in `fonts/` under the SIL Open Font License, free to ship.
+UI text uses Big Shoulders (dock signage). The paperwork uses Courier Prime (typed forms), Nanum Pen Script (handwriting) and Big Shoulders Stencil (rubber stamps, hull marks). All are in `fonts/` under the SIL Open Font License, free to ship.
 
 ## Sounds
 

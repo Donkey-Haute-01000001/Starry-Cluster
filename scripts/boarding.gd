@@ -67,7 +67,6 @@ func _ready() -> void:
 	d_total = defenders
 	_base_scale = Engine.time_scale
 	Engine.time_scale = _base_scale * 0.5
-	Sfx.play("radio", -2.0)
 	_show_card()
 
 

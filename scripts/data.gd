@@ -5,16 +5,17 @@ extends Node
 ## maneuvering thrusters as a fraction of it. "energy" is the built-in reactor's
 ## capacity and "energy_regen" its output per second. Weapons cost "energy" per shot.
 
-## UI font for everything (Exo 2, SIL Open Font License; see fonts/).
-const UI_FONT := "res://fonts/Exo2.ttf"
+## UI font for everything: Big Shoulders, tall dock signage (SIL Open Font License; see fonts/).
+const UI_FONT := "res://fonts/BigShoulders-SemiBold.ttf"
+const UI_FONT_BOLD := "res://fonts/BigShoulders-ExtraBold.ttf"
 const UI_FONT_WEIGHT := 500
 var font_bold: Font = null  ## titles and headings
 ## Paperwork fonts (all SIL Open Font License; see fonts/). The Charter's cold
 ## print, people's handwriting on top of it, and rubber stamps.
 var font_type: Font = null       ## Courier Prime: forms, serials, typed text
 var font_type_bold: Font = null
-var font_hand: Font = null       ## Caveat: pen notes, signatures, tally marks
-var font_stamp: Font = null      ## Black Ops One: rubber stamps
+var font_hand: Font = null       ## Nanum Pen Script: pen notes, signatures, tally marks
+var font_stamp: Font = null      ## Big Shoulders Stencil: rubber stamps, hull marks
 
 
 func _load_font(path: String) -> FontFile:
@@ -32,15 +33,24 @@ func _ready() -> void:
 		var h: Dictionary = hulls[v[0]].duplicate(true)
 		h.merge(v[1], true)
 		hulls[id] = h
-	font_type = _load_font("res://fonts/CourierPrime.ttf")
-	font_type_bold = _load_font("res://fonts/CourierPrime-Bold.ttf")
-	font_stamp = _load_font("res://fonts/BlackOpsOne.ttf")
-	var hand := _load_font("res://fonts/Caveat.ttf")
+	# --fontset=DIR swaps in ui/ui_bold/type/type_bold/stamp/hand .ttf from DIR
+	# (for comparing type directions; missing files keep the defaults).
+	var fs := {}
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--fontset="):
+			var dir := a.substr(10)
+			for k in ["ui", "ui_bold", "type", "type_bold", "stamp", "hand"]:
+				if FileAccess.file_exists(dir + "/" + k + ".ttf"):
+					fs[k] = dir + "/" + k + ".ttf"
+	font_type = _load_font(fs.get("type", "res://fonts/CourierPrime.ttf"))
+	font_type_bold = _load_font(fs.get("type_bold", "res://fonts/CourierPrime-Bold.ttf"))
+	font_stamp = _load_font(fs.get("stamp", "res://fonts/BigShouldersStencil-ExtraBold.ttf"))
+	var hand := _load_font(fs.get("hand", "res://fonts/NanumPenScript.ttf"))
 	if hand:
 		font_hand = FontVariation.new()
 		font_hand.base_font = hand
 		font_hand.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 550}
-	var base := _load_font(UI_FONT)
+	var base := _load_font(fs.get("ui", UI_FONT))
 	if base == null:
 		return
 	var f := FontVariation.new()
@@ -48,9 +58,10 @@ func _ready() -> void:
 	f.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): UI_FONT_WEIGHT}
 	# Every Control without its own theme font, and every draw_string that uses
 	# the fallback font (HUD, labels in space), picks this up.
+	f.spacing_glyph = 1   # Big Shoulders is narrow; a hair of tracking keeps small text legible
 	ThemeDB.fallback_font = f
 	font_bold = FontVariation.new()
-	font_bold.base_font = base
+	font_bold.base_font = _load_font(fs.get("ui_bold", UI_FONT_BOLD))
 	font_bold.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 680}
 	UIStyle.apply_default_theme(f)
 

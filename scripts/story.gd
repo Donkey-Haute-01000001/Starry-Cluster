@@ -153,7 +153,6 @@ func _ambush_step() -> void:
 			if ringing:
 				if _t >= _ring_ping:
 					_ring_ping = _t + 1.6
-					Sfx.play("radio", -4.0, 1.3)
 				if _t > 1.0 + HAIL_RING_TIME:
 					ringing = false
 					Career.flags["tally_ignored"] = true
@@ -246,7 +245,6 @@ func answer() -> void:
 	if not ringing:
 		return
 	ringing = false
-	Sfx.play("radio", -2.0)
 	Career.say("Tallyman", Data.tally["hail"])
 	_base_scale = Engine.time_scale
 	Engine.time_scale = _base_scale * 0.5

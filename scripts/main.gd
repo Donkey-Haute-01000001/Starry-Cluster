@@ -717,7 +717,6 @@ func toggle_cruise() -> void:
 		show_message("Engines are dead. No cruise.", 2.0)
 		return
 	player.cruise_on = true
-	Sfx.play("dock_hum", -4.0, 0.6)
 	show_message("Cruise spooling. Weapons offline.  [C] to drop out", 2.5)
 
 

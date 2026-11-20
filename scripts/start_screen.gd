@@ -10,9 +10,10 @@ const PAPER_H := 780.0
 var _selected := 0
 var _bg := ""                       ## Dez's background on the contact form
 var _board: Control                 ## the clipboard
+var _bulletin: Control              ## top-right sector bulletin (hidden under the clipboard)
 var _page: Control                  ## the current sheet of paper
 var _busy := false
-var _menu: VBoxContainer            ## the main menu, under the berth sign
+var _menu: HBoxContainer            ## the main menu: one row along the bottom
 
 
 func _ready() -> void:
@@ -67,11 +68,9 @@ func _ready() -> void:
 	_board.draw.connect(_draw_board)
 	add_child(_board)
 
-	var hum := Sfx.loop("dock_hum", -14.0)
-	add_child(hum)
-	_ambience()
 
 	PlayerController.load_settings()
+	_build_bulletin()
 	# The clipboard waits off to the side until you pick New career or Settings.
 	_board.visible = false
 	_build_menu()
@@ -115,27 +114,28 @@ func _begin(friend: Dictionary) -> void:
 
 # --- Main menu -------------------------------------------------------------------
 
-## Stencilled options on a dock plate under the berth sign.
+## The menu: one row of stencilled options across a dark strip at the bottom.
 func _build_menu() -> void:
 	if _menu:
-		_menu.queue_free()
-	var plate := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.065, 0.075, 0.9)
-	sb.border_color = Color(0.24, 0.26, 0.28)
-	sb.border_width_top = 2
-	sb.border_width_left = 2
-	sb.border_width_bottom = 2
-	sb.border_width_right = 2
-	sb.set_content_margin_all(22)
-	sb.content_margin_right = 40
-	plate.add_theme_stylebox_override("panel", sb)
-	plate.position = Vector2(48, 170)
-	add_child(plate)
-	_menu = VBoxContainer.new()
-	_menu.add_theme_constant_override("separation", 6)
-	plate.add_child(_menu)
-	_menu.set_meta("plate", plate)
+		_menu.get_meta("strip").queue_free()
+	var vp := get_viewport_rect().size
+	var strip := Control.new()
+	strip.position = Vector2(0, vp.y - 120)
+	strip.size = Vector2(vp.x, 120)
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	strip.draw.connect(func():
+		for i in 24:
+			var a := float(i) / 24.0
+			strip.draw_rect(Rect2(0, strip.size.y * (1.0 - a), strip.size.x, strip.size.y / 24.0 + 1.0), Color(0.02, 0.022, 0.03, 0.88 * a))
+		strip.draw_line(Vector2(48, 28), Vector2(strip.size.x - 48, 28), Color(1.0, 0.75, 0.35, 0.25), 1.0))
+	add_child(strip)
+	_menu = HBoxContainer.new()
+	_menu.add_theme_constant_override("separation", 72)
+	_menu.position = Vector2(48, 44)
+	_menu.size = Vector2(vp.x - 96, 60)
+	_menu.alignment = BoxContainer.ALIGNMENT_CENTER
+	strip.add_child(_menu)
+	_menu.set_meta("strip", strip)
 	if Career.has_save():
 		_menu_button("CONTINUE", _continue, Career.save_summary())
 	_menu_button("NEW CAREER", func():
@@ -148,12 +148,14 @@ func _build_menu() -> void:
 
 
 func _menu_button(text: String, cb: Callable, sub := "") -> void:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	_menu.add_child(col)
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.add_theme_font_override("font", Data.font_stamp)
-	b.add_theme_font_size_override("font_size", 30)
+	b.add_theme_font_size_override("font_size", 28)
 	var none := StyleBoxEmpty.new()
 	for st in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
 		b.add_theme_stylebox_override(st, none)
@@ -164,10 +166,63 @@ func _menu_button(text: String, cb: Callable, sub := "") -> void:
 		Sfx.play("tick", -6.0)
 		cb.call())
 	b.mouse_entered.connect(func(): Sfx.play("tick", -16.0, 1.4))
-	_menu.add_child(b)
-	if sub != "":
-		var l := _label(_menu, "    " + sub, Data.font_type, 13, Color(1.0, 0.75, 0.35, 0.8))
-		l.add_theme_constant_override("line_spacing", 0)
+	col.add_child(b)
+	var l := _label(col, sub, Data.font_type, 12, Color(1.0, 0.75, 0.35, 0.8))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
+## Top right: the sector bulletin, printed and pinned. Flavour for the
+## world outside the berth.
+func _build_bulletin() -> void:
+	var vp := get_viewport_rect().size
+	var slip := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.93, 0.91, 0.85)
+	sb.shadow_color = Color(0, 0, 0, 0.4)
+	sb.shadow_size = 4
+	sb.shadow_offset = Vector2(2, 3)
+	sb.set_content_margin_all(14)
+	slip.add_theme_stylebox_override("panel", sb)
+	slip.position = Vector2(vp.x - 380, 54)
+	slip.custom_minimum_size = Vector2(340, 0)
+	slip.rotation = deg_to_rad(0.6)
+	add_child(slip)
+	_bulletin = slip
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 7)
+	slip.add_child(v)
+	_type(v, "HESPER MARCH BULLETIN  ·  WEEK 1", 11, true, UIStyle.INK_FADED)
+	_rule(v)
+	for line in [
+		"Charter Co. posts record quarter. Haulers' rates unchanged.",
+		"Navy patrol warns of raiders in the Marcellus belt.",
+		"Saltgate bar: pilots for hire, cheap.",
+		"Aquila customs: Writs of Passage checked in full.",
+	]:
+		# Hanging bullet: a square of ink, then the wrapped line beside it.
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		v.add_child(row)
+		var dot := Control.new()
+		dot.custom_minimum_size = Vector2(6, 0)
+		dot.draw.connect(func(): dot.draw_rect(Rect2(0, 6, 5, 5), UIStyle.INK_TYPE))
+		row.add_child(dot)
+		var t := _type(row, line, 13)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t.custom_minimum_size = Vector2(298, 0)
+	# Two thumbtacks pin it to the berth wall.
+	var tacks := Control.new()
+	tacks.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tacks.position = slip.position
+	tacks.rotation = slip.rotation
+	tacks.size = Vector2(340, 20)
+	tacks.draw.connect(func():
+		for x in [16.0, 324.0]:
+			tacks.draw_circle(Vector2(x + 2, 4), 6.5, Color(0, 0, 0, 0.35))
+			tacks.draw_circle(Vector2(x, 2), 6.0, Color(0.72, 0.16, 0.14))
+			tacks.draw_circle(Vector2(x - 1.8, 0.2), 2.0, Color(1.0, 0.6, 0.55, 0.8)))
+	add_child(tacks)
+	slip.set_meta("tacks", tacks)
 
 
 func _continue() -> void:
@@ -180,6 +235,7 @@ func _open_board() -> void:
 	if _board.visible:
 		return
 	_board.visible = true
+	_set_menu_shown(false)
 	var target := _board.position
 	_board.position.x += 700.0
 	var tw := create_tween()
@@ -248,8 +304,15 @@ func _close_board() -> void:
 	tw.tween_property(_board, "position:x", home.x + 700.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func():
 		_board.visible = false
-		_board.position = home)
+		_board.position = home
+		_set_menu_shown(true))
 	Sfx.play("paper", -6.0)
+
+
+## The menu strip and bulletin step aside while the clipboard is out.
+func _set_menu_shown(on: bool) -> void:
+	for n in [_bulletin, _bulletin.get_meta("tacks"), _menu.get_meta("strip")]:
+		n.visible = on
 
 
 # --- The clipboard ---------------------------------------------------------------
