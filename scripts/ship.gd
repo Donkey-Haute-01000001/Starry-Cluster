@@ -442,16 +442,12 @@ func _draw_plume(k: float, accent: Color) -> void:
 func _draw_rcs(accent: Color) -> void:
 	var col := Color(0.92, 0.95, 1.0, 0.75)
 	var jets: Array = []
-	if absf(in_turn) > 0.3 and not is_zero_approx(turn_rate):
-		# Turning: nose and tail jets fire opposite ways.
-		var sd := signf(in_turn)
-		jets.append([Vector2(radius * 0.8, -sd * radius * 0.35), Vector2(0, -sd), absf(in_turn) * 0.6])
-		jets.append([Vector2(-radius * 0.8, sd * radius * 0.35), Vector2(0, sd), absf(in_turn) * 0.6])
-	if thrust_out.x < -0.05:
+	# Only real burns show: flight assist's small trims stay invisible.
+	if thrust_out.x < -0.3:
 		var k := -thrust_out.x
 		jets.append([Vector2(radius * 0.7, -radius * 0.35), Vector2(1, -0.3), k])
 		jets.append([Vector2(radius * 0.7, radius * 0.35), Vector2(1, 0.3), k])
-	if absf(thrust_out.y) > 0.05:
+	if absf(thrust_out.y) > 0.3:
 		# Pushing right (+y) fires jets on the left flank (-y side), and vice versa.
 		var side := -signf(thrust_out.y)
 		var k := absf(thrust_out.y)

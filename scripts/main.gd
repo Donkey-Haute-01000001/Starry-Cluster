@@ -849,7 +849,7 @@ func _between_waves() -> void:
 
 func _process(delta: float) -> void:
 	if is_instance_valid(player):
-		var look := (mouse_world() - player.global_position).limit_length(1200.0) * 0.18
+		var look := (mouse_world() - player.global_position).limit_length(1200.0) * 0.08
 		if autotest:
 			look = Vector2.ZERO
 		var target := player.global_position + look + player.velocity * 0.15
@@ -859,12 +859,8 @@ func _process(delta: float) -> void:
 		want *= 1.0 - 0.3 * player.cruise_k
 		# Pull back a little as you pick up speed.
 		var sk := clampf(player.velocity.length() / maxf(player.max_speed, 1.0), 0.0, 1.0)
-		want *= 1.0 - 0.1 * sk
-		# Kicks: punching the main engine, and taking hits.
-		var burn := player.thrust_out.x > 0.6
-		if burn and not _was_burning:
-			_shake = maxf(_shake, 2.5)
-		_was_burning = burn
+		want *= 1.0 - 0.06 * sk
+		# Kick when you take a hit.
 		if player.since_hit < delta and player.alive:
 			_shake = maxf(_shake, 5.0)
 		_engine_sound(delta)

@@ -81,6 +81,13 @@ func _ready() -> void:
 			_open_board()
 			_show_index(false)
 			_snapshot.call_deferred(a.substr(13))
+		elif a == "--pick-test":
+			# New career -> Merchant should open the Merchant file.
+			_open_board()
+			_show_index(false)
+			_pick(0)
+			print("[pick] opened file %d" % _selected)
+			get_tree().quit.call_deferred()
 		elif a.begins_with("--settings-shot="):
 			_open_board()
 			_show_settings(false)
@@ -267,6 +274,7 @@ func _open_board() -> void:
 
 ## The career files, none opened yet: pick one.
 func _show_index(animate := true) -> void:
+	_selected = -1   # no file open: any pick opens one
 	var page := _new_page(animate)
 	var v := _sheet_body(page)
 	_type(v, "BERTH 14  ·  CAPTAIN'S FILES", 13, true, UIStyle.INK_FADED)

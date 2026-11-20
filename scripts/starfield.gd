@@ -127,7 +127,7 @@ func _draw_near_stars(vp: Vector2, cam_pos: Vector2) -> void:
 			var lum := fposmod(sin(h * 3.7) * 9631.1, 1.0)
 			var col := Color(0.8, 0.88, 1.0).lerp(Color(1.0, 0.9, 0.78), fposmod(lum * 7.0, 1.0))
 			col.a = float(l[3]) * (0.45 + 0.55 * lum)
-			var p := base - cam_pos * depth * zoom
+			var p := base - cam_pos * depth
 			p = Vector2(fposmod(p.x, NEAR_TILE), fposmod(p.y, NEAR_TILE))
 			var sz: float = l[2]
 			var x := p.x
