@@ -81,6 +81,10 @@ func _ready() -> void:
 			_open_board()
 			_show_index(false)
 			_snapshot.call_deferred(a.substr(13))
+		elif a.begins_with("--settings-shot="):
+			_open_board()
+			_show_settings(false)
+			_snapshot.call_deferred(a.substr(16))
 		elif a.begins_with("--start-shot="):
 			_open_board()
 			_show_file(0, false)
@@ -138,12 +142,13 @@ func _build_menu() -> void:
 	_menu.set_meta("strip", strip)
 	if Career.has_save():
 		_menu_button("CONTINUE", _continue, Career.save_summary())
+	# The clipboard slides in with the page already on it (no second page swipe).
 	_menu_button("NEW CAREER", func():
 		_open_board()
-		_show_index(true))
+		_show_index(false))
 	_menu_button("SETTINGS", func():
 		_open_board()
-		_show_settings(true))
+		_show_settings(false))
 	_menu_button("QUIT", func(): get_tree().quit())
 
 
@@ -298,7 +303,7 @@ func _show_settings(animate := true) -> void:
 	_label(v, "Settings", Data.font_bold, 34, UIStyle.INK_TYPE)
 	_rule(v)
 	var rows := [
-		["Flight assist", "Thrusters damp drift you aren't asking for. (V in flight)", "assist"],
+		["Flight assist", "Thrusters damp unwanted drift. (V in flight)", "assist"],
 		["Mouse steering", "The rig turns to face your cursor. (M in flight)", "mouse_steer"],
 	]
 	for r in rows:
@@ -309,10 +314,36 @@ func _show_settings(animate := true) -> void:
 			_show_settings(false), 18)
 		var t := _type(v, "       " + r[1], 13, false, UIStyle.INK_FADED)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var fs := PlayerController.fullscreen
+	_type_button(v, "[%s]  Fullscreen" % ("x" if fs else "  "), func():
+		PlayerController.fullscreen = not PlayerController.fullscreen
+		PlayerController.save_settings()
+		_show_settings(false), 18)
+	_rule(v)
+	# Volume: ten ticks, typed like a gauge. - and + step it.
+	for r in [["Music", "music_vol"], ["Effects", "sfx_vol"]]:
+		var key: String = r[1]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		v.add_child(row)
+		var lv: float = PlayerController.vol(key)
+		var n := roundi(lv * 10.0)
+		var name_l := _type(row, r[0].rpad(9), 18, true)
+		name_l.custom_minimum_size = Vector2(110, 0)
+		_type_button(row, " - ", _step_vol.bind(key, -0.1), 18)
+		_type(row, "|".repeat(n) + ".".repeat(10 - n), 18, true, UIStyle.INK_TYPE)
+		_type_button(row, " + ", _step_vol.bind(key, 0.1), 18)
+		_type(row, "%d%%" % (n * 10), 14, false, UIStyle.INK_FADED)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(spacer)
 	_type_button(v, "back to menu", _close_board, 12)
+
+
+func _step_vol(key: String, d: float) -> void:
+	PlayerController.set_vol(key, clampf(snappedf(PlayerController.vol(key) + d, 0.1), 0.0, 1.0))
+	Sfx.play("tick", -6.0)
+	_show_settings(false)
 
 
 func _close_board() -> void:

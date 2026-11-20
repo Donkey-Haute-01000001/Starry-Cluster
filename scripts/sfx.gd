@@ -21,6 +21,7 @@ static func play(name: String, volume_db := 0.0, pitch := 1.0) -> void:
 	var p := AudioStreamPlayer.new()
 	p.stream = s
 	p.volume_db = volume_db
+	p.bus = "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
 	p.pitch_scale = pitch * randf_range(0.96, 1.04)
 	tree.root.add_child(p)
 	p.finished.connect(p.queue_free)

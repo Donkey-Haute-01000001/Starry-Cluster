@@ -183,10 +183,69 @@ func _draw_streaks(vp: Vector2) -> void:
 		draw_line(pt, pt - dir * ln, Color(0.75, 0.88, 1.0, 0.22 * k), 1.5)
 
 
+## Space dust: specks fixed in the world, so they slide past at your true speed
+## (the starfield is far away and barely moves). Streaks stretch with speed.
+const DUST_CELL := 180.0
+
+
+func _draw_dust(vp: Vector2) -> void:
+	var p: Ship = main.player
+	if p == null or not is_instance_valid(p):
+		return
+	var xf := get_viewport().get_canvas_transform()
+	var inv := xf.affine_inverse()
+	var a0: Vector2 = inv * Vector2.ZERO
+	var a1: Vector2 = inv * vp
+	var zoom := xf.get_scale().x
+	var v := p.velocity
+	var spd := v.length()
+	var tail := -v * 0.12 * zoom
+	if tail.length() > 70.0:
+		tail = tail.normalized() * 70.0
+	var fade := clampf(spd / 120.0, 0.25, 1.0) * (1.0 - 0.7 * p.cruise_k)
+	for cx in range(floori(a0.x / DUST_CELL) - 1, ceili(a1.x / DUST_CELL) + 1):
+		for cy in range(floori(a0.y / DUST_CELL) - 1, ceili(a1.y / DUST_CELL) + 1):
+			var h := float(cx * 73856093 ^ cy * 19349663)
+			var jx := fposmod(sin(h) * 43758.5453, 1.0)
+			var jy := fposmod(sin(h * 1.37 + 2.1) * 24634.6345, 1.0)
+			var lum := fposmod(sin(h * 0.71 + 5.3) * 9631.17, 1.0)
+			var sp := xf * Vector2((cx + jx) * DUST_CELL, (cy + jy) * DUST_CELL)
+			var col := Color(0.85, 0.9, 0.95, (0.22 + 0.33 * lum) * fade)
+			if spd > 25.0:
+				draw_line(sp, sp + tail, col, 1.0)
+			draw_rect(Rect2(sp - Vector2(1, 1), Vector2(2, 2)), Color(col, col.a * 1.4))
+
+
+## Velocity marker: a small ring where you're drifting, a tick where you're
+## pointing. When they disagree, you're sliding.
+func _draw_vel_marker() -> void:
+	var p: Ship = main.player
+	if p == null or not is_instance_valid(p) or not p.alive:
+		return
+	var c := _to_screen(p.global_position)
+	var spd := p.velocity.length()
+	var col := Color(0.55, 0.9, 1.0, 0.75)
+	# heading tick
+	var hd := Vector2.RIGHT.rotated(p.rotation)
+	draw_line(c + hd * 78.0, c + hd * 90.0, Color(1, 1, 1, 0.6), 2.0)
+	if spd < 20.0:
+		return
+	var vd := p.velocity / spd
+	var r := 72.0 + clampf(spd / 300.0, 0.0, 1.0) * 30.0
+	var m := c + vd * r
+	draw_arc(m, 6.0, 0.0, TAU, 16, col, 1.5)
+	for k in 3:
+		var a := vd.angle() + PI + (k - 1) * PI * 0.5
+		draw_line(m + Vector2.RIGHT.rotated(a) * 6.0, m + Vector2.RIGHT.rotated(a) * 10.0, col, 1.5)
+	_text(m + vd * 14.0 + Vector2(-8, 4) + Vector2(vd.x * 10.0, 0), "%d" % int(spd), 12, Color(col, 0.85))
+
+
 func _draw() -> void:
 	var vp := size
 	var t := Time.get_ticks_msec() / 1000.0
+	_draw_dust(vp)
 	_draw_streaks(vp)
+	_draw_vel_marker()
 
 	# During a hail the guns are cold: say so instead of the combat banner.
 	if main.story and main.story.ceasefire():

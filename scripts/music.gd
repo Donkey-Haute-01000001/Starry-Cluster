@@ -20,6 +20,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS   # keeps playing while docked (paused)
 	_player = AudioStreamPlayer.new()
 	_player.volume_db = VOLUME_DB
+	PlayerController.load_settings()   # makes the Music bus
+	_player.bus = "Music"
 	_player.finished.connect(func():
 		await get_tree().create_timer(GAP).timeout
 		next())

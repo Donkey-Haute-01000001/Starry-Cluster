@@ -8,11 +8,26 @@ var ship: Ship
 var main: Node
 static var assist := true        ## V toggles: thrusters damp drift
 static var mouse_steer := true   ## M toggles: the ship turns to face the cursor
+static var music_vol := 0.8      ## 0..1, the Music bus
+static var sfx_vol := 1.0        ## 0..1, the SFX bus
+static var fullscreen := false
 const SETTINGS_PATH := "user://settings.cfg"
 
 
 static func setting(key: String) -> bool:
 	return assist if key == "assist" else mouse_steer
+
+
+static func vol(key: String) -> float:
+	return music_vol if key == "music_vol" else sfx_vol
+
+
+static func set_vol(key: String, v: float) -> void:
+	if key == "music_vol":
+		music_vol = v
+	else:
+		sfx_vol = v
+	save_settings()
 
 
 static func toggle(key: String) -> bool:
@@ -28,7 +43,29 @@ static func save_settings() -> void:
 	var c := ConfigFile.new()
 	c.set_value("flight", "assist", assist)
 	c.set_value("flight", "mouse_steer", mouse_steer)
+	c.set_value("audio", "music", music_vol)
+	c.set_value("audio", "sfx", sfx_vol)
+	c.set_value("video", "fullscreen", fullscreen)
 	c.save(SETTINGS_PATH)
+	apply_settings()
+
+
+## Push audio levels and window mode to the engine. Buses are made on first use.
+static func apply_settings() -> void:
+	for pair in [["Music", music_vol], ["SFX", sfx_vol]]:
+		var i := AudioServer.get_bus_index(pair[0])
+		if i < 0:
+			AudioServer.add_bus()
+			i = AudioServer.bus_count - 1
+			AudioServer.set_bus_name(i, pair[0])
+			AudioServer.set_bus_send(i, "Master")
+		var v: float = pair[1]
+		AudioServer.set_bus_mute(i, v <= 0.001)
+		AudioServer.set_bus_volume_db(i, linear_to_db(maxf(v, 0.001)))
+	if DisplayServer.get_name() != "headless":
+		var want := DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
+		if DisplayServer.window_get_mode() != want and not (not fullscreen and DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_MAXIMIZED):
+			DisplayServer.window_set_mode(want)
 
 
 static func load_settings() -> void:
@@ -36,6 +73,10 @@ static func load_settings() -> void:
 	if c.load(SETTINGS_PATH) == OK:
 		assist = c.get_value("flight", "assist", true)
 		mouse_steer = c.get_value("flight", "mouse_steer", true)
+		music_vol = c.get_value("audio", "music", 0.8)
+		sfx_vol = c.get_value("audio", "sfx", 1.0)
+		fullscreen = c.get_value("video", "fullscreen", false)
+	apply_settings()
 
 
 func _init(p_ship: Ship, p_main: Node) -> void:
