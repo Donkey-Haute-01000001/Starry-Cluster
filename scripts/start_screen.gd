@@ -12,6 +12,7 @@ var _bg := ""                       ## Dez's background on the contact form
 var _board: Control                 ## the clipboard
 var _page: Control                  ## the current sheet of paper
 var _busy := false
+var _menu: VBoxContainer            ## the main menu, under the berth sign
 
 
 func _ready() -> void:
@@ -70,11 +71,23 @@ func _ready() -> void:
 	add_child(hum)
 	_ambience()
 
-	_show_file(0, false)
+	PlayerController.load_settings()
+	# The clipboard waits off to the side until you pick New career or Settings.
+	_board.visible = false
+	_build_menu()
 	for a in args:
-		if a.begins_with("--start-shot="):
+		if a.begins_with("--menu-shot="):
+			_snapshot.call_deferred(a.substr(12))
+		elif a.begins_with("--files-shot="):
+			_open_board()
+			_show_index(false)
+			_snapshot.call_deferred(a.substr(13))
+		elif a.begins_with("--start-shot="):
+			_open_board()
+			_show_file(0, false)
 			_snapshot.call_deferred(a.substr(13))
 		elif a.begins_with("--creator-shot="):
+			_open_board()
 			_show_contact(false)
 			_snapshot.call_deferred(a.substr(15))
 
@@ -98,6 +111,145 @@ func _begin(friend: Dictionary) -> void:
 	Data.mode = "merchant"
 	Career.start_merchant(friend)
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+# --- Main menu -------------------------------------------------------------------
+
+## Stencilled options on a dock plate under the berth sign.
+func _build_menu() -> void:
+	if _menu:
+		_menu.queue_free()
+	var plate := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.06, 0.065, 0.075, 0.9)
+	sb.border_color = Color(0.24, 0.26, 0.28)
+	sb.border_width_top = 2
+	sb.border_width_left = 2
+	sb.border_width_bottom = 2
+	sb.border_width_right = 2
+	sb.set_content_margin_all(22)
+	sb.content_margin_right = 40
+	plate.add_theme_stylebox_override("panel", sb)
+	plate.position = Vector2(48, 170)
+	add_child(plate)
+	_menu = VBoxContainer.new()
+	_menu.add_theme_constant_override("separation", 6)
+	plate.add_child(_menu)
+	_menu.set_meta("plate", plate)
+	if Career.has_save():
+		_menu_button("CONTINUE", _continue, Career.save_summary())
+	_menu_button("NEW CAREER", func():
+		_open_board()
+		_show_index(true))
+	_menu_button("SETTINGS", func():
+		_open_board()
+		_show_settings(true))
+	_menu_button("QUIT", func(): get_tree().quit())
+
+
+func _menu_button(text: String, cb: Callable, sub := "") -> void:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.add_theme_font_override("font", Data.font_stamp)
+	b.add_theme_font_size_override("font_size", 30)
+	var none := StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, none)
+	b.add_theme_color_override("font_color", Color(0.85, 0.86, 0.84))
+	b.add_theme_color_override("font_hover_color", Color(1.0, 0.75, 0.35))
+	b.add_theme_color_override("font_pressed_color", Color(1.0, 0.85, 0.5))
+	b.pressed.connect(func():
+		Sfx.play("tick", -6.0)
+		cb.call())
+	b.mouse_entered.connect(func(): Sfx.play("tick", -16.0, 1.4))
+	_menu.add_child(b)
+	if sub != "":
+		var l := _label(_menu, "    " + sub, Data.font_type, 13, Color(1.0, 0.75, 0.35, 0.8))
+		l.add_theme_constant_override("line_spacing", 0)
+
+
+func _continue() -> void:
+	if Career.load_game():
+		Data.mode = "merchant"
+		get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+func _open_board() -> void:
+	if _board.visible:
+		return
+	_board.visible = true
+	var target := _board.position
+	_board.position.x += 700.0
+	var tw := create_tween()
+	tw.tween_property(_board, "position", target, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	Sfx.play("paper", -4.0)
+
+
+## The career files, none opened yet: pick one.
+func _show_index(animate := true) -> void:
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	_type(v, "BERTH 14  ·  CAPTAIN'S FILES", 13, true, UIStyle.INK_FADED)
+	_label(v, "Who were you?", Data.font_bold, 34, UIStyle.INK_TYPE)
+	_type(v, "Pick a file. Only the Merchant is open in the demo.", 14, false, UIStyle.INK_FADED)
+	_rule(v)
+	for k in Data.starts.size():
+		var st: Dictionary = Data.starts[k]
+		var row := VBoxContainer.new()
+		row.add_theme_constant_override("separation", 2)
+		v.add_child(row)
+		var b := _type_button(row, "%s   ·   %s" % [st["name"].to_upper(), st["doc"]["file"]], _pick.bind(k), 18)
+		if not st["playable"]:
+			b.add_theme_color_override("font_color", Color(UIStyle.INK_TYPE, 0.55))
+		var blurb: String = st["blurb"]
+		var cut := blurb.find(".", 60)
+		var t := _type(row, blurb.substr(0, cut + 1) if cut > 0 else blurb, 13, false, UIStyle.INK_FADED)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t.custom_minimum_size = Vector2(PAPER_W - 70, 0)
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(0, 8)
+		v.add_child(gap)
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(spacer)
+	_type_button(v, "back to menu", _close_board, 12)
+
+
+## Settings: the flight controls, as a checklist.
+func _show_settings(animate := true) -> void:
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	_type(v, "BERTH 14  ·  RIG SETUP SHEET", 13, true, UIStyle.INK_FADED)
+	_label(v, "Settings", Data.font_bold, 34, UIStyle.INK_TYPE)
+	_rule(v)
+	var rows := [
+		["Flight assist", "Thrusters damp drift you aren't asking for. (V in flight)", "assist"],
+		["Mouse steering", "The rig turns to face your cursor. (M in flight)", "mouse_steer"],
+	]
+	for r in rows:
+		var key: String = r[2]
+		var on: bool = PlayerController.setting(key)
+		_type_button(v, "[%s]  %s" % ["x" if on else "  ", r[0]], func():
+			PlayerController.toggle(key)
+			_show_settings(false), 18)
+		var t := _type(v, "       " + r[1], 13, false, UIStyle.INK_FADED)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(spacer)
+	_type_button(v, "back to menu", _close_board, 12)
+
+
+func _close_board() -> void:
+	var tw := create_tween()
+	var home := _board.position
+	tw.tween_property(_board, "position:x", home.x + 700.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		_board.visible = false
+		_board.position = home)
+	Sfx.play("paper", -6.0)
 
 
 # --- The clipboard ---------------------------------------------------------------
@@ -346,11 +498,7 @@ func _show_file(i: int, animate := true) -> void:
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 14)
 	v.add_child(foot)
-	if Career.has_save():
-		_type_button(foot, "continue: %s" % Career.save_summary(), func():
-			if Career.load_game():
-				Data.mode = "merchant"
-				get_tree().change_scene_to_file("res://scenes/main.tscn"), 12)
+	_type_button(foot, "all files", func(): _show_index(true), 12)
 	_type_button(foot, "combat sandbox", func():
 		Data.mode = "sandbox"
 		get_tree().change_scene_to_file("res://scenes/main.tscn"), 12)

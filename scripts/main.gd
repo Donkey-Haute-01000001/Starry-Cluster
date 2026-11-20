@@ -615,10 +615,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if nm != "":
 			show_message("Secondary: %s" % nm, 1.5)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
-		PlayerController.assist = not PlayerController.assist
+		PlayerController.toggle("assist")
 		show_message("Flight assist %s" % ("ON: drift damped" if PlayerController.assist else "OFF: pure drift"), 2.0)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
-		PlayerController.mouse_steer = not PlayerController.mouse_steer
+		PlayerController.toggle("mouse_steer")
 		show_message("Mouse steering %s" % ("ON: ship faces the cursor" if PlayerController.mouse_steer else "OFF: Q/E to turn"), 2.0)
 	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C and is_instance_valid(player):
 		toggle_cruise()

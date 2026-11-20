@@ -8,6 +8,34 @@ var ship: Ship
 var main: Node
 static var assist := true        ## V toggles: thrusters damp drift
 static var mouse_steer := true   ## M toggles: the ship turns to face the cursor
+const SETTINGS_PATH := "user://settings.cfg"
+
+
+static func setting(key: String) -> bool:
+	return assist if key == "assist" else mouse_steer
+
+
+static func toggle(key: String) -> bool:
+	if key == "assist":
+		assist = not assist
+	else:
+		mouse_steer = not mouse_steer
+	save_settings()
+	return setting(key)
+
+
+static func save_settings() -> void:
+	var c := ConfigFile.new()
+	c.set_value("flight", "assist", assist)
+	c.set_value("flight", "mouse_steer", mouse_steer)
+	c.save(SETTINGS_PATH)
+
+
+static func load_settings() -> void:
+	var c := ConfigFile.new()
+	if c.load(SETTINGS_PATH) == OK:
+		assist = c.get_value("flight", "assist", true)
+		mouse_steer = c.get_value("flight", "mouse_steer", true)
 
 
 func _init(p_ship: Ship, p_main: Node) -> void:
