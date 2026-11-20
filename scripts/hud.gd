@@ -44,6 +44,8 @@ func _show_comms(speaker: String, text: String) -> void:
 	_comms_t = 6.0 + text.length() * 0.04
 	_comms_age = 0.0
 	if main.docked_at == "":
+		Sfx.play("radio", -12.0, randf_range(0.9, 1.1))
+	if main.docked_at == "":
 		Sfx.play("radio", -8.0)
 
 
@@ -301,24 +303,101 @@ func _order_name(id: String) -> String:
 	return id
 
 
+const SECURITY_COLORS := {
+	"Core": Color(0.45, 0.85, 0.55), "Mid": Color(1.0, 0.77, 0.42), "Rough": Color(1.0, 0.42, 0.3),
+	"Fortress": Color(0.45, 0.7, 1.0), "Dynasty": Color(0.8, 0.55, 1.0),
+}
+
+
+## Security tag: striped warning plate. Rough space gets the black-and-colour
+## hazard stripes; the rest a calmer solid band.
+func _hazard(r: Rect2, col: Color, striped: bool) -> void:
+	draw_rect(r, col.darkened(0.55))
+	if striped:
+		for i in range(-2, int(r.size.x / 8.0) + 3):
+			var x := r.position.x + i * 8.0
+			var poly := PackedVector2Array([Vector2(x, r.end.y), Vector2(x + 4, r.end.y), Vector2(x + 4 + r.size.y, r.position.y), Vector2(x + r.size.y, r.position.y)])
+			for j in poly.size():
+				poly[j].x = clampf(poly[j].x, r.position.x, r.end.x)
+			draw_colored_polygon(poly, col)
+	draw_rect(r, col.darkened(0.2), false, 1.0)
+
+
+## Embossed label-maker tape: black strip, raised white letters, tilted a hair.
+func _label_tape(at: Vector2, text: String, seed: int) -> void:
+	var f: Font = Data.font_type_bold
+	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 20.0
+	var tilt := (float(absi(seed) % 7) - 3.0) * 0.006
+	draw_set_transform(at, tilt, Vector2.ONE)
+	var r := Rect2(Vector2.ZERO, Vector2(w, 22))
+	draw_rect(Rect2(r.position + Vector2(1, 2), r.size), Color(0, 0, 0, 0.5))
+	draw_rect(r, Color(0.08, 0.08, 0.09))
+	draw_rect(Rect2(Vector2(0, 0), Vector2(w, 1)), Color(0.25, 0.25, 0.27))
+	# Cut ends.
+	draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(3, 11), Vector2(0, 22)]), Color(0.075, 0.085, 0.095))
+	draw_colored_polygon(PackedVector2Array([Vector2(w, 0), Vector2(w - 3, 11), Vector2(w, 22)]), Color(0.075, 0.085, 0.095))
+	draw_string(f, Vector2(10, 16), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.93, 0.93, 0.9))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## The current job, as a dispatch printout fed out of the dash printer:
+## thermal paper, typed, torn edge at the bottom.
+func _draw_dispatch_slip(vp: Vector2, text: String) -> void:
+	var f: Font = Data.font_type
+	var fb: Font = Data.font_type_bold
+	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	var w := maxf(tw + 44.0, 300.0)
+	var r := Rect2(Vector2(roundf(vp.x * 0.5 - w * 0.5), 74), Vector2(roundf(w), 50))
+	# Printer slot it hangs from.
+	draw_rect(Rect2(r.position + Vector2(-10, -6), Vector2(r.size.x + 20, 8)), Color(0.05, 0.05, 0.06))
+	draw_rect(Rect2(r.position + Vector2(-10, -6), Vector2(r.size.x + 20, 2)), Color(0.24, 0.26, 0.28))
+	# Paper with a torn bottom edge.
+	var paper := Color(0.93, 0.91, 0.85)
+	var poly := PackedVector2Array([r.position, Vector2(r.end.x, r.position.y)])
+	var n := int(r.size.x / 7.0)
+	for i in range(n, -1, -1):
+		var x := r.position.x + r.size.x * float(i) / n
+		poly.append(Vector2(x, r.end.y - (3.0 if i % 2 else 0.0)))
+	var shadow := PackedVector2Array()
+	for q in poly:
+		shadow.append(q + Vector2(2, 3))
+	draw_colored_polygon(shadow, Color(0, 0, 0, 0.45))
+	draw_colored_polygon(poly, paper)
+	draw_string(fb, r.position + Vector2(14, 16), "DISPATCH  ·  CHARTER CH 03", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
+	draw_string(fb, r.position + Vector2(r.size.x - 14 - fb.get_string_size("JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x, 16), "JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_STAMP)
+	draw_string(f, r.position + Vector2(roundf((r.size.x - tw) * 0.5), 37), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, UIStyle.INK_TYPE)
+
+
 func _draw_merchant(vp: Vector2, t: float) -> void:
 	var sys: Dictionary = Data.systems.get(main.system_id, Data.crossroads)
-	UIStyle.draw_glass(self, Rect2(Vector2(16, 16), Vector2(470, 100)))
-	_text(Vector2(32, 40), _sp("%s SPACE · %s · DAY %d · WEEK %d" % [sys["security"].to_upper(), Data.sector["name"].to_upper(), int(Career.day) + 1, Career.week()]), 10, UIStyle.KICKER)
-	_text(Vector2(32, 72), sys["name"], 28, Color(0.92, 0.97, 1.0), false, true)
-	var nick_x := 32.0 + Data.font_bold.get_string_size(sys["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x + 12.0 if Data.font_bold else 200.0
-	_text(Vector2(nick_x, 72), sys["nick"], 16, UIStyle.TEXT_DIM)
+	# The rig's nav plate: security tag, stencilled system name, and the
+	# nickname spacers use, punched on label tape and stuck on crooked.
+	var plate := Rect2(Vector2(16, 16), Vector2(470, 108))
+	UIStyle.draw_glass(self, plate, 1.0, 14.0, SECURITY_COLORS.get(sys["security"], UIStyle.GOLD))
+	var sec: String = sys["security"].to_upper()
+	var sc: Color = SECURITY_COLORS.get(sys["security"], UIStyle.GOLD)
+	var tf: Font = Data.font_type_bold
+	var tag_w := tf.get_string_size(sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 34.0
+	var tag := Rect2(Vector2(30, 26), Vector2(tag_w, 18))
+	_hazard(tag, sc, sys.get("danger", 0.0) > 0.5)
+	draw_rect(Rect2(tag.position + Vector2(9, 3), Vector2(tag_w - 18, 12)), Color(0.04, 0.04, 0.05))
+	draw_string(tf, tag.position + Vector2(17, 13), sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
+	draw_string(Data.font_type, Vector2(tag.end.x + 10, 39), "%s  ·  DAY %d  ·  WK %d" % [Data.sector["name"].to_upper(), int(Career.day) + 1, Career.week()], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.TEXT_DIM)
+	var name_up: String = sys["name"].to_upper()
+	draw_string(Data.font_stamp, Vector2(31, 79), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0, 0, 0, 0.6))
+	draw_string(Data.font_stamp, Vector2(30, 78), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.9, 0.88, 0.82))
+	var nick_x := 30.0 + Data.font_stamp.get_string_size(name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x + 14.0
+	_label_tape(Vector2(nick_x, 58), sys["nick"].to_upper(), sys["name"].hash())
 	var loan := "Loan paid off" if Career.loan_balance <= 0 else "Loan %s · %s due day %d" % [Career.fmt(Career.loan_balance), Career.fmt(mini(Data.LOAN_WEEKLY, Career.loan_balance)), int(Career.next_payment_day) + 1]
-	_text(Vector2(32, 100), "%s cr" % Career.fmt(Career.credits), 15, UIStyle.TEXT, false, true)
-	_text(Vector2(140, 100), "Hold %d/%d t" % [Career.cargo_used(), Career.cargo_capacity], 15, UIStyle.TEXT)
-	_text(Vector2(262, 100), loan, 15, UIStyle.RED if Career.loan_balance > 0 else UIStyle.GREEN)
+	draw_line(Vector2(30, 90), Vector2(plate.end.x - 14, 90), Color(0.22, 0.24, 0.26), 1.0)
+	_text(Vector2(32, 112), "%s cr" % Career.fmt(Career.credits), 15, UIStyle.TEXT, false, true)
+	_text(Vector2(140, 112), "Hold %d/%d t" % [Career.cargo_used(), Career.cargo_capacity], 15, UIStyle.TEXT)
+	_text(Vector2(262, 112), loan, 15, UIStyle.RED if Career.loan_balance > 0 else UIStyle.GREEN)
 
 	# Objective line and a marker toward where to go next.
 	if not Career.objective.is_empty():
 		var ot: String = Career.objective["text"]
-		var ow := ThemeDB.fallback_font.get_string_size(ot, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 40.0
-		UIStyle.draw_glass(self, Rect2(Vector2(vp.x * 0.5 - ow * 0.5, 84), Vector2(ow, 34)), 1.0, 8.0, UIStyle.GREEN)
-		_text(Vector2(vp.x * 0.5, 106), ot, 15, Color(0.75, 1.0, 0.8), true)
+		_draw_dispatch_slip(vp, ot)
 		var target: Node2D = main.objective_target()
 		if target and is_instance_valid(main.player):
 			var sp := _to_screen(target.global_position)
@@ -396,6 +475,15 @@ func _draw_comms(vp: Vector2) -> void:
 			draw_rect(Rect2(photo.position.x, y, photo.size.x, 1), Color(1, 1, 1, rng.randf() * 0.5))
 	for y in range(int(photo.position.y), int(photo.end.y), 3):
 		draw_line(Vector2(photo.position.x, y), Vector2(photo.end.x, y), Color(0, 0, 0, 0.12 * a), 1.0)
+	# Channel static across the whole panel while the line opens.
+	if _comms_age < 0.3:
+		var srng := RandomNumberGenerator.new()
+		srng.seed = int(_comms_age * 90.0) + 7
+		var fade := 1.0 - _comms_age / 0.3
+		for i in 26:
+			var sy := r.position.y + 20 + srng.randf() * (r.size.y - 20)
+			var sx := r.position.x + srng.randf() * r.size.x * 0.6
+			draw_rect(Rect2(sx, sy, srng.randf_range(40, r.size.x * 0.5), srng.randf_range(1, 3)), Color(col.r, col.g, col.b, srng.randf() * 0.4 * fade))
 	# Name, role, then the words.
 	var x := photo.end.x + 18.0
 	_text(Vector2(x, r.position.y + 44), _comms_speaker.to_upper(), 15, Color(1, 1, 1, a), false, true)

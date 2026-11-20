@@ -181,7 +181,7 @@ static var _photo_bg := {}
 
 const PORTRAIT_FILES := {
 	"Dez": "dez", "Charlie": "charlie", "Franz": "franz", "Tallyman": "tallyman",
-	"Fay": "fay", "Mersham": "mersham", "Gate customs": "customs", "Dock crew": "dock_crew",
+	"Fay": "fay", "Mersham": "mersham", "Gate customs": "customs", "Dock crew": "dock_crew", "Marines": "marines",
 }
 
 

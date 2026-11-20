@@ -606,6 +606,7 @@ var speakers := {
 	"Mersham": {"channel": "CH 09  ·  CREW", "role": "Bar captain", "serial": "FED-INT-0031", "color": Color(0.56, 0.94, 0.64)},
 	"Franz": {"channel": "CH 16  ·  FEDERATION NAVY", "role": "Lt., Marcellus patrol", "serial": "FN-2231-LT", "color": Color(0.45, 0.7, 1.0)},
 	"Tallyman": {"channel": "OPEN BAND  ·  UNREGISTERED", "role": "", "serial": "NO FILE", "color": Color(1.0, 0.45, 0.35)},
+	"Marines": {"channel": "CH 16  ·  BOARDING TEAM", "role": "Kessler's marines", "serial": "FN-MAR-04", "color": Color(0.45, 0.7, 1.0)},
 	"Gate customs": {"channel": "CH 01  ·  AQUILA CUSTOMS", "role": "Gatehouse", "serial": "AQ-CUSTOMS", "color": Color(0.85, 0.85, 0.95)},
 	"You": {"channel": "OUTBOUND", "role": "", "serial": "CC-40817-M", "color": Color(0.85, 0.92, 0.98)},
 }

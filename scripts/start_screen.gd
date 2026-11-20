@@ -346,6 +346,11 @@ func _show_file(i: int, animate := true) -> void:
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 14)
 	v.add_child(foot)
+	if Career.has_save():
+		_type_button(foot, "continue: %s" % Career.save_summary(), func():
+			if Career.load_game():
+				Data.mode = "merchant"
+				get_tree().change_scene_to_file("res://scenes/main.tscn"), 12)
 	_type_button(foot, "combat sandbox", func():
 		Data.mode = "sandbox"
 		get_tree().change_scene_to_file("res://scenes/main.tscn"), 12)

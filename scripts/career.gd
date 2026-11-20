@@ -49,6 +49,7 @@ func start_merchant(p_friend: Dictionary = {}) -> void:
 	flags = {}
 	objective = {}
 	_roll_prices(1)
+	resume_station = ""
 	changed.emit()
 
 
@@ -413,3 +414,54 @@ func prize_share(keep: float) -> int:
 	for row in Data.bounty["hold"]:
 		total += int(Data.goods[row[0]]["base"]) * int(row[1])
 	return int(total * Data.bounty["share"] * keep)
+
+
+# --- Saving ------------------------------------------------------------------
+## Like Endless Sky: the game saves every time you dock, and Continue puts you
+## back at that station's counter.
+
+const SAVE_PATH := "user://merchant_save.txt"
+const SAVE_KEYS := ["credits", "loan_balance", "cargo", "job_cargo", "cargo_capacity", "day",
+	"next_payment_day", "system_id", "jobs", "flags", "objective", "friend", "crew", "visited", "_once", "_prices"]
+var resume_station := ""
+
+
+func save_game(station: String) -> void:
+	var d := {"version": 1, "station": station}
+	for k in SAVE_KEYS:
+		d[k] = get(k)
+	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(var_to_str(d))
+
+
+static func has_save() -> bool:
+	return FileAccess.file_exists(SAVE_PATH)
+
+
+## Short line for the Continue button: where and when.
+static func save_summary() -> String:
+	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return ""
+	var d = str_to_var(f.get_as_text())
+	if typeof(d) != TYPE_DICTIONARY:
+		return ""
+	var st: Dictionary = Data.stations.get(d.get("station", ""), {})
+	return "%s, day %d" % [st.get("nick", "?"), int(d.get("day", 0.0)) + 1]
+
+
+func load_game() -> bool:
+	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return false
+	var d = str_to_var(f.get_as_text())
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	for k in SAVE_KEYS:
+		if d.has(k):
+			set(k, d[k])
+	resume_station = d.get("station", "")
+	active = true
+	changed.emit()
+	return true

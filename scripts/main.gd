@@ -135,10 +135,14 @@ func _ready() -> void:
 			if Career.crew_with_you(id):
 				spawn_captain(id)
 		# The opening: you start docked at the Counter, where Charlie is waiting.
-		var st: Dictionary = Data.stations["counter"]
+		# A continued run starts docked wherever you last saved.
+		var at := "counter"
+		if Career.resume_station != "" and Data.stations.has(Career.resume_station):
+			at = Career.resume_station
+		var st: Dictionary = Data.stations[at]
 		player.position = st["pos"] + Vector2(0, 120)
 		camera.global_position = player.position
-		dock("counter")
+		dock(at)
 		return
 
 	player = spawn_ship("kestrel", 0, Vector2.ZERO)
@@ -283,6 +287,8 @@ func dock(id: String) -> void:
 	get_tree().paused = true
 	station_ui.open(id)
 	Career.on_dock(id)
+	if not _merchant_test:
+		Career.save_game(id)
 
 
 func undock() -> void:
@@ -863,6 +869,15 @@ func _run_merchant_test() -> void:
 							camera.global_position = e.global_position
 							player.position = e.global_position + Vector2(-60, 40)
 					await _wait(0.2)
+				elif what.begins_with("sys_"):
+					# Fly-by of one system's backdrop, away from stations.
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					load_system(what.substr(4), "")
+					player.global_position = Vector2(1200, 900)
+					player.velocity = Vector2(200, 0)
+					await _wait(1.5)
 				elif what == "hail":
 					# The Tallyman's reply card over his longest line.
 					if station_ui.visible:
@@ -1067,6 +1082,16 @@ func _run_merchant_test() -> void:
 	# Saltgate's bar.
 	Career.credits += 2000
 	print("[bar] hire fay=%s mersham=%s escorts=%s bond=%s" % [Career.hire("fay"), Career.hire("mersham"), escorts.map(func(e): return e.display_name), Career.flags.get("bond")])
+	# Save and load round trip.
+	var save_before := [Career.credits, Career.loan_balance, snappedf(Career.day, 0.01), Career.crew.keys(), Career.flags.get("bounty_paid"), Career.friend.get("role")]
+	Career.save_game("saltgate")
+	Career.credits = 1
+	Career.crew = {}
+	Career.flags = {}
+	var loaded := Career.load_game()
+	var save_after := [Career.credits, Career.loan_balance, snappedf(Career.day, 0.01), Career.crew.keys(), Career.flags.get("bounty_paid"), Career.friend.get("role")]
+	print("[save] loaded=%s match=%s resume=%s summary=%s\n  before=%s\n  after=%s" % [loaded, str(save_before) == str(save_after), Career.resume_station, Career.save_summary(), save_before, save_after])
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Career.SAVE_PATH))
 	await _wait(0.05)
 	_shot("m_saltgate")
 	undock()
