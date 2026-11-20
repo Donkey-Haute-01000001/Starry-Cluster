@@ -863,6 +863,15 @@ func _run_merchant_test() -> void:
 							camera.global_position = e.global_position
 							player.position = e.global_position + Vector2(-60, 40)
 					await _wait(0.2)
+				elif what == "hail":
+					# The Tallyman's reply card over his longest line.
+					if station_ui.visible:
+						undock()
+					Career.say("Tallyman", Data.tally["hail"])
+					story._show_choices()
+					await _wait(4.0)
+					_shot("look_hail_card")
+					story.choose(0)
 				elif what == "cruise":
 					# Open space between the belt and the rifts, then toward Four.
 					if station_ui.visible:

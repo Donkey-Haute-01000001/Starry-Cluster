@@ -9,6 +9,7 @@ var _comms_text := ""
 var _comms_t := 0.0
 var _comms_queue: Array = []
 var _comms_age := 0.0
+var comms_top := 0.0      ## top edge of the comms panel this frame (cards stack above it)
 
 const COL_SHIELD := Color(0.35, 0.7, 1.0)
 const COL_HULL := Color(0.95, 0.75, 0.3)
@@ -325,9 +326,11 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 			if Rect2(Vector2.ZERO, vp).grow(-40).has_point(sp):
 				_brackets(sp, 62.0 + 4.0 * sin(t * 4.0), col, 2.5)
 			else:
-				var center := vp * 0.5
+				# Ride the edge of the clear middle, inside the HUD panels.
+				var lane := Rect2(Vector2(60, 150), vp - Vector2(120, 150 + 240))
+				var center := lane.get_center()
 				var dir := (sp - center).normalized()
-				var edge := center + dir * minf(absf((vp.x * 0.5 - 50) / dir.x) if dir.x != 0 else 1e9, absf((vp.y * 0.5 - 50) / dir.y) if dir.y != 0 else 1e9)
+				var edge := center + dir * minf(absf(lane.size.x * 0.5 / dir.x) if dir.x != 0 else 1e9, absf(lane.size.y * 0.5 / dir.y) if dir.y != 0 else 1e9)
 				draw_colored_polygon(PackedVector2Array([edge + dir * 18, edge + dir.rotated(2.5) * 13, edge + dir.rotated(-2.5) * 13]), col)
 				var dist := int(main.player.global_position.distance_to(target.global_position))
 				_text(edge - dir * 30 + Vector2(0, 5), "%d" % dist, 13, col, true)
@@ -355,6 +358,7 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 
 	# Comms: a radio feed. Channel and file number in print, the speaker's ID
 	# photo, and the words coming in a letter at a time over the static.
+	comms_top = vp.y - 192.0
 	if _comms_t > 0.0 and not main.docked_at:
 		_draw_comms(vp)
 
@@ -364,7 +368,12 @@ func _draw_comms(vp: Vector2) -> void:
 	var a := minf(1.0, _comms_t)
 	var info: Dictionary = Data.speaker_info(_comms_speaker)
 	var col: Color = info["color"]
-	var r := Rect2(Vector2(16, vp.y - 172), Vector2(560, 152))
+	# The panel grows upward to fit the whole line.
+	var body_w := 560.0 - 110.0 - 16.0
+	var text_h := ThemeDB.fallback_font.get_multiline_string_size(_comms_text, HORIZONTAL_ALIGNMENT_LEFT, body_w, 15).y
+	var h := maxf(152.0, 70.0 + text_h + 18.0)
+	var r := Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
+	comms_top = r.position.y
 	draw_rect(r, Color(0.02, 0.035, 0.045, 0.92 * a))
 	draw_rect(r, Color(col.r, col.g, col.b, 0.35 * a), false, 1.0)
 	# Channel strip across the top.
@@ -393,4 +402,4 @@ func _draw_comms(vp: Vector2) -> void:
 	var role_w := (Data.font_bold if Data.font_bold else ThemeDB.fallback_font).get_string_size(_comms_speaker.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	_text(Vector2(x + role_w + 10, r.position.y + 44), info["role"], 12, Color(col.r, col.g, col.b, 0.85 * a))
 	var shown := _comms_text.substr(0, int(_comms_age * 55.0))
-	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, r.end.x - x - 16, 15, 5, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))
+	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, body_w, 15, -1, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))

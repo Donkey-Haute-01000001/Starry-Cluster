@@ -100,6 +100,8 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(main) or not main.merchant:
 		return
 	_t += delta
+	if _choices:
+		_choices.position.y = main.hud.comms_top - 12.0 - _choices.size.y
 	match scene:
 		"ambush":
 			_ambush_step()
@@ -282,6 +284,9 @@ func _show_choices() -> void:
 			box.border_width_left = 4
 			box.border_width_bottom = 2
 			box.content_margin_left = 14
+			box.content_margin_right = 16
+			box.content_margin_top = 6
+			box.content_margin_bottom = 6
 			b.add_theme_stylebox_override(st, box)
 		b.add_theme_color_override("font_color", Color(0.92, 0.88, 0.78))
 		b.add_theme_color_override("font_hover_color", UIStyle.GOLD)

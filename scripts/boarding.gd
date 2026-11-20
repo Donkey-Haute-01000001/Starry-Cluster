@@ -102,6 +102,9 @@ func _show_card() -> void:
 			box.border_width_left = 4
 			box.border_width_bottom = 2
 			box.content_margin_left = 14
+			box.content_margin_right = 16
+			box.content_margin_top = 6
+			box.content_margin_bottom = 6
 			b.add_theme_stylebox_override(st, box)
 		b.add_theme_color_override("font_color", Color(0.92, 0.88, 0.78))
 		b.add_theme_color_override("font_hover_color", UIStyle.GOLD)
@@ -159,6 +162,8 @@ func _process(delta: float) -> void:
 	elif phase != "done":
 		_close()
 		return
+	if _card:
+		_card.position.y = main.hud.comms_top - 12.0 - _card.size.y
 	match phase:
 		"plan":
 			var left := 1.0 - _t / PLAN_TIME  # delta is game time, so ~2x real at half speed
