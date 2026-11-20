@@ -622,6 +622,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		show_message("Mouse steering %s" % ("ON: ship faces the cursor" if PlayerController.mouse_steer else "OFF: Q/E to turn"), 2.0)
 	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C and is_instance_valid(player):
 		toggle_cruise()
+	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G and is_instance_valid(player):
+		toggle_autopilot()
 	elif merchant and event.is_action_pressed("interact") and is_instance_valid(player):
 		_try_interact()
 	elif event.is_action_pressed("toggle_help"):
@@ -660,6 +662,7 @@ func _physics_process(delta: float) -> void:
 
 	if merchant:
 		_cruise_step(delta)
+		_travel_step()
 		_merchant_step(delta)
 		if _merchant_test:
 			_merchant_test_step(delta)
@@ -677,6 +680,73 @@ func _physics_process(delta: float) -> void:
 
 	if autotest:
 		_autotest_step(delta)
+
+
+# --- Autopilot and fast travel ----------------------------------------------------
+
+const FAST_SCALE := 3.0
+var _fast := false   ## Z held and the coast is clear: time runs FAST_SCALE x
+
+
+func autopilot_on() -> bool:
+	return is_instance_valid(player) and player.controller is PlayerController and player.controller.autopilot != null
+
+
+func toggle_autopilot() -> void:
+	var pc := player.controller as PlayerController
+	if pc == null:
+		return
+	if pc.autopilot != null:
+		pc.autopilot = null
+		autopilot_off("Autopilot off.")
+		return
+	var t := objective_target()
+	if t == null:
+		show_message("No job plotted. Take one at a station board.", 2.0)
+		return
+	if story.busy() or story.boarding != null:
+		return
+	pc.autopilot = t
+	Career.flags["used_autopilot"] = true
+	show_message("Autopilot: %s.  Any flight key takes over" % t.label, 2.5)
+
+
+func autopilot_off(why: String) -> void:
+	if is_instance_valid(player) and player.controller is PlayerController:
+		player.controller.autopilot = null
+	drop_cruise("")
+	if why != "":
+		show_message(why, 2.0)
+
+
+## Runs every physics frame in merchant mode: autopilot cruise and arrival,
+## and the Z fast-forward.
+func _travel_step() -> void:
+	if not is_instance_valid(player):
+		return
+	var contact := nearest_enemy(0, player.global_position, CRUISE_CONTACT) != null
+	if autopilot_on():
+		var t: Node2D = player.controller.autopilot
+		var d := player.global_position.distance_to(t.global_position)
+		if contact or story.busy():
+			autopilot_off("Contact! Autopilot off." if contact else "")
+		elif d > CRUISE_CLEAR + 400.0 and not player.cruise_on and player.ion_t <= 0.0 and player.cruise_k <= 0.0:
+			player.cruise_on = true
+		elif d < CRUISE_CLEAR and player.cruise_on:
+			player.cruise_on = false
+		elif d < t.interact_range() * 0.6 and player.velocity.length() < 60.0:
+			player.controller.autopilot = null
+			if t.kind == "station":
+				dock(t.id)
+			else:
+				show_message("At the jump point.  [F] to jump", 2.5)
+	var want: bool = Input.is_physical_key_pressed(KEY_Z) and docked_at == "" and not contact \
+		and not story.busy() and story.boarding == null and not wheel_open()
+	if want != _fast:
+		_fast = want
+		Engine.time_scale = FAST_SCALE if want else 1.0
+		if want:
+			Career.flags["used_fast"] = true
 
 
 # --- Cruise drive ----------------------------------------------------------------
@@ -951,6 +1021,29 @@ func _run_merchant_test() -> void:
 					await _wait(4.0)
 					_shot("look_hail_card")
 					story.choose(0)
+				elif what == "autopilot":
+					# From Aurelia's edge to the job's station on autopilot, then a tip shot.
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					Career.flags["tip_fly"] = true
+					load_system("aurelia", "")
+					player.global_position = Vector2(2600, -1800)
+					player.velocity = Vector2.ZERO
+					await _wait(1.5)
+					_shot("look_tip_travel")
+					var t := objective_target()
+					print("[auto] target=%s dist=%d" % [t.label if t else "none", int(player.global_position.distance_to(t.global_position)) if t else -1])
+					toggle_autopilot()
+					var el := 0.0
+					while docked_at == "" and el < 60.0:
+						await _wait(1.0)
+						el += 1.0
+						if int(el) % 5 == 0:
+							print("[auto] t=%d dist=%d speed=%d cruise=%s on=%s" % [el, int(player.global_position.distance_to(t.global_position)), int(player.velocity.length()), player.cruise_on, autopilot_on()])
+						if int(el) == 6:
+							_shot("look_autopilot")
+					print("[auto] docked=%s at=%s after %ds" % [docked_at != "", docked_at, el])
 				elif what == "cruise":
 					# Open space between the belt and the rifts, then toward Four.
 					if station_ui.visible:

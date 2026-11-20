@@ -18,7 +18,102 @@ const COL_FRIEND := Color(0.4, 0.9, 1.0)
 const COL_ENERGY := Color(0.75, 0.55, 1.0)
 
 
+# --- First-flight prompts ---------------------------------------------------------
+## Each shows once per career, when it's useful, and clears once you've done it.
+const TIPS := {
+	"fly": [["W", "thrust"], ["MOUSE", "steer"], ["X", "brake"]],
+	"travel": [["G", "autopilot to the job"], ["C", "cruise"], ["HOLD Z", "fast-forward"]],
+	"guns": [["LMB", "turrets"], ["SPACE", "nose gun"], ["RMB", "ion / torpedo"], ["R", "swap"]],
+	"tactics": [["HOLD TAB", "fleet orders"]],
+}
+var tip := ""          ## the prompt on screen ("" = none)
+var _tip_t := 0.0      ## how long it's been up
+var _tip_a := 0.0      ## fade
+var _tip_moved := 0.0
+var _tip_done_t := -1.0
+
+
+func _tip_step(delta: float) -> void:
+	var p: Ship = main.player if is_instance_valid(main.player) else null
+	_tip_a = move_toward(_tip_a, 1.0 if tip != "" and _tip_done_t < 0.0 else 0.0, delta * 3.0)
+	if not main.merchant or p == null or main.docked_at != "" or main.story.busy():
+		return
+	if tip != "":
+		_tip_t += delta
+		_tip_moved += p.velocity.length() * delta
+		if _tip_done_t < 0.0 and _tip_finished(p):
+			_tip_done_t = 0.0
+			Career.flags["tip_" + tip] = true
+		if _tip_done_t >= 0.0:
+			_tip_done_t += delta
+			if _tip_done_t > 0.6:
+				tip = ""
+		return
+	var f: Dictionary = Career.flags
+	var next := ""
+	if not f.get("tip_guns", false) and main.nearest_enemy(0, p.global_position, 1400.0) != null:
+		next = "guns"
+	elif not f.get("tip_fly", false):
+		next = "fly"
+	elif not f.get("tip_travel", false):
+		var t: Node2D = main.objective_target()
+		if t and p.global_position.distance_to(t.global_position) > 2500.0 and not main.in_combat:
+			next = "travel"
+	elif not f.get("tip_tactics", false) and f.get("tip_guns", false) and main.in_combat and not main.escorts.is_empty():
+		next = "tactics"
+	if next != "":
+		tip = next
+		_tip_t = 0.0
+		_tip_moved = 0.0
+		_tip_done_t = -1.0
+
+
+func _tip_finished(p: Ship) -> bool:
+	match tip:
+		"fly":
+			return _tip_moved > 900.0 or _tip_t > 25.0
+		"travel":
+			return main.autopilot_on() or p.cruise_on or main._fast or _tip_t > 30.0
+		"guns":
+			return (_tip_t > 5.0 and (p.in_fire_aimed or p.in_fire_fixed)) or _tip_t > 16.0 or not main.in_combat
+		"tactics":
+			return main.wheel_open() or _tip_t > 14.0
+	return true
+
+
+## Key caps in a row, centred under the ship: [KEY] what it does.
+func _draw_tip(vp: Vector2) -> void:
+	if _tip_a <= 0.01 or not TIPS.has(tip if tip != "" else "fly"):
+		return
+	var segs: Array = TIPS.get(tip, [])
+	if segs.is_empty():
+		return
+	var font: Font = ThemeDB.fallback_font
+	var bold: Font = Data.font_bold
+	var gap := 26.0
+	var w := 0.0
+	for sg in segs:
+		w += bold.get_string_size(sg[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0 + 8.0
+		w += font.get_string_size(sg[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x + gap
+	w -= gap
+	var a := _tip_a
+	var x := vp.x * 0.5 - w * 0.5
+	var y := vp.y * 0.74
+	draw_rect(Rect2(x - 18, y - 22, w + 36, 40), Color(0.02, 0.025, 0.035, 0.6 * a))
+	var ok := _tip_done_t >= 0.0
+	for sg in segs:
+		var kw := bold.get_string_size(sg[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+		var kr := Rect2(x, y - 13, kw, 24)
+		draw_rect(Rect2(kr.position + Vector2(0, 3), kr.size), Color(0.5, 0.52, 0.55, 0.5 * a))
+		draw_rect(kr, Color(0.93, 0.94, 0.95, a) if not ok else Color(0.55, 0.95, 0.6, a))
+		draw_string(bold, Vector2(x + 9, y + 5), sg[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.05, 0.06, 0.07, a))
+		x += kw + 8.0
+		draw_string(font, Vector2(x, y + 6), sg[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 1, 1, 0.92 * a))
+		x += font.get_string_size(sg[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x + gap
+
+
 func _process(delta: float) -> void:
+	_tip_step(delta)
 	_comms_t = maxf(0.0, _comms_t - delta)
 	_comms_age += delta
 	if _comms_t <= 0.0 and not _comms_queue.is_empty():
@@ -231,6 +326,12 @@ func _draw() -> void:
 		if main.next_wave_t > 0 and main.hostile_count() == 0 and main.wave > 0:
 			_text(Vector2(250, 96), "Next wave in %d…" % ceili(main.next_wave_t), 15, UIStyle.GOLD)
 
+	if main.merchant:
+		_draw_tip(vp)
+		if main.autopilot_on():
+			_text(Vector2(vp.x * 0.5, 160), _sp("AUTOPILOT") + "   →   " + str(main.player.controller.autopilot.label), 13, Color(0.55, 0.9, 1.0, 0.9), true, true)
+		if main._fast:
+			_text(Vector2(vp.x * 0.5, 180 if main.autopilot_on() else 160), "▶▶  ×3", 14, Color(1, 1, 1, 0.9), true, true)
 	if main.message_t > 0:
 		_text(Vector2(vp.x * 0.5, vp.y * 0.25), main.message, 20, Color(0.92, 0.97, 1.0, minf(1.0, main.message_t)), true, true)
 
@@ -238,8 +339,8 @@ func _draw() -> void:
 
 	if show_help:
 		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer (M toggles)", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
-			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons", "Right click   fire secondary", "R   swap secondary",
-			"C   cruise drive", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
+			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire nose gun / cannons", "Right click   fire secondary", "R   swap secondary",
+			"C   cruise drive", "G   autopilot to the job", "Z (hold)   fast-forward", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
 		UIStyle.draw_glass(self, hr, 1.0, 10.0)
 		_text(hr.position + Vector2(14, 24), _sp("CONTROLS"), 11, UIStyle.KICKER)

@@ -75,6 +75,12 @@ var weapons := {
 		"damage": 16.0, "cooldown": 0.16, "energy": 3.0, "speed": 1050.0, "range": 760.0,
 		"gimbal": 8.0, "spread": 1.5, "color": Color(0.55, 0.9, 1.0), "size": 3.0,
 	},
+	# The rig's nose gun: a hauler's deterrent, not a warship's cannon.
+	"nose_gun": {
+		"name": "Nose Gun", "kind": "gun",
+		"damage": 9.0, "cooldown": 0.3, "energy": 2.5, "speed": 950.0, "range": 680.0,
+		"gimbal": 6.0, "spread": 2.0, "color": Color(1.0, 0.8, 0.45), "size": 3.0,
+	},
 	"raider_gun": {
 		"name": "Scrap Blaster", "kind": "gun",
 		"damage": 9.0, "cooldown": 0.22, "energy": 2.0, "speed": 900.0, "range": 650.0,
@@ -144,6 +150,7 @@ var hulls := {
 		"engines": [Vector2(-26, -6), Vector2(-26, 6)],
 		"mounts": [
 			{"pos": Vector2(4, 0), "weapon": "light_turret"},
+			{"pos": Vector2(26, 0), "weapon": "nose_gun"},
 		],
 		"secondaries": ["ion_cannon", "torpedo"],
 	},
