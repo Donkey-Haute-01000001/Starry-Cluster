@@ -57,11 +57,14 @@ def save(name, x, gain=0.85):
     print("wrote", name)
 
 
-# Forward cannon: a punchy descending zap over a low thump.
-s = 0.22
+# Forward cannon: a soft, low "thoom" with a short airy tail. No square wave:
+# it fires a lot, so it has to sit under the music, not cut through it.
+s = 0.26
 n = int(SR * s)
-zap = np.sign(sweep(1400, 180, s, 1.5)) * 0.35 + sweep(1400, 180, s, 1.5) * 0.4
-save("cannon", zap * env(n, 0.002, 0.06) + sweep(160, 50, s) * env(n, 0.001, 0.05) * 0.9 + lowpass(noise(s), 3000) * env(n, 0.0005, 0.012) * 0.6)
+body = sweep(520, 110, s, 2.5) * env(n, 0.003, 0.05)
+thump = sweep(140, 45, s) * env(n, 0.001, 0.07)
+air = lowpass(noise(s), 1800) * env(n, 0.002, 0.04)
+save("cannon", lowpass(body * 0.6 + thump * 1.0 + air * 0.5, 2200), 0.7)
 
 # Turret machine gun: a tight crack and a little body. Very short, it fires fast.
 s = 0.09

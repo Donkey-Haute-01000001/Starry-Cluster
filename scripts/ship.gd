@@ -265,7 +265,7 @@ func _update_weapons(delta: float) -> void:
 		if w["kind"] == "turret":
 			Sfx.play_at("turret", world_pos, -8.0 if is_player else -13.0, 1.0 if w.has("flak") else 1.25)
 		else:
-			Sfx.play_at("cannon", world_pos, -6.0 if is_player else -11.0, clampf(18.0 / maxf(w["damage"], 4.0), 0.75, 1.5))
+			Sfx.play_at("cannon", world_pos, -10.0 if is_player else -14.0, clampf(16.0 / maxf(w["damage"], 4.0), 0.9, 1.15))
 		_fired_t = 0.0
 
 
