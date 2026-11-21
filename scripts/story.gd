@@ -121,7 +121,7 @@ func _ambush_step() -> void:
 				# The ion shot, then the engines go dark.
 				var w: Dictionary = Data.weapons["ion_bolt"]
 				main.spawn_projectile(g.global_position + g.forward() * 30.0, (p.global_position - g.global_position).angle(), w, g)
-				Sfx.play("hiss", -2.0, 0.6)
+				Sfx.play("ion", -2.0, 0.8)
 				_next("ion")
 		"ion":
 			if p.ion_t <= 0.0 and _t > 2.5:
@@ -533,7 +533,7 @@ func arrive_crossroads() -> void:
 	main._zoom = 0.42
 	_overlay = Overlay.new()
 	main.hud.get_parent().add_child(_overlay)
-	Sfx.play("hiss", -6.0, 0.5)
+	Sfx.play("jump", -2.0, 0.8)
 	_next("arrive")
 
 

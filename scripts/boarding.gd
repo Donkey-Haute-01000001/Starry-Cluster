@@ -205,7 +205,7 @@ func _round() -> void:
 		phase = "done"
 		_end_t = 0.0
 		_shake = 1.2
-		Sfx.play("chime" if _won else "hiss", 0.0, 1.0 if _won else 0.6)
+		Sfx.play("chime" if _won else "repelled", -2.0)
 		finished.emit(_won, plan, marines)
 
 

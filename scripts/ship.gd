@@ -340,7 +340,7 @@ func _disable() -> void:
 	shields = 0.0
 	max_shields = 0.0
 	main.spawn_sparks(global_position, def["accent"], 14)
-	Sfx.play("hiss", -4.0, 0.7)
+	Sfx.play_at("disabled", global_position, -4.0)
 	disabled_now.emit(self)
 
 

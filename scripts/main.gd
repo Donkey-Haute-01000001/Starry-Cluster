@@ -270,6 +270,7 @@ func _try_interact() -> void:
 			return
 		jump_charge = 0.0
 		jump_target = b
+		Sfx.play("jump_charge", -6.0)
 		show_message("Charging jump drive...", 1.5)
 
 
@@ -287,6 +288,7 @@ func dock(id: String) -> void:
 		if is_instance_valid(e):
 			e.hull_hp = e.max_hull
 			e.shields = e.max_shields
+	Sfx.play("dock", -3.0)
 	get_tree().paused = true
 	station_ui.open(id)
 	Career.on_dock(id)
@@ -298,6 +300,7 @@ func undock() -> void:
 	if docked_at == "":
 		return
 	docked_at = ""
+	Sfx.play("undock", -3.0)
 	station_ui.visible = false
 	get_tree().paused = false
 
@@ -319,6 +322,7 @@ func _merchant_step(delta: float) -> void:
 				hostile_count_before_jump = hostile_count()
 				jump_charge = -1.0
 				_shake = 12.0
+				Sfx.play("jump", -3.0)
 				if dest == "crossroads":
 					story.arrive_crossroads()
 				else:
@@ -729,6 +733,7 @@ func _travel_step() -> void:
 			autopilot_off("Contact! Autopilot off." if contact else "")
 		elif d > CRUISE_CLEAR + 400.0 and not player.cruise_on and player.ion_t <= 0.0 and player.cruise_k <= 0.0:
 			player.cruise_on = true
+			Sfx.play("cruise_spool", -6.0)
 		elif d < CRUISE_CLEAR and player.cruise_on:
 			player.cruise_on = false
 		elif d < t.interact_range() * 0.6 and player.velocity.length() < 60.0:
@@ -777,6 +782,7 @@ func toggle_cruise() -> void:
 		show_message("Engines are dead. No cruise.", 2.0)
 		return
 	player.cruise_on = true
+	Sfx.play("cruise_spool", -6.0)
 	show_message("Cruise spooling. Weapons offline.  [C] to drop out", 2.5)
 
 
@@ -784,7 +790,7 @@ func drop_cruise(why: String) -> void:
 	if not player.cruise_on:
 		return
 	player.cruise_on = false
-	Sfx.play("hiss", -6.0, 1.3)
+	Sfx.play("cruise_drop", -6.0)
 	_shake = maxf(_shake, 6.0)
 	if why != "":
 		show_message(why, 2.5)
