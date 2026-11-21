@@ -31,7 +31,7 @@ func _layout() -> Dictionary:
 		size = get_viewport_rect().size
 	var h := size.y
 	var station_size := h * 0.72
-	var center := Vector2(size.x * 0.2, h * 0.56) + Vector2(sin(_t * 0.07) * 10.0, sin(_t * 0.05) * 6.0)
+	var center := Vector2(size.x * 0.2, h * 0.5)
 	var arm := center + Vector2(station_size * 0.47, 0)
 	var rig_len := h * 0.38
 	var rig := arm + Vector2(rig_len * 0.52, 0)
@@ -43,7 +43,7 @@ func _draw() -> void:
 	_draw_traffic(0.35)
 	# Station.
 	if not _frames.is_empty():
-		var f: Texture2D = _frames[int(_t * 6.0) % _frames.size()]
+		var f: Texture2D = _frames[0]   # held still: a berth, not a carousel
 		draw_set_transform(L["center"])
 		Art.draw_fit(self, STATION + "/00.png", L["station"], Color(0.82, 0.86, 0.95), f)
 		draw_set_transform(Vector2.ZERO)

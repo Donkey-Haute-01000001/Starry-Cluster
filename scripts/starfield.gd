@@ -10,7 +10,11 @@ var nebula: ColorRect
 var backdrop: Control
 var _t := 0.0
 ## [file, parallax, is the cloud layer, pixel scale, brightness]
-const LAYERS := [["backdrop/stars_plain.png", 0.012, false, 1.0, 0.45], ["backdrop/stars_plain.png", 0.035, false, 2.0, 0.7]]
+const LAYERS := [["backdrop/stars_plain.png", 0.02, false, 1.0, 0.45], ["backdrop/stars_plain.png", 0.06, false, 2.0, 0.7]]
+## Near star layers: [parallax, count per tile, pixel size, brightness]. These are
+## what rush past you; they stretch into streaks with speed.
+const NEAR := [[0.22, 70, 2.0, 0.55], [0.45, 40, 2.0, 0.75], [0.8, 18, 3.0, 0.9]]
+const NEAR_TILE := 900.0
 
 
 func _ready() -> void:
@@ -102,7 +106,40 @@ func _draw_backdrop() -> void:
 				backdrop.draw_texture_rect_region(tex, Rect2(x, y, fw, fh), Rect2(f * 640, 0, 640, 360), mod)
 				y += fh
 			x += fw
+	_draw_near_stars(vp, cam_pos)
 	_draw_ambience(vp, cam_pos, sid)
+
+
+func _draw_near_stars(vp: Vector2, cam_pos: Vector2) -> void:
+	var vel := Vector2.ZERO
+	if main and is_instance_valid(main.player):
+		vel = main.player.velocity
+	var zoom: float = main.camera.zoom.x if main and main.camera else 1.0
+	for li in NEAR.size():
+		var l: Array = NEAR[li]
+		var depth: float = l[0]
+		var tail := -vel * depth * 0.09 * zoom
+		if tail.length() > 160.0 * depth:
+			tail = tail.normalized() * 160.0 * depth
+		for i in int(l[1]):
+			var h := float(i) * 12.9898 + li * 57.3
+			var base := Vector2(fposmod(sin(h) * 43758.5453, 1.0), fposmod(sin(h + 1.91) * 24634.6345, 1.0)) * NEAR_TILE
+			var lum := fposmod(sin(h * 3.7) * 9631.1, 1.0)
+			var col := Color(0.8, 0.88, 1.0).lerp(Color(1.0, 0.9, 0.78), fposmod(lum * 7.0, 1.0))
+			col.a = float(l[3]) * (0.45 + 0.55 * lum)
+			var p := base - cam_pos * depth
+			p = Vector2(fposmod(p.x, NEAR_TILE), fposmod(p.y, NEAR_TILE))
+			var sz: float = l[2]
+			var x := p.x
+			while x < vp.x + 160.0:
+				var y := p.y
+				while y < vp.y + 160.0:
+					var q := Vector2(x, y).floor()
+					if tail.length() > 2.0:
+						backdrop.draw_line(q, q + tail, Color(col, col.a * 0.55), sz * 0.75)
+					backdrop.draw_rect(Rect2(q, Vector2(sz, sz)), col)
+					y += NEAR_TILE
+				x += NEAR_TILE
 
 
 ## Per-system scenery between the stars and the ships: what makes each place

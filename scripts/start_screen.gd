@@ -10,8 +10,10 @@ const PAPER_H := 780.0
 var _selected := 0
 var _bg := ""                       ## Dez's background on the contact form
 var _board: Control                 ## the clipboard
+var _bulletin: Control              ## top-right sector bulletin (hidden under the clipboard)
 var _page: Control                  ## the current sheet of paper
 var _busy := false
+var _menu: HBoxContainer            ## the main menu: one row along the bottom
 
 
 func _ready() -> void:
@@ -66,15 +68,36 @@ func _ready() -> void:
 	_board.draw.connect(_draw_board)
 	add_child(_board)
 
-	var hum := Sfx.loop("dock_hum", -14.0)
-	add_child(hum)
-	_ambience()
 
-	_show_file(0, false)
+	PlayerController.load_settings()
+	_build_bulletin()
+	# The clipboard waits off to the side until you pick New career or Settings.
+	_board.visible = false
+	_build_menu()
 	for a in args:
-		if a.begins_with("--start-shot="):
+		if a.begins_with("--menu-shot="):
+			_snapshot.call_deferred(a.substr(12))
+		elif a.begins_with("--files-shot="):
+			_open_board()
+			_show_index(false)
+			_snapshot.call_deferred(a.substr(13))
+		elif a == "--pick-test":
+			# New career -> Merchant should open the Merchant file.
+			_open_board()
+			_show_index(false)
+			_pick(0)
+			print("[pick] opened file %d" % _selected)
+			get_tree().quit.call_deferred()
+		elif a.begins_with("--settings-shot="):
+			_open_board()
+			_show_settings(false)
+			_snapshot.call_deferred(a.substr(16))
+		elif a.begins_with("--start-shot="):
+			_open_board()
+			_show_file(0, false)
 			_snapshot.call_deferred(a.substr(13))
 		elif a.begins_with("--creator-shot="):
+			_open_board()
 			_show_contact(false)
 			_snapshot.call_deferred(a.substr(15))
 
@@ -98,6 +121,254 @@ func _begin(friend: Dictionary) -> void:
 	Data.mode = "merchant"
 	Career.start_merchant(friend)
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+# --- Main menu -------------------------------------------------------------------
+
+## The menu: one row of stencilled options across a dark strip at the bottom.
+func _build_menu() -> void:
+	if _menu:
+		_menu.get_meta("strip").queue_free()
+	var vp := get_viewport_rect().size
+	var strip := Control.new()
+	strip.position = Vector2(0, vp.y - 120)
+	strip.size = Vector2(vp.x, 120)
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	strip.draw.connect(func():
+		for i in 24:
+			var a := float(i) / 24.0
+			strip.draw_rect(Rect2(0, strip.size.y * (1.0 - a), strip.size.x, strip.size.y / 24.0 + 1.0), Color(0.02, 0.022, 0.03, 0.88 * a))
+		pass)
+	add_child(strip)
+	_menu = HBoxContainer.new()
+	_menu.add_theme_constant_override("separation", 88)
+	_menu.position = Vector2(48, 44)
+	_menu.size = Vector2(vp.x - 96, 60)
+	_menu.alignment = BoxContainer.ALIGNMENT_CENTER
+	strip.add_child(_menu)
+	_menu.set_meta("strip", strip)
+	if Career.has_save():
+		_menu_button("CONTINUE", _continue, Career.save_summary())
+	# The clipboard slides in with the page already on it (no second page swipe).
+	_menu_button("NEW CAREER", func():
+		_open_board()
+		_show_index(false))
+	_menu_button("SETTINGS", func():
+		_open_board()
+		_show_settings(false))
+	_menu_button("QUIT", func(): get_tree().quit())
+
+
+## Pure white, clean and tracked out; a thin white rule slides in under the hovered one.
+func _menu_button(text: String, cb: Callable, sub := "") -> void:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	_menu.add_child(col)
+	var f := FontVariation.new()
+	f.base_font = Data.font_bold.base_font if Data.font_bold is FontVariation else Data.font_bold
+	f.spacing_glyph = 5
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_override("font", f)
+	b.add_theme_font_size_override("font_size", 24)
+	var none := StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, none)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(c, Color.WHITE)
+	b.set_meta("u", 0.0)
+	b.draw.connect(func():
+		var u: float = b.get_meta("u")
+		if u > 0.0:
+			var w := (b.size.x - 5.0) * u
+			b.draw_rect(Rect2((b.size.x - 5.0 - w) * 0.5, b.size.y - 4, w, 1.5), Color.WHITE))
+	var slide := func(to: float):
+		create_tween().tween_method(func(v: float):
+			b.set_meta("u", v)
+			b.queue_redraw(), float(b.get_meta("u")), to, 0.15)
+	b.pressed.connect(func():
+		Sfx.play("tick", -6.0)
+		cb.call())
+	b.mouse_entered.connect(func():
+		Sfx.play("tick", -16.0, 1.4)
+		slide.call(1.0))
+	b.mouse_exited.connect(func(): slide.call(0.0))
+	col.add_child(b)
+	if sub != "":
+		var l := _label(col, sub, Data.font_type, 12, Color(1, 1, 1, 0.55))
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
+## Top right: the sector bulletin, printed and pinned. Flavour for the
+## world outside the berth.
+func _build_bulletin() -> void:
+	var vp := get_viewport_rect().size
+	var slip := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.93, 0.91, 0.85)
+	sb.shadow_color = Color(0, 0, 0, 0.4)
+	sb.shadow_size = 4
+	sb.shadow_offset = Vector2(2, 3)
+	sb.set_content_margin_all(14)
+	slip.add_theme_stylebox_override("panel", sb)
+	slip.position = Vector2(vp.x - 380, 54)
+	slip.custom_minimum_size = Vector2(340, 0)
+	slip.rotation = deg_to_rad(0.6)
+	add_child(slip)
+	_bulletin = slip
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 7)
+	slip.add_child(v)
+	_type(v, "HESPER MARCH BULLETIN  ·  WEEK 1", 11, true, UIStyle.INK_FADED)
+	_rule(v)
+	for line in [
+		"Charter Co. posts record quarter. Haulers' rates unchanged.",
+		"Navy patrol warns of raiders in the Marcellus belt.",
+		"Saltgate bar: pilots for hire, cheap.",
+		"Aquila customs: Writs of Passage checked in full.",
+	]:
+		# Hanging bullet: a square of ink, then the wrapped line beside it.
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		v.add_child(row)
+		var dot := Control.new()
+		dot.custom_minimum_size = Vector2(6, 0)
+		dot.draw.connect(func(): dot.draw_rect(Rect2(0, 6, 5, 5), UIStyle.INK_TYPE))
+		row.add_child(dot)
+		var t := _type(row, line, 13)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t.custom_minimum_size = Vector2(298, 0)
+	# Two thumbtacks pin it to the berth wall.
+	var tacks := Control.new()
+	tacks.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tacks.position = slip.position
+	tacks.rotation = slip.rotation
+	tacks.size = Vector2(340, 20)
+	tacks.draw.connect(func():
+		for x in [16.0, 324.0]:
+			tacks.draw_circle(Vector2(x + 2, 4), 6.5, Color(0, 0, 0, 0.35))
+			tacks.draw_circle(Vector2(x, 2), 6.0, Color(0.72, 0.16, 0.14))
+			tacks.draw_circle(Vector2(x - 1.8, 0.2), 2.0, Color(1.0, 0.6, 0.55, 0.8)))
+	add_child(tacks)
+	slip.set_meta("tacks", tacks)
+
+
+func _continue() -> void:
+	if Career.load_game():
+		Data.mode = "merchant"
+		get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+func _open_board() -> void:
+	if _board.visible:
+		return
+	_board.visible = true
+	_set_menu_shown(false)
+	var target := _board.position
+	_board.position.x += 700.0
+	var tw := create_tween()
+	tw.tween_property(_board, "position", target, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	Sfx.play("paper", -4.0)
+
+
+## The career files, none opened yet: pick one.
+func _show_index(animate := true) -> void:
+	_selected = -1   # no file open: any pick opens one
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	_type(v, "BERTH 14  ·  CAPTAIN'S FILES", 13, true, UIStyle.INK_FADED)
+	_label(v, "Who were you?", Data.font_bold, 34, UIStyle.INK_TYPE)
+	_type(v, "Pick a file. Only the Merchant is open in the demo.", 14, false, UIStyle.INK_FADED)
+	_rule(v)
+	for k in Data.starts.size():
+		var st: Dictionary = Data.starts[k]
+		var row := VBoxContainer.new()
+		row.add_theme_constant_override("separation", 2)
+		v.add_child(row)
+		var b := _type_button(row, "%s   ·   %s" % [st["name"].to_upper(), st["doc"]["file"]], _pick.bind(k), 18)
+		if not st["playable"]:
+			b.add_theme_color_override("font_color", Color(UIStyle.INK_TYPE, 0.55))
+		var blurb: String = st["blurb"]
+		var cut := blurb.find(".", 60)
+		var t := _type(row, blurb.substr(0, cut + 1) if cut > 0 else blurb, 13, false, UIStyle.INK_FADED)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t.custom_minimum_size = Vector2(PAPER_W - 70, 0)
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(0, 8)
+		v.add_child(gap)
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(spacer)
+	_type_button(v, "back to menu", _close_board, 12)
+
+
+## Settings: the flight controls, as a checklist.
+func _show_settings(animate := true) -> void:
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	_type(v, "BERTH 14  ·  RIG SETUP SHEET", 13, true, UIStyle.INK_FADED)
+	_label(v, "Settings", Data.font_bold, 34, UIStyle.INK_TYPE)
+	_rule(v)
+	var rows := [
+		["Flight assist", "Thrusters damp unwanted drift. (V in flight)", "assist"],
+		["Mouse steering", "The rig turns to face your cursor. (M in flight)", "mouse_steer"],
+	]
+	for r in rows:
+		var key: String = r[2]
+		var on: bool = PlayerController.setting(key)
+		_type_button(v, "[%s]  %s" % ["x" if on else "  ", r[0]], func():
+			PlayerController.toggle(key)
+			_show_settings(false), 18)
+		var t := _type(v, "       " + r[1], 13, false, UIStyle.INK_FADED)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var fs := PlayerController.fullscreen
+	_type_button(v, "[%s]  Fullscreen" % ("x" if fs else "  "), func():
+		PlayerController.fullscreen = not PlayerController.fullscreen
+		PlayerController.save_settings()
+		_show_settings(false), 18)
+	_rule(v)
+	# Volume: ten ticks, typed like a gauge. - and + step it.
+	for r in [["Music", "music_vol"], ["Effects", "sfx_vol"]]:
+		var key: String = r[1]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		v.add_child(row)
+		var lv: float = PlayerController.vol(key)
+		var n := roundi(lv * 10.0)
+		var name_l := _type(row, r[0].rpad(9), 18, true)
+		name_l.custom_minimum_size = Vector2(110, 0)
+		_type_button(row, " - ", _step_vol.bind(key, -0.1), 18)
+		_type(row, "|".repeat(n) + ".".repeat(10 - n), 18, true, UIStyle.INK_TYPE)
+		_type_button(row, " + ", _step_vol.bind(key, 0.1), 18)
+		_type(row, "%d%%" % (n * 10), 14, false, UIStyle.INK_FADED)
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(spacer)
+	_type_button(v, "back to menu", _close_board, 12)
+
+
+func _step_vol(key: String, d: float) -> void:
+	PlayerController.set_vol(key, clampf(snappedf(PlayerController.vol(key) + d, 0.1), 0.0, 1.0))
+	Sfx.play("tick", -6.0)
+	_show_settings(false)
+
+
+func _close_board() -> void:
+	var tw := create_tween()
+	var home := _board.position
+	tw.tween_property(_board, "position:x", home.x + 700.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		_board.visible = false
+		_board.position = home
+		_set_menu_shown(true))
+	Sfx.play("paper", -6.0)
+
+
+## The menu strip and bulletin step aside while the clipboard is out.
+func _set_menu_shown(on: bool) -> void:
+	for n in [_bulletin, _bulletin.get_meta("tacks"), _menu.get_meta("strip")]:
+		n.visible = on
 
 
 # --- The clipboard ---------------------------------------------------------------
@@ -346,11 +617,7 @@ func _show_file(i: int, animate := true) -> void:
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 14)
 	v.add_child(foot)
-	if Career.has_save():
-		_type_button(foot, "continue: %s" % Career.save_summary(), func():
-			if Career.load_game():
-				Data.mode = "merchant"
-				get_tree().change_scene_to_file("res://scenes/main.tscn"), 12)
+	_type_button(foot, "all files", func(): _show_index(true), 12)
 	_type_button(foot, "combat sandbox", func():
 		Data.mode = "sandbox"
 		get_tree().change_scene_to_file("res://scenes/main.tscn"), 12)

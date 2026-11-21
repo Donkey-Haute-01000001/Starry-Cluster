@@ -5,16 +5,17 @@ extends Node
 ## maneuvering thrusters as a fraction of it. "energy" is the built-in reactor's
 ## capacity and "energy_regen" its output per second. Weapons cost "energy" per shot.
 
-## UI font for everything (Exo 2, SIL Open Font License; see fonts/).
-const UI_FONT := "res://fonts/Exo2.ttf"
+## UI font for everything: Big Shoulders, tall dock signage (SIL Open Font License; see fonts/).
+const UI_FONT := "res://fonts/BigShoulders-SemiBold.ttf"
+const UI_FONT_BOLD := "res://fonts/BigShoulders-ExtraBold.ttf"
 const UI_FONT_WEIGHT := 500
 var font_bold: Font = null  ## titles and headings
 ## Paperwork fonts (all SIL Open Font License; see fonts/). The Charter's cold
 ## print, people's handwriting on top of it, and rubber stamps.
 var font_type: Font = null       ## Courier Prime: forms, serials, typed text
 var font_type_bold: Font = null
-var font_hand: Font = null       ## Caveat: pen notes, signatures, tally marks
-var font_stamp: Font = null      ## Black Ops One: rubber stamps
+var font_hand: Font = null       ## Nanum Pen Script: pen notes, signatures, tally marks
+var font_stamp: Font = null      ## Big Shoulders Stencil: rubber stamps, hull marks
 
 
 func _load_font(path: String) -> FontFile:
@@ -32,15 +33,24 @@ func _ready() -> void:
 		var h: Dictionary = hulls[v[0]].duplicate(true)
 		h.merge(v[1], true)
 		hulls[id] = h
-	font_type = _load_font("res://fonts/CourierPrime.ttf")
-	font_type_bold = _load_font("res://fonts/CourierPrime-Bold.ttf")
-	font_stamp = _load_font("res://fonts/BlackOpsOne.ttf")
-	var hand := _load_font("res://fonts/Caveat.ttf")
+	# --fontset=DIR swaps in ui/ui_bold/type/type_bold/stamp/hand .ttf from DIR
+	# (for comparing type directions; missing files keep the defaults).
+	var fs := {}
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--fontset="):
+			var dir := a.substr(10)
+			for k in ["ui", "ui_bold", "type", "type_bold", "stamp", "hand"]:
+				if FileAccess.file_exists(dir + "/" + k + ".ttf"):
+					fs[k] = dir + "/" + k + ".ttf"
+	font_type = _load_font(fs.get("type", "res://fonts/CourierPrime.ttf"))
+	font_type_bold = _load_font(fs.get("type_bold", "res://fonts/CourierPrime-Bold.ttf"))
+	font_stamp = _load_font(fs.get("stamp", "res://fonts/BigShouldersStencil-ExtraBold.ttf"))
+	var hand := _load_font(fs.get("hand", "res://fonts/NanumPenScript.ttf"))
 	if hand:
 		font_hand = FontVariation.new()
 		font_hand.base_font = hand
 		font_hand.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 550}
-	var base := _load_font(UI_FONT)
+	var base := _load_font(fs.get("ui", UI_FONT))
 	if base == null:
 		return
 	var f := FontVariation.new()
@@ -48,9 +58,10 @@ func _ready() -> void:
 	f.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): UI_FONT_WEIGHT}
 	# Every Control without its own theme font, and every draw_string that uses
 	# the fallback font (HUD, labels in space), picks this up.
+	f.spacing_glyph = 1   # Big Shoulders is narrow; a hair of tracking keeps small text legible
 	ThemeDB.fallback_font = f
 	font_bold = FontVariation.new()
-	font_bold.base_font = base
+	font_bold.base_font = _load_font(fs.get("ui_bold", UI_FONT_BOLD))
 	font_bold.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 680}
 	UIStyle.apply_default_theme(f)
 
@@ -69,11 +80,14 @@ var weapons := {
 		"damage": 9.0, "cooldown": 0.22, "energy": 2.0, "speed": 900.0, "range": 650.0,
 		"gimbal": 5.0, "spread": 3.0, "color": Color(1.0, 0.55, 0.3), "size": 3.0,
 	},
-	# Turrets: rotate toward the aim point at a limited traverse speed.
+	# Turrets: rotate toward the aim point at a limited traverse speed. Rapid
+	# tracer rounds with flak fuzes: each round bursts at the aim point, so a
+	# near miss still chips the target. Low damage, high rate of fire.
 	"light_turret": {
 		"name": "Light Turret", "kind": "turret",
-		"damage": 9.0, "cooldown": 0.2, "energy": 2.5, "speed": 820.0, "range": 640.0,
-		"traverse": 200.0, "spread": 2.0, "color": Color(0.7, 1.0, 0.6), "size": 2.5,
+		"damage": 3.5, "cooldown": 0.07, "energy": 0.9, "speed": 1150.0, "range": 640.0,
+		"traverse": 200.0, "spread": 3.0, "color": Color(1.0, 0.86, 0.5), "size": 1.6,
+		"flak": 30.0, "tracer": true,
 	},
 	# Story only: the Tallyman's opener. Knocks the engines out instead of killing.
 	"ion_bolt": {
@@ -81,10 +95,23 @@ var weapons := {
 		"damage": 10.0, "cooldown": 9.0, "energy": 0.0, "speed": 700.0, "range": 2400.0,
 		"gimbal": 30.0, "spread": 0.0, "color": Color(0.7, 0.5, 1.0), "size": 7.0, "ion": 14.0,
 	},
+	# Secondaries: right click fires the selected one, R swaps.
+	"ion_cannon": {
+		"name": "Ion Bolt", "kind": "secondary",
+		"damage": 6.0, "cooldown": 3.5, "energy": 40.0, "speed": 760.0, "range": 900.0,
+		"gimbal": 20.0, "spread": 0.0, "color": Color(0.7, 0.5, 1.0), "size": 6.0, "ion": 3.0,
+	},
+	"torpedo": {
+		"name": "Torpedo", "kind": "secondary",
+		"damage": 110.0, "cooldown": 1.2, "energy": 0.0, "speed": 430.0, "range": 1500.0,
+		"gimbal": 20.0, "spread": 0.0, "color": Color(1.0, 0.5, 0.3), "size": 4.0,
+		"torp": true, "ammo": 6, "blast": 55.0, "turn": 100.0,
+	},
 	"pirate_turret": {
 		"name": "Rusty Turret", "kind": "turret",
-		"damage": 8.0, "cooldown": 0.28, "energy": 2.0, "speed": 700.0, "range": 600.0,
-		"traverse": 120.0, "spread": 4.0, "color": Color(1.0, 0.75, 0.35), "size": 2.5,
+		"damage": 3.0, "cooldown": 0.1, "energy": 0.7, "speed": 1000.0, "range": 600.0,
+		"traverse": 120.0, "spread": 5.0, "color": Color(1.0, 0.7, 0.4), "size": 1.6,
+		"flak": 26.0, "tracer": true,
 	},
 }
 
@@ -118,6 +145,7 @@ var hulls := {
 		"mounts": [
 			{"pos": Vector2(4, 0), "weapon": "light_turret"},
 		],
+		"secondaries": ["ion_cannon", "torpedo"],
 	},
 	# The old friend's ships, one per role. Picked by Dez's background.
 	"friend_gunboat": {

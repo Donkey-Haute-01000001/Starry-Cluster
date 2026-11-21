@@ -42,6 +42,7 @@ var ion_t := 0.0              ## seconds left with engines knocked out by an ion
 var hull_floor := 0.0         ## story ships: hull never drops below this fraction
 var hold_fire := false        ## story: guns cold (ceasefire, hails)
 var damage_taken := 0.0       ## running total, for scenes that score a fight
+var assist := false           ## flight assist: thrusters damp drift you aren't asking for
 var cruise_on := false        ## cruise drive wanted: spools up, weapons offline
 var cruise_k := 0.0           ## 0..1 spool
 var cruise_cap := 1400.0      ## top cruise speed here, set by main from nearby mass
@@ -54,6 +55,9 @@ const DISABLE_AT := 0.15
 var in_move := Vector2.ZERO   ## ship-relative thrust: x forward(+)/back(-), y right(+)/left(-), each -1..1
 var in_turn := 0.0            ## -1..1
 var in_brake := false         ## brake assist: fire whichever thrusters oppose the drift
+var secondaries: Array = []   ## [{weapon, cooldown, ammo (-1 = unlimited)}]
+var sec_index := 0
+var in_fire_secondary := false
 var in_fire_aimed := false    ## turrets (and gimbals) at the aim point
 var in_fire_fixed := false    ## forward cannons
 var aim_point := Vector2.ZERO ## world-space point turrets and gimbals aim at
@@ -61,6 +65,10 @@ var aim_point := Vector2.ZERO ## world-space point turrets and gimbals aim at
 ## Thrust actually produced last tick, ship-relative and 0..1 per axis, for drawing.
 var thrust_out := Vector2.ZERO
 
+## Pace: every hull's numbers are scaled up so a screen goes by in a couple of
+## seconds (tune here, not per hull).
+const PACE_SPEED := 1.35
+const PACE_ACCEL := 1.3
 const THRUST_ENERGY := 12.0   ## energy per second at full main-engine thrust
 const SHIELD_ENERGY := 0.5    ## energy per point of shield recharged
 
@@ -96,15 +104,19 @@ func setup(id: String, p_team: int, p_main: Node) -> void:
 	shields = max_shields
 	shield_regen = def["shield_regen"]
 	regen_delay = def["regen_delay"]
-	accel = def["accel"]
+	accel = def["accel"] * PACE_ACCEL
 	side_accel = accel * def["side_thrust"]
 	reverse_accel = accel * def["reverse_thrust"]
-	max_speed = def["max_speed"]
+	max_speed = def["max_speed"] * PACE_SPEED
 	max_energy = def["energy"]
 	energy = max_energy
 	energy_regen = def["energy_regen"]
 	turn_rate = deg_to_rad(def["turn"])
 	radius = def["radius"]
+	secondaries.clear()
+	for sid in def.get("secondaries", []):
+		var sw: Dictionary = Data.weapons[sid]
+		secondaries.append({"weapon": sw, "cooldown": 0.0, "ammo": sw.get("ammo", -1)})
 	mounts.clear()
 	for m in def["mounts"]:
 		var w: Dictionary = Data.weapons[m["weapon"]]
@@ -137,6 +149,7 @@ func _physics_process(delta: float) -> void:
 		in_turn = 0.0
 		in_fire_aimed = false
 		in_fire_fixed = false
+		in_fire_secondary = false
 		velocity = velocity.move_toward(Vector2.ZERO, 12.0 * delta)
 		if randf() < delta * 2.5:
 			main.spawn_sparks(global_position + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * radius * 0.6, def["accent"], 3)
@@ -168,6 +181,7 @@ func _physics_process(delta: float) -> void:
 		energy -= amount * SHIELD_ENERGY
 
 	_update_weapons(delta)
+	_update_secondary(delta)
 	_shield_flash = maxf(0.0, _shield_flash - delta * 3.0)
 	_hull_flash = maxf(0.0, _hull_flash - delta * 4.0)
 	queue_redraw()
@@ -189,6 +203,15 @@ func _apply_thrust(delta: float) -> void:
 			cmd.x = bx
 		if cmd.y == 0.0:
 			cmd.y = by
+	if assist and not in_brake and velocity.length() > 1.0:
+		# Flight assist: sideways drift always cancelled, coasting forward bleeds
+		# off gently, so the ship goes where it points and stops when you let go.
+		var lv := (-velocity).rotated(-rotation)
+		var cx := accel if lv.x > 0.0 else reverse_accel
+		if cmd.y == 0.0:
+			cmd.y = clampf(lv.y / maxf(side_accel * delta, 0.001), -1.0, 1.0)
+		if cmd.x == 0.0:
+			cmd.x = clampf(lv.x / maxf(cx * delta, 0.001), -1.0, 1.0) * 0.45
 	var a := Vector2(cmd.x * (accel if cmd.x > 0.0 else reverse_accel), cmd.y * side_accel)
 	a *= 1.0 + 4.0 * cruise_k
 	# Thrusters draw on the reactor. On an empty bar they still fire at half power.
@@ -235,8 +258,53 @@ func _update_weapons(delta: float) -> void:
 		energy -= cost
 		m["cooldown"] = w["cooldown"]
 		var dir: float = rotation + m["angle"] + deg_to_rad(randf_range(-w["spread"], w["spread"]) * accuracy)
-		main.spawn_projectile(world_pos, dir, w, self)
+		var fuse := -1.0
+		if w.has("flak"):
+			fuse = clampf(world_pos.distance_to(aim_point), 60.0, w["range"])
+		main.spawn_projectile(world_pos, dir, w, self, fuse)
+		if w["kind"] == "turret":
+			Sfx.play_at("turret", world_pos, -8.0 if is_player else -13.0, 1.0 if w.has("flak") else 1.25)
+		else:
+			Sfx.play_at("cannon", world_pos, -10.0 if is_player else -14.0, clampf(16.0 / maxf(w["damage"], 4.0), 0.9, 1.15))
 		_fired_t = 0.0
+
+
+## The selected secondary, fired straight ahead with a small gimbal toward
+## the aim point. Torpedoes home on whatever was nearest the crosshair.
+func _update_secondary(delta: float) -> void:
+	for sec in secondaries:
+		sec["cooldown"] -= delta
+	if secondaries.is_empty() or not in_fire_secondary or hold_fire or cruise_k > 0.0:
+		return
+	var sec: Dictionary = secondaries[sec_index]
+	var w: Dictionary = sec["weapon"]
+	if sec["cooldown"] > 0.0 or sec["ammo"] == 0 or energy < w["energy"]:
+		return
+	energy -= w["energy"]
+	sec["cooldown"] = w["cooldown"]
+	if sec["ammo"] > 0:
+		sec["ammo"] -= 1
+	var g := deg_to_rad(w["gimbal"])
+	var off := clampf(wrapf((aim_point - global_position).angle() - rotation, -PI, PI), -g, g)
+	var target: Ship = null
+	if w.get("torp", false):
+		target = main.nearest_enemy(team, aim_point, 500.0)
+	main.fx.spawn_projectile(global_position + forward() * radius, rotation + off, w, self, -1.0, target)
+	Sfx.play_at("torpedo" if w.get("torp", false) else "ion", global_position, -3.0)
+	_fired_t = 0.0
+
+
+func cycle_secondary() -> String:
+	if secondaries.is_empty():
+		return ""
+	sec_index = (sec_index + 1) % secondaries.size()
+	return secondaries[sec_index]["weapon"]["name"]
+
+
+## Docking restocks torpedoes.
+func restock() -> void:
+	for sec in secondaries:
+		sec["ammo"] = sec["weapon"].get("ammo", -1)
 
 
 func take_damage(amount: float, hit_pos: Vector2) -> void:
@@ -245,6 +313,8 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 	since_hit = 0.0
 	damage_taken += amount
 	if shields > 0.0:
+		Sfx.play_at("hit_shield", hit_pos, -10.0 if amount < 10.0 else -5.0)
+		main.fx.spawn_shield_hit(hit_pos, global_position, radius)
 		var absorbed := minf(shields, amount)
 		shields -= absorbed
 		amount -= absorbed
@@ -253,6 +323,8 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		hull_hp -= amount
 		_hull_flash = 1.0
 		main.spawn_sparks(hit_pos, def["accent"], 4)
+		main.fx.spawn_hull_hit(hit_pos, global_position, amount)
+		Sfx.play_at("hit_hull", hit_pos, -9.0 if amount < 10.0 else -3.0, 1.15 if radius < 20.0 else 0.9)
 	if hull_floor > 0.0:
 		hull_hp = maxf(hull_hp, max_hull * hull_floor)
 	if hull_hp <= 0.0:
@@ -268,7 +340,7 @@ func _disable() -> void:
 	shields = 0.0
 	max_shields = 0.0
 	main.spawn_sparks(global_position, def["accent"], 14)
-	Sfx.play("hiss", -4.0, 0.7)
+	Sfx.play_at("disabled", global_position, -4.0)
 	disabled_now.emit(self)
 
 
@@ -284,6 +356,8 @@ func die() -> void:
 		return
 	alive = false
 	main.spawn_explosion(global_position, radius, velocity)
+	Sfx.play_at("boom_big" if radius >= 26.0 else "boom_small", global_position, 0.0 if is_player else -2.0)
+	main._shake = maxf(main._shake, clampf(radius * 0.5, 4.0, 16.0))
 	# Void fleet ships break apart in their own frames.
 	if def.has("layered"):
 		var t := Art.tex("ships/%s/destruction.png" % def["layered"]["dir"])
@@ -309,14 +383,7 @@ func _draw() -> void:
 	# Engine flames for the main engine, small puffs for maneuvering thrusters.
 	_draw_rcs(accent)
 	var main_t := maxf(thrust_out.x, 0.0)
-	if main_t > 0.05 and not def.has("layered"):
-		for e in def["engines"]:
-			var length := (10.0 + radius * 0.6) * main_t * randf_range(0.8, 1.15)
-			var ep: Vector2 = e
-			draw_colored_polygon(PackedVector2Array([ep + Vector2(0, -3), ep + Vector2(-length, 0), ep + Vector2(0, 3)]),
-				Color(accent.r, accent.g, accent.b, 0.85))
-			draw_colored_polygon(PackedVector2Array([ep + Vector2(0, -1.5), ep + Vector2(-length * 0.55, 0), ep + Vector2(0, 1.5)]),
-				Color(1, 1, 0.9, 0.9))
+	_draw_plume(main_t, accent)
 	# Hull: the sprite when the art is installed, otherwise the polygon.
 	var sprite: String = def.get("sprite", "")
 	var flash := Color(1, 1, 1).lerp(Color(1, 0.45, 0.4), _hull_flash * 0.7)
@@ -356,14 +423,41 @@ func _draw() -> void:
 
 
 ## Small jets on the hull edges: nose jets for reverse thrust, flank jets for strafing.
+## Main engine plume: a long hot exhaust that swells and flickers with thrust,
+## a soft glow around the nozzles even at idle, and a white-hot core.
+func _draw_plume(k: float, accent: Color) -> void:
+	if not def.has("engines") or ion_t > 0.0:
+		return
+	var tail_x := -radius * (1.05 if def.get("sprite", "") != "" or def.has("layered") else 0.0)
+	var flick := 0.85 + 0.3 * sin(_anim_t * 47.0) * sin(_anim_t * 13.0 + radius)
+	var boost := 1.0 + 0.8 * cruise_k
+	for e in def["engines"]:
+		var ep: Vector2 = e
+		var o := Vector2(minf(ep.x, tail_x) if tail_x != 0.0 else ep.x, ep.y * (0.9 if tail_x != 0.0 else 1.0))
+		# idle glow
+		draw_circle(o, 3.0 + radius * 0.12, Color(accent.r, accent.g, accent.b, 0.18 + 0.25 * k))
+		if k < 0.05:
+			continue
+		var length := (radius * 1.6 + 18.0) * k * flick * boost
+		var w := 3.5 + radius * 0.14
+		# outer flame, mid, core: overlapping tapered polygons
+		for layer in [[1.0, 1.0, Color(accent.r, accent.g * 0.8, accent.b * 0.6, 0.35)], [0.7, 0.62, Color(accent.r, accent.g, accent.b, 0.75)], [0.42, 0.32, Color(1.0, 0.97, 0.88, 0.95)]]:
+			var lw: float = w * float(layer[1])
+			var ll: float = length * float(layer[0])
+			draw_colored_polygon(PackedVector2Array([o + Vector2(2, -lw), o + Vector2(-ll * 0.35, -lw * 0.8), o + Vector2(-ll, 0), o + Vector2(-ll * 0.35, lw * 0.8), o + Vector2(2, lw)]), layer[2])
+		# glow halo
+		draw_circle(o + Vector2(-length * 0.25, 0), w * 2.2, Color(accent.r, accent.g, accent.b, 0.10 * k))
+
+
 func _draw_rcs(accent: Color) -> void:
-	var col := Color(accent.r, accent.g, accent.b, 0.7)
+	var col := Color(0.92, 0.95, 1.0, 0.75)
 	var jets: Array = []
-	if thrust_out.x < -0.05:
+	# Only real burns show: flight assist's small trims stay invisible.
+	if thrust_out.x < -0.3:
 		var k := -thrust_out.x
 		jets.append([Vector2(radius * 0.7, -radius * 0.35), Vector2(1, -0.3), k])
 		jets.append([Vector2(radius * 0.7, radius * 0.35), Vector2(1, 0.3), k])
-	if absf(thrust_out.y) > 0.05:
+	if absf(thrust_out.y) > 0.3:
 		# Pushing right (+y) fires jets on the left flank (-y side), and vice versa.
 		var side := -signf(thrust_out.y)
 		var k := absf(thrust_out.y)
@@ -372,9 +466,10 @@ func _draw_rcs(accent: Color) -> void:
 	for j in jets:
 		var p: Vector2 = j[0]
 		var d: Vector2 = (j[1] as Vector2).normalized()
-		var length := (4.0 + radius * 0.35) * float(j[2]) * randf_range(0.7, 1.2)
-		var n := d.orthogonal() * 2.0
+		var length := (6.0 + radius * 0.5) * float(j[2]) * randf_range(0.7, 1.2)
+		var n := d.orthogonal() * 2.5
 		draw_colored_polygon(PackedVector2Array([p + n, p + d * length, p - n]), col)
+		draw_circle(p + d * length * 0.8, 2.0 + length * 0.18, Color(col, 0.25))
 
 
 ## Modular pixel ships (Foozle's Void packs): an animated engine strip that

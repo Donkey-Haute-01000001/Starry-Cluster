@@ -18,7 +18,102 @@ const COL_FRIEND := Color(0.4, 0.9, 1.0)
 const COL_ENERGY := Color(0.75, 0.55, 1.0)
 
 
+# --- First-flight prompts ---------------------------------------------------------
+## Each shows once per career, when it's useful, and clears once you've done it.
+const TIPS := {
+	"fly": [["W", "thrust"], ["MOUSE", "steer"], ["X", "brake"]],
+	"travel": [["G", "autopilot to the job"], ["C", "cruise"]],
+	"guns": [["LMB", "turrets"], ["RMB", "ion / torpedo"], ["R", "swap"]],
+	"tactics": [["HOLD TAB", "fleet orders"]],
+}
+var tip := ""          ## the prompt on screen ("" = none)
+var _tip_t := 0.0      ## how long it's been up
+var _tip_a := 0.0      ## fade
+var _tip_moved := 0.0
+var _tip_done_t := -1.0
+
+
+func _tip_step(delta: float) -> void:
+	var p: Ship = main.player if is_instance_valid(main.player) else null
+	_tip_a = move_toward(_tip_a, 1.0 if tip != "" and _tip_done_t < 0.0 else 0.0, delta * 3.0)
+	if not main.merchant or p == null or main.docked_at != "" or main.story.busy():
+		return
+	if tip != "":
+		_tip_t += delta
+		_tip_moved += p.velocity.length() * delta
+		if _tip_done_t < 0.0 and _tip_finished(p):
+			_tip_done_t = 0.0
+			Career.flags["tip_" + tip] = true
+		if _tip_done_t >= 0.0:
+			_tip_done_t += delta
+			if _tip_done_t > 0.6:
+				tip = ""
+		return
+	var f: Dictionary = Career.flags
+	var next := ""
+	if not f.get("tip_guns", false) and main.nearest_enemy(0, p.global_position, 1400.0) != null:
+		next = "guns"
+	elif not f.get("tip_fly", false):
+		next = "fly"
+	elif not f.get("tip_travel", false):
+		var t: Node2D = main.objective_target()
+		if t and p.global_position.distance_to(t.global_position) > 2500.0 and not main.in_combat:
+			next = "travel"
+	elif not f.get("tip_tactics", false) and f.get("tip_guns", false) and main.in_combat and not main.escorts.is_empty():
+		next = "tactics"
+	if next != "":
+		tip = next
+		_tip_t = 0.0
+		_tip_moved = 0.0
+		_tip_done_t = -1.0
+
+
+func _tip_finished(p: Ship) -> bool:
+	match tip:
+		"fly":
+			return _tip_moved > 900.0 or _tip_t > 25.0
+		"travel":
+			return main.autopilot_on() or p.cruise_on or _tip_t > 30.0
+		"guns":
+			return (_tip_t > 5.0 and (p.in_fire_aimed or p.in_fire_fixed)) or _tip_t > 16.0 or not main.in_combat
+		"tactics":
+			return main.wheel_open() or _tip_t > 14.0
+	return true
+
+
+## Key caps in a row, centred under the ship: [KEY] what it does.
+func _draw_tip(vp: Vector2) -> void:
+	if _tip_a <= 0.01 or not TIPS.has(tip if tip != "" else "fly"):
+		return
+	var segs: Array = TIPS.get(tip, [])
+	if segs.is_empty():
+		return
+	var font: Font = ThemeDB.fallback_font
+	var bold: Font = Data.font_bold
+	var gap := 26.0
+	var w := 0.0
+	for sg in segs:
+		w += bold.get_string_size(sg[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0 + 8.0
+		w += font.get_string_size(sg[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x + gap
+	w -= gap
+	var a := _tip_a
+	var x := vp.x * 0.5 - w * 0.5
+	var y := vp.y * 0.74
+	draw_rect(Rect2(x - 18, y - 22, w + 36, 40), Color(0.02, 0.025, 0.035, 0.6 * a))
+	var ok := _tip_done_t >= 0.0
+	for sg in segs:
+		var kw := bold.get_string_size(sg[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+		var kr := Rect2(x, y - 13, kw, 24)
+		draw_rect(Rect2(kr.position + Vector2(0, 3), kr.size), Color(0.5, 0.52, 0.55, 0.5 * a))
+		draw_rect(kr, Color(0.93, 0.94, 0.95, a) if not ok else Color(0.55, 0.95, 0.6, a))
+		draw_string(bold, Vector2(x + 9, y + 5), sg[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.05, 0.06, 0.07, a))
+		x += kw + 8.0
+		draw_string(font, Vector2(x, y + 6), sg[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 1, 1, 0.92 * a))
+		x += font.get_string_size(sg[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x + gap
+
+
 func _process(delta: float) -> void:
+	_tip_step(delta)
 	_comms_t = maxf(0.0, _comms_t - delta)
 	_comms_age += delta
 	if _comms_t <= 0.0 and not _comms_queue.is_empty():
@@ -43,10 +138,6 @@ func _show_comms(speaker: String, text: String) -> void:
 	_comms_text = text
 	_comms_t = 6.0 + text.length() * 0.04
 	_comms_age = 0.0
-	if main.docked_at == "":
-		Sfx.play("radio", -12.0, randf_range(0.9, 1.1))
-	if main.docked_at == "":
-		Sfx.play("radio", -8.0)
 
 
 func _to_screen(world_pos: Vector2) -> Vector2:
@@ -92,10 +183,69 @@ func _draw_streaks(vp: Vector2) -> void:
 		draw_line(pt, pt - dir * ln, Color(0.75, 0.88, 1.0, 0.22 * k), 1.5)
 
 
+## Space dust: specks fixed in the world, so they slide past at your true speed
+## (the starfield is far away and barely moves). Streaks stretch with speed.
+const DUST_CELL := 180.0
+
+
+func _draw_dust(vp: Vector2) -> void:
+	var p: Ship = main.player
+	if p == null or not is_instance_valid(p):
+		return
+	var xf := get_viewport().get_canvas_transform()
+	var inv := xf.affine_inverse()
+	var a0: Vector2 = inv * Vector2.ZERO
+	var a1: Vector2 = inv * vp
+	var zoom := xf.get_scale().x
+	var v := p.velocity
+	var spd := v.length()
+	var tail := -v * 0.12 * zoom
+	if tail.length() > 70.0:
+		tail = tail.normalized() * 70.0
+	var fade := clampf(spd / 120.0, 0.25, 1.0) * (1.0 - 0.7 * p.cruise_k)
+	for cx in range(floori(a0.x / DUST_CELL) - 1, ceili(a1.x / DUST_CELL) + 1):
+		for cy in range(floori(a0.y / DUST_CELL) - 1, ceili(a1.y / DUST_CELL) + 1):
+			var h := float(cx * 73856093 ^ cy * 19349663)
+			var jx := fposmod(sin(h) * 43758.5453, 1.0)
+			var jy := fposmod(sin(h * 1.37 + 2.1) * 24634.6345, 1.0)
+			var lum := fposmod(sin(h * 0.71 + 5.3) * 9631.17, 1.0)
+			var sp := xf * Vector2((cx + jx) * DUST_CELL, (cy + jy) * DUST_CELL)
+			var col := Color(0.85, 0.9, 0.95, (0.22 + 0.33 * lum) * fade)
+			if spd > 25.0:
+				draw_line(sp, sp + tail, col, 1.0)
+			draw_rect(Rect2(sp - Vector2(1, 1), Vector2(2, 2)), Color(col, col.a * 1.4))
+
+
+## Velocity marker: a small ring where you're drifting, a tick where you're
+## pointing. When they disagree, you're sliding.
+func _draw_vel_marker() -> void:
+	var p: Ship = main.player
+	if p == null or not is_instance_valid(p) or not p.alive:
+		return
+	var c := _to_screen(p.global_position)
+	var spd := p.velocity.length()
+	var col := Color(0.55, 0.9, 1.0, 0.75)
+	# heading tick
+	var hd := Vector2.RIGHT.rotated(p.rotation)
+	draw_line(c + hd * 78.0, c + hd * 90.0, Color(1, 1, 1, 0.6), 2.0)
+	if spd < 20.0:
+		return
+	var vd := p.velocity / spd
+	var r := 72.0 + clampf(spd / 300.0, 0.0, 1.0) * 30.0
+	var m := c + vd * r
+	draw_arc(m, 6.0, 0.0, TAU, 16, col, 1.5)
+	for k in 3:
+		var a := vd.angle() + PI + (k - 1) * PI * 0.5
+		draw_line(m + Vector2.RIGHT.rotated(a) * 6.0, m + Vector2.RIGHT.rotated(a) * 10.0, col, 1.5)
+	_text(m + vd * 14.0 + Vector2(-8, 4) + Vector2(vd.x * 10.0, 0), "%d" % int(spd), 12, Color(col, 0.85))
+
+
 func _draw() -> void:
 	var vp := size
 	var t := Time.get_ticks_msec() / 1000.0
+	_draw_dust(vp)
 	_draw_streaks(vp)
+	_draw_vel_marker()
 
 	# During a hail the guns are cold: say so instead of the combat banner.
 	if main.story and main.story.ceasefire():
@@ -174,6 +324,26 @@ func _draw() -> void:
 			_text(base + Vector2(290, 27), "BRAKE", 12, UIStyle.GOLD, true, true)
 		elif main.merchant and not main.in_combat:
 			_text(base + Vector2(286, 27), "[C] CRUISE", 10, Color(UIStyle.TEXT_DIM.r, UIStyle.TEXT_DIM.g, UIStyle.TEXT_DIM.b, 0.8), true)
+		if not p.secondaries.is_empty():
+			# Secondary tab on top of the plate: what right click fires.
+			var sec: Dictionary = p.secondaries[p.sec_index]
+			var sw: Dictionary = sec["weapon"]
+			var state := "READY"
+			var sc := UIStyle.GREEN
+			if sec["ammo"] == 0:
+				state = "EMPTY"
+				sc = UIStyle.RED
+			elif sec["cooldown"] > 0.0:
+				state = "LOADING"
+				sc = UIStyle.GOLD
+			var label: String = sw["name"].to_upper() + ("  %d/%d" % [sec["ammo"], sw["ammo"]] if sw.has("ammo") else "")
+			var tab := Rect2(base + Vector2(0, -24), Vector2(300, 22))
+			draw_rect(tab, Color(0.05, 0.055, 0.06, 0.92))
+			draw_rect(Rect2(tab.position, Vector2(3, tab.size.y)), sw["color"])
+			draw_string(Data.font_type_bold, tab.position + Vector2(12, 16), "RMB  " + label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.TEXT)
+			var stw := Data.font_type_bold.get_string_size(state, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+			draw_string(Data.font_type_bold, tab.position + Vector2(tab.size.x - 10 - stw, 16), state, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, sc)
+			draw_string(Data.font_type, tab.position + Vector2(tab.size.x + 10, 16), "[R] swap", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.TEXT_DIM)
 		var rows := [["SHIELDS", p.shields / p.max_shields, COL_SHIELD], ["HULL", p.hull_hp / p.max_hull, COL_HULL], ["ENERGY", p.energy / p.max_energy, COL_ENERGY]]
 		for i in rows.size():
 			var y0 := base.y + 44 + i * 16
@@ -215,15 +385,19 @@ func _draw() -> void:
 		if main.next_wave_t > 0 and main.hostile_count() == 0 and main.wave > 0:
 			_text(Vector2(250, 96), "Next wave in %d…" % ceili(main.next_wave_t), 15, UIStyle.GOLD)
 
+	if main.merchant:
+		_draw_tip(vp)
+		if main.autopilot_on():
+			_text(Vector2(vp.x * 0.5, 160), _sp("AUTOPILOT") + "   →   " + str(main.player.controller.autopilot.label), 13, Color(0.55, 0.9, 1.0, 0.9), true, true)
 	if main.message_t > 0:
 		_text(Vector2(vp.x * 0.5, vp.y * 0.25), main.message, 20, Color(0.92, 0.97, 1.0, minf(1.0, main.message_t)), true, true)
 
 	_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)
 
 	if show_help:
-		var lines := ["W / S   forward / back", "A / D   strafe", "Q / E   turn", "X   brake", "F   dock / jump",
-			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons",
-			"C   cruise drive", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
+		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer (M toggles)", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
+			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons (if fitted)", "Right click   fire secondary", "R   swap secondary",
+			"C   cruise drive", "G   autopilot to the job", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "H   hide controls"]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
 		UIStyle.draw_glass(self, hr, 1.0, 10.0)
 		_text(hr.position + Vector2(14, 24), _sp("CONTROLS"), 11, UIStyle.KICKER)
@@ -449,7 +623,7 @@ func _draw_comms(vp: Vector2) -> void:
 	var col: Color = info["color"]
 	# The panel grows upward to fit the whole line.
 	var body_w := 560.0 - 110.0 - 16.0
-	var text_h := ThemeDB.fallback_font.get_multiline_string_size(_comms_text, HORIZONTAL_ALIGNMENT_LEFT, body_w, 15).y
+	var text_h := ThemeDB.fallback_font.get_multiline_string_size(_comms_text, HORIZONTAL_ALIGNMENT_LEFT, body_w, 17).y
 	var h := maxf(152.0, 70.0 + text_h + 18.0)
 	var r := Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
 	comms_top = r.position.y
@@ -490,4 +664,4 @@ func _draw_comms(vp: Vector2) -> void:
 	var role_w := (Data.font_bold if Data.font_bold else ThemeDB.fallback_font).get_string_size(_comms_speaker.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	_text(Vector2(x + role_w + 10, r.position.y + 44), info["role"], 12, Color(col.r, col.g, col.b, 0.85 * a))
 	var shown := _comms_text.substr(0, int(_comms_age * 55.0))
-	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, body_w, 15, -1, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))
+	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, body_w, 17, -1, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))

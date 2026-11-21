@@ -56,6 +56,8 @@ var _test_t := 0.0
 
 var _wheel_mouse_world := Vector2.ZERO
 var _shake := 0.0
+var _was_burning := false
+var _rumble: AudioStreamPlayer
 var _zoom := 0.9
 
 # Automated self-test: `godot --headless -- --autotest` runs a fight and prints stats.
@@ -268,6 +270,7 @@ func _try_interact() -> void:
 			return
 		jump_charge = 0.0
 		jump_target = b
+		Sfx.play("jump_charge", -6.0)
 		show_message("Charging jump drive...", 1.5)
 
 
@@ -280,10 +283,12 @@ func dock(id: String) -> void:
 		player.hull_hp = player.max_hull
 		player.shields = player.max_shields
 		player.energy = player.max_energy
+		player.restock()
 	for e in escorts:
 		if is_instance_valid(e):
 			e.hull_hp = e.max_hull
 			e.shields = e.max_shields
+	Sfx.play("dock", -3.0)
 	get_tree().paused = true
 	station_ui.open(id)
 	Career.on_dock(id)
@@ -295,6 +300,7 @@ func undock() -> void:
 	if docked_at == "":
 		return
 	docked_at = ""
+	Sfx.play("undock", -3.0)
 	station_ui.visible = false
 	get_tree().paused = false
 
@@ -316,6 +322,7 @@ func _merchant_step(delta: float) -> void:
 				hostile_count_before_jump = hostile_count()
 				jump_charge = -1.0
 				_shake = 12.0
+				Sfx.play("jump", -3.0)
 				if dest == "crossroads":
 					story.arrive_crossroads()
 				else:
@@ -378,6 +385,11 @@ func _setup_input() -> void:
 	var mb := InputEventMouseButton.new()
 	mb.button_index = MOUSE_BUTTON_LEFT
 	InputMap.action_add_event("fire_aimed", mb)
+	if not InputMap.has_action("fire_secondary"):
+		InputMap.add_action("fire_secondary")
+	var rb := InputEventMouseButton.new()
+	rb.button_index = MOUSE_BUTTON_RIGHT
+	InputMap.action_add_event("fire_secondary", rb)
 
 
 # --- Spawning ------------------------------------------------------------
@@ -469,8 +481,8 @@ func spawn_wave() -> void:
 	show_message("Wave %d: %d pirate ships detected" % [wave, raiders + marauders], 3.0)
 
 
-func spawn_projectile(pos: Vector2, angle: float, w: Dictionary, shooter: Ship) -> void:
-	fx.spawn_projectile(pos, angle, w, shooter)
+func spawn_projectile(pos: Vector2, angle: float, w: Dictionary, shooter: Ship, fuse := -1.0) -> void:
+	fx.spawn_projectile(pos, angle, w, shooter, fuse)
 
 
 func spawn_sparks(pos: Vector2, color: Color, count: int) -> void:
@@ -604,8 +616,20 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().change_scene_to_file("res://scenes/start.tscn")
 		else:
 			get_tree().reload_current_scene()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R and is_instance_valid(player):
+		var nm: String = player.cycle_secondary()
+		if nm != "":
+			show_message("Secondary: %s" % nm, 1.5)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
+		PlayerController.toggle("assist")
+		show_message("Flight assist %s" % ("ON: drift damped" if PlayerController.assist else "OFF: pure drift"), 2.0)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
+		PlayerController.toggle("mouse_steer")
+		show_message("Mouse steering %s" % ("ON: ship faces the cursor" if PlayerController.mouse_steer else "OFF: Q/E to turn"), 2.0)
 	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C and is_instance_valid(player):
 		toggle_cruise()
+	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G and is_instance_valid(player):
+		toggle_autopilot()
 	elif merchant and event.is_action_pressed("interact") and is_instance_valid(player):
 		_try_interact()
 	elif event.is_action_pressed("toggle_help"):
@@ -644,6 +668,7 @@ func _physics_process(delta: float) -> void:
 
 	if merchant:
 		_cruise_step(delta)
+		_travel_step()
 		_merchant_step(delta)
 		if _merchant_test:
 			_merchant_test_step(delta)
@@ -661,6 +686,62 @@ func _physics_process(delta: float) -> void:
 
 	if autotest:
 		_autotest_step(delta)
+
+
+# --- Autopilot and fast travel ----------------------------------------------------
+
+func autopilot_on() -> bool:
+	return is_instance_valid(player) and player.controller is PlayerController and player.controller.autopilot != null
+
+
+func toggle_autopilot() -> void:
+	var pc := player.controller as PlayerController
+	if pc == null:
+		return
+	if pc.autopilot != null:
+		pc.autopilot = null
+		autopilot_off("Autopilot off.")
+		return
+	var t := objective_target()
+	if t == null:
+		show_message("No job plotted. Take one at a station board.", 2.0)
+		return
+	if story.busy() or story.boarding != null:
+		return
+	pc.autopilot = t
+	Career.flags["used_autopilot"] = true
+	show_message("Autopilot: %s.  Any flight key takes over" % t.label, 2.5)
+
+
+func autopilot_off(why: String) -> void:
+	if is_instance_valid(player) and player.controller is PlayerController:
+		player.controller.autopilot = null
+	drop_cruise("")
+	if why != "":
+		show_message(why, 2.0)
+
+
+## Runs every physics frame in merchant mode: autopilot cruise and arrival.
+func _travel_step() -> void:
+	if not is_instance_valid(player):
+		return
+	var contact := nearest_enemy(0, player.global_position, CRUISE_CONTACT) != null
+	if autopilot_on():
+		var t: Node2D = player.controller.autopilot
+		var d := player.global_position.distance_to(t.global_position)
+		if contact or story.busy():
+			autopilot_off("Contact! Autopilot off." if contact else "")
+		elif d > CRUISE_CLEAR + 400.0 and not player.cruise_on and player.ion_t <= 0.0 and player.cruise_k <= 0.0:
+			player.cruise_on = true
+			Sfx.play("cruise_spool", -6.0)
+		elif d < CRUISE_CLEAR and player.cruise_on:
+			player.cruise_on = false
+		elif d < t.interact_range() * 0.6 and player.velocity.length() < 60.0:
+			player.controller.autopilot = null
+			if t.kind == "station":
+				dock(t.id)
+			else:
+				show_message("At the jump point.  [F] to jump", 2.5)
 
 
 # --- Cruise drive ----------------------------------------------------------------
@@ -701,7 +782,7 @@ func toggle_cruise() -> void:
 		show_message("Engines are dead. No cruise.", 2.0)
 		return
 	player.cruise_on = true
-	Sfx.play("dock_hum", -4.0, 0.6)
+	Sfx.play("cruise_spool", -6.0)
 	show_message("Cruise spooling. Weapons offline.  [C] to drop out", 2.5)
 
 
@@ -709,7 +790,7 @@ func drop_cruise(why: String) -> void:
 	if not player.cruise_on:
 		return
 	player.cruise_on = false
-	Sfx.play("hiss", -6.0, 1.3)
+	Sfx.play("cruise_drop", -6.0)
 	_shake = maxf(_shake, 6.0)
 	if why != "":
 		show_message(why, 2.5)
@@ -774,7 +855,7 @@ func _between_waves() -> void:
 
 func _process(delta: float) -> void:
 	if is_instance_valid(player):
-		var look := (mouse_world() - player.global_position).limit_length(1200.0) * 0.18
+		var look := (mouse_world() - player.global_position).limit_length(1200.0) * 0.08
 		if autotest:
 			look = Vector2.ZERO
 		var target := player.global_position + look + player.velocity * 0.15
@@ -782,10 +863,36 @@ func _process(delta: float) -> void:
 	var want := _zoom
 	if is_instance_valid(player):
 		want *= 1.0 - 0.3 * player.cruise_k
+		# Pull back a little as you pick up speed.
+		var sk := clampf(player.velocity.length() / maxf(player.max_speed, 1.0), 0.0, 1.0)
+		want *= 1.0 - 0.06 * sk
+		# Kick when you take a hit.
+		if player.since_hit < delta and player.alive:
+			_shake = maxf(_shake, 5.0)
+		_engine_sound(delta)
 	var z := lerpf(camera.zoom.x, want, clampf(6.0 * delta, 0.0, 1.0))
 	camera.zoom = Vector2(z, z)
 	_shake = maxf(0.0, _shake - 40.0 * delta)
 	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake
+
+
+## Engine rumble: a low loop that swells and rises with the main engine.
+func _engine_sound(delta: float) -> void:
+	if _rumble == null:
+		_rumble = Sfx.loop("engine", -40.0)
+		if _rumble.stream == null:
+			return
+		_rumble.bus = "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
+		add_child(_rumble)
+	if _rumble.stream == null:
+		return
+	var k := clampf(absf(player.thrust_out.x) + absf(player.thrust_out.y) * 0.4, 0.0, 1.0)
+	if not player.alive or docked_at != "" or player.ion_t > 0.0:
+		k = 0.0
+	var spd := clampf(player.velocity.length() / 600.0, 0.0, 1.0)
+	var want_db := lerpf(-38.0, -17.0, k) + 3.0 * player.cruise_k
+	_rumble.volume_db = lerpf(_rumble.volume_db, want_db, clampf(6.0 * delta, 0.0, 1.0))
+	_rumble.pitch_scale = lerpf(_rumble.pitch_scale, 0.75 + 0.35 * k + 0.2 * spd + 0.25 * player.cruise_k, clampf(4.0 * delta, 0.0, 1.0))
 
 
 func _autotest_step(delta: float) -> void:
@@ -878,6 +985,55 @@ func _run_merchant_test() -> void:
 					player.global_position = Vector2(1200, 900)
 					player.velocity = Vector2(200, 0)
 					await _wait(1.5)
+				elif what == "turret":
+					# The freighter's flak turret on a raider, aimed by hand.
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					load_system("marcellus", "")
+					player.global_position = Vector2(1500, 900)
+					player.velocity = Vector2.ZERO
+					var pc = player.controller
+					player.controller = null
+					var foe: Ship = spawn_ship("raider", 1, player.global_position + Vector2(380, -160), PI)
+					foe.controller = null
+					foe.hold_fire = true
+					for k in 50:
+						player.aim_point = foe.global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
+						player.in_fire_aimed = true
+						await _wait(0.02)
+					player.in_fire_aimed = false
+					print("[turret] foe hull=%d/%d shields=%d" % [int(foe.hull_hp), int(foe.max_hull), int(foe.shields)])
+					_shot("look_turret_flak")
+					# Ion bolt, then a torpedo.
+					player.in_turn = 0.0
+					player.rotation = (foe.global_position - player.global_position).angle()
+					player.aim_point = foe.global_position
+					player.in_fire_secondary = true
+					await _wait(0.1)
+					player.in_fire_secondary = false
+					await _wait(0.6)
+					print("[secondary] after ion: foe ion_t=%.1f shields=%d" % [foe.ion_t, int(foe.shields)])
+					player.cycle_secondary()
+					player.in_fire_secondary = true
+					await _wait(0.1)
+					player.in_fire_secondary = false
+					await _wait(0.35)
+					_shot("look_torpedo")
+					await _wait(0.8)
+					print("[secondary] after torpedo: foe alive=%s hull=%d ammo=%d" % [is_instance_valid(foe) and foe.alive, int(foe.hull_hp) if is_instance_valid(foe) else 0, player.secondaries[1]["ammo"]])
+					player.controller = pc
+				elif what == "assist":
+					# Drift check: sideways and forward drift, no input.
+					if station_ui.visible:
+						undock()
+					player.global_position = Vector2(1200, 900)
+					player.rotation = 0.0
+					player.velocity = Vector2(200, 200)
+					for i in 4:
+						await _wait(0.5)
+						var lv: Vector2 = player.velocity.rotated(-player.rotation)
+						print("[assist] t=%.1f forward=%d side=%d" % [0.5 + i * 0.5, int(lv.x), int(lv.y)])
 				elif what == "hail":
 					# The Tallyman's reply card over his longest line.
 					if station_ui.visible:
@@ -887,6 +1043,29 @@ func _run_merchant_test() -> void:
 					await _wait(4.0)
 					_shot("look_hail_card")
 					story.choose(0)
+				elif what == "autopilot":
+					# From Aurelia's edge to the job's station on autopilot, then a tip shot.
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					Career.flags["tip_fly"] = true
+					load_system("aurelia", "")
+					player.global_position = Vector2(2600, -1800)
+					player.velocity = Vector2.ZERO
+					await _wait(1.5)
+					_shot("look_tip_travel")
+					var t := objective_target()
+					print("[auto] target=%s dist=%d" % [t.label if t else "none", int(player.global_position.distance_to(t.global_position)) if t else -1])
+					toggle_autopilot()
+					var el := 0.0
+					while docked_at == "" and el < 60.0:
+						await _wait(1.0)
+						el += 1.0
+						if int(el) % 5 == 0:
+							print("[auto] t=%d dist=%d speed=%d cruise=%s on=%s" % [el, int(player.global_position.distance_to(t.global_position)), int(player.velocity.length()), player.cruise_on, autopilot_on()])
+						if int(el) == 6:
+							_shot("look_autopilot")
+					print("[auto] docked=%s at=%s after %ds" % [docked_at != "", docked_at, el])
 				elif what == "cruise":
 					# Open space between the belt and the rifts, then toward Four.
 					if station_ui.visible:
