@@ -150,7 +150,8 @@ func _physics_process(delta: float) -> void:
 		in_fire_aimed = false
 		in_fire_fixed = false
 		in_fire_secondary = false
-		velocity = velocity.move_toward(Vector2.ZERO, 12.0 * delta)
+		# Dead engines: bleed speed fast so a disabled ship stays where it was beaten.
+		velocity = velocity.move_toward(Vector2.ZERO, 20.0 * delta) * exp(-1.6 * delta)
 		if randf() < delta * 2.5:
 			main.spawn_sparks(global_position + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * radius * 0.6, def["accent"], 3)
 	elif controller:
@@ -324,7 +325,7 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		_hull_flash = 1.0
 		main.spawn_sparks(hit_pos, def["accent"], 4)
 		main.fx.spawn_hull_hit(hit_pos, global_position, amount)
-		Sfx.play_at("hit_hull", hit_pos, -9.0 if amount < 10.0 else -3.0, 1.15 if radius < 20.0 else 0.9)
+		Sfx.play_at("hit_hull", hit_pos, -9.0 if amount < 10.0 else -3.0)
 	if hull_floor > 0.0:
 		hull_hp = maxf(hull_hp, max_hull * hull_floor)
 	if hull_hp <= 0.0:

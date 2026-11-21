@@ -185,7 +185,7 @@ func _draw_streaks(vp: Vector2) -> void:
 
 ## Space dust: specks fixed in the world, so they slide past at your true speed
 ## (the starfield is far away and barely moves). Streaks stretch with speed.
-const DUST_CELL := 180.0
+const DUST_CELL := 300.0
 
 
 func _draw_dust(vp: Vector2) -> void:
@@ -202,7 +202,10 @@ func _draw_dust(vp: Vector2) -> void:
 	var tail := -v * 0.12 * zoom
 	if tail.length() > 70.0:
 		tail = tail.normalized() * 70.0
-	var fade := clampf(spd / 120.0, 0.25, 1.0) * (1.0 - 0.7 * p.cruise_k)
+	# Only shows when you move: at rest space is empty and still.
+	var fade := clampf((spd - 40.0) / 220.0, 0.0, 1.0) * (1.0 - 0.7 * p.cruise_k)
+	if fade <= 0.01:
+		return
 	for cx in range(floori(a0.x / DUST_CELL) - 1, ceili(a1.x / DUST_CELL) + 1):
 		for cy in range(floori(a0.y / DUST_CELL) - 1, ceili(a1.y / DUST_CELL) + 1):
 			var h := float(cx * 73856093 ^ cy * 19349663)

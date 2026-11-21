@@ -10,10 +10,10 @@ var nebula: ColorRect
 var backdrop: Control
 var _t := 0.0
 ## [file, parallax, is the cloud layer, pixel scale, brightness]
-const LAYERS := [["backdrop/stars_plain.png", 0.02, false, 1.0, 0.45], ["backdrop/stars_plain.png", 0.06, false, 2.0, 0.7]]
+const LAYERS := [["backdrop/stars_plain.png", 0.02, false, 1.0, 0.28]]
 ## Near star layers: [parallax, count per tile, pixel size, brightness]. These are
 ## what rush past you; they stretch into streaks with speed.
-const NEAR := [[0.22, 70, 2.0, 0.55], [0.45, 40, 2.0, 0.75], [0.8, 18, 3.0, 0.9]]
+const NEAR := [[0.35, 14, 2.0, 0.6], [0.7, 6, 2.0, 0.85]]
 const NEAR_TILE := 900.0
 
 
@@ -81,7 +81,7 @@ func _process(_delta: float) -> void:
 func _draw_backdrop() -> void:
 	var vp := backdrop.size
 	var cam_pos: Vector2 = main.camera.global_position if main and main.camera else Vector2.ZERO
-	var sid: String = main.system_id if main and main.merchant else "aurelia"
+	var sid: String = main.system_id if main and main.merchant else ""
 	var tint: Array = TINTS.get(sid, TINTS["aurelia"])
 	for l in LAYERS:
 		var sc: float = l[3]
@@ -155,7 +155,7 @@ func _draw_ambience(vp: Vector2, cam_pos: Vector2, sid: String) -> void:
 			_motes(vp, cam_pos, 35, 0.7, 1000.0, Color(1.0, 0.9, 0.5, 0.4), Vector2(5, 5), Vector2(2, -8))
 		"aurelia":
 			# Far-off traffic: pairs of nav lights crawling along lanes.
-			for i in 40:
+			for i in 12:
 				var h := float(i) * 7.31
 				var base := Vector2(fposmod(sin(h) * 9137.0, 1800.0), fposmod(cos(h * 1.3) * 7121.0, 1000.0))
 				var dir := Vector2.RIGHT.rotated(0.35 if i % 2 else PI + 0.35)
