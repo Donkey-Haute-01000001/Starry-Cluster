@@ -1,4 +1,5 @@
-"""Synthesizes combat sounds into sounds/: guns, flak, torpedo, ion, hits,
+"""Synthesizes placeholder combat sounds into sounds/synth/ (the game uses the
+recorded ones in sounds/; these are a fallback/reference): guns, flak, torpedo, ion, hits,
 explosions. Generated from noise and sine waves, so they are ours to ship.
 Run: python tools/make_combat_sounds.py [project]
 """
@@ -7,8 +8,8 @@ import numpy as np
 
 SR = 44100
 rng = np.random.default_rng(11)
-out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".") / "sounds"
-out.mkdir(exist_ok=True)
+out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".") / "sounds" / "synth"
+out.mkdir(parents=True, exist_ok=True)
 
 
 def T(sec):

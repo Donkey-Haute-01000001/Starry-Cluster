@@ -884,7 +884,7 @@ func _engine_sound(delta: float) -> void:
 	if not player.alive or docked_at != "" or player.ion_t > 0.0:
 		k = 0.0
 	var spd := clampf(player.velocity.length() / 600.0, 0.0, 1.0)
-	var want_db := lerpf(-30.0, -9.0, k) + 3.0 * player.cruise_k
+	var want_db := lerpf(-38.0, -17.0, k) + 3.0 * player.cruise_k
 	_rumble.volume_db = lerpf(_rumble.volume_db, want_db, clampf(6.0 * delta, 0.0, 1.0))
 	_rumble.pitch_scale = lerpf(_rumble.pitch_scale, 0.75 + 0.35 * k + 0.2 * spd + 0.25 * player.cruise_k, clampf(4.0 * delta, 0.0, 1.0))
 

@@ -6,11 +6,21 @@ extends RefCounted
 static var _cache := {}
 
 
+## A sound by name. Variants (name_2.wav, name_3.wav, ...) are picked at
+## random, so repeated shots and hits don't sound copy-pasted.
 static func stream(name: String) -> AudioStream:
 	if not _cache.has(name):
+		var list: Array = []
 		var path := "res://sounds/%s.wav" % name
-		_cache[name] = load(path) if ResourceLoader.exists(path) else null
-	return _cache[name]
+		if ResourceLoader.exists(path):
+			list.append(load(path))
+			var k := 2
+			while ResourceLoader.exists("res://sounds/%s_%d.wav" % [name, k]):
+				list.append(load("res://sounds/%s_%d.wav" % [name, k]))
+				k += 1
+		_cache[name] = list
+	var l: Array = _cache[name]
+	return null if l.is_empty() else l[randi() % l.size()]
 
 
 static func play(name: String, volume_db := 0.0, pitch := 1.0) -> void:
