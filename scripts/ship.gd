@@ -262,6 +262,10 @@ func _update_weapons(delta: float) -> void:
 		if w.has("flak"):
 			fuse = clampf(world_pos.distance_to(aim_point), 60.0, w["range"])
 		main.spawn_projectile(world_pos, dir, w, self, fuse)
+		if w["kind"] == "turret":
+			Sfx.play_at("turret", world_pos, -8.0 if is_player else -13.0, 1.0 if w.has("flak") else 1.25)
+		else:
+			Sfx.play_at("cannon", world_pos, -6.0 if is_player else -11.0, clampf(18.0 / maxf(w["damage"], 4.0), 0.75, 1.5))
 		_fired_t = 0.0
 
 
@@ -286,7 +290,7 @@ func _update_secondary(delta: float) -> void:
 	if w.get("torp", false):
 		target = main.nearest_enemy(team, aim_point, 500.0)
 	main.fx.spawn_projectile(global_position + forward() * radius, rotation + off, w, self, -1.0, target)
-	Sfx.play("hiss", -6.0, 0.5 if w.get("torp", false) else 1.6)
+	Sfx.play_at("torpedo" if w.get("torp", false) else "ion", global_position, -3.0)
 	_fired_t = 0.0
 
 
@@ -309,6 +313,8 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 	since_hit = 0.0
 	damage_taken += amount
 	if shields > 0.0:
+		Sfx.play_at("hit_shield", hit_pos, -10.0 if amount < 10.0 else -5.0)
+		main.fx.spawn_shield_hit(hit_pos, global_position, radius)
 		var absorbed := minf(shields, amount)
 		shields -= absorbed
 		amount -= absorbed
@@ -317,6 +323,8 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		hull_hp -= amount
 		_hull_flash = 1.0
 		main.spawn_sparks(hit_pos, def["accent"], 4)
+		main.fx.spawn_hull_hit(hit_pos, global_position, amount)
+		Sfx.play_at("hit_hull", hit_pos, -9.0 if amount < 10.0 else -3.0, 1.15 if radius < 20.0 else 0.9)
 	if hull_floor > 0.0:
 		hull_hp = maxf(hull_hp, max_hull * hull_floor)
 	if hull_hp <= 0.0:
@@ -348,6 +356,8 @@ func die() -> void:
 		return
 	alive = false
 	main.spawn_explosion(global_position, radius, velocity)
+	Sfx.play_at("boom_big" if radius >= 26.0 else "boom_small", global_position, 0.0 if is_player else -2.0)
+	main._shake = maxf(main._shake, clampf(radius * 0.5, 4.0, 16.0))
 	# Void fleet ships break apart in their own frames.
 	if def.has("layered"):
 		var t := Art.tex("ships/%s/destruction.png" % def["layered"]["dir"])
