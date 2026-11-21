@@ -342,6 +342,9 @@ func _disable() -> void:
 	max_shields = 0.0
 	main.spawn_sparks(global_position, def["accent"], 14)
 	Sfx.play_at("disabled", global_position, -4.0)
+	# Cockpit readout: an enemy knocked out, distinct from the in-world thump.
+	if team != 0:
+		Sfx.play("cue_disabled", -12.0)
 	disabled_now.emit(self)
 
 
@@ -358,6 +361,11 @@ func die() -> void:
 	alive = false
 	main.spawn_explosion(global_position, radius, velocity)
 	Sfx.play_at("boom_big" if radius >= 26.0 else "boom_small", global_position, 0.0 if is_player else -2.0)
+	# Cockpit readout: confirm an enemy kill, warn when one of yours is lost.
+	if team != 0:
+		Sfx.play("cue_kill", -10.0)
+	elif not is_player:
+		Sfx.play("cue_ally_lost", -6.0)
 	main._shake = maxf(main._shake, clampf(radius * 0.5, 4.0, 16.0))
 	# Void fleet ships break apart in their own frames.
 	if def.has("layered"):
