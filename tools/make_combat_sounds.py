@@ -64,7 +64,7 @@ n = int(SR * s)
 body = sweep(520, 110, s, 2.5) * env(n, 0.003, 0.05)
 thump = sweep(140, 45, s) * env(n, 0.001, 0.07)
 air = lowpass(noise(s), 1800) * env(n, 0.002, 0.04)
-save("cannon", lowpass(body * 0.6 + thump * 1.0 + air * 0.5, 2200), 0.7)
+save("cannon_synth", lowpass(body * 0.6 + thump * 1.0 + air * 0.5, 2200), 0.7)
 
 # Turret machine gun: a tight crack and a little body. Very short, it fires fast.
 s = 0.09
