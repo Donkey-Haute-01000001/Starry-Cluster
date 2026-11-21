@@ -23,6 +23,7 @@ var world: Node2D
 var fx: Node2D
 var camera: Camera2D
 var hud: Control
+var pause_menu: Control
 var wheel: Control
 
 var player: Ship = null
@@ -108,6 +109,10 @@ func _ready() -> void:
 	wheel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wheel.visible = false
 	ui.add_child(wheel)
+	pause_menu = Control.new()
+	pause_menu.set_script(preload("res://scripts/pause_menu.gd"))
+	pause_menu.main = self
+	ui.add_child.call_deferred(pause_menu)
 
 	merchant = Data.mode == "merchant"
 	_merchant_test = "--merchant-test" in OS.get_cmdline_user_args()
@@ -610,6 +615,11 @@ func _order_focus(at: Vector2) -> void:
 # --- Loop ----------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ESCAPE, KEY_P]:
+		if pause_menu and pause_menu.can_open():
+			pause_menu.open()
+			get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("restart") and not is_instance_valid(player):
 		Engine.time_scale = 1.0
 		if merchant:
