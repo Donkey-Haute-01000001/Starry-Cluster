@@ -283,17 +283,19 @@ func _draw() -> void:
 
 	# --- The Federation pocket ------------------------------------------------------------
 	var fed := PackedVector2Array()
-	for k in 64:
-		var ang := TAU * k / 64.0
+	for k in 96:
+		var ang := TAU * k / 96.0
 		fed.append(_at(Vector2(0.19, 0.5) + Vector2(cos(ang) * 0.17, sin(ang) * 0.45)))
-	fed.append(fed[0])
-	draw_polyline(fed, Color(UIStyle.INK_PEN, 0.12), 7.0, true)
-	draw_polyline(fed, Color(UIStyle.INK_PEN, 0.45), 1.6, true)
+	# A pale printed wash with a fine dash-dot border, like a political map.
+	draw_colored_polygon(fed, Color(UIStyle.INK_PEN, 0.035))
+	for k in fed.size():
+		if k % 3 != 2:
+			draw_line(fed[k], fed[(k + 1) % fed.size()].lerp(fed[k], 0.35 if k % 3 == 1 else 0.0), Color(UIStyle.INK_TYPE, 0.3), 1.0, true)
 	var fl := "FEDERATION"
 	var flw := tb.get_string_size(fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 	var flp := _at(Vector2(0.19, 0.05)) + Vector2(-flw * 0.5, 4)
 	draw_rect(Rect2(flp + Vector2(-6, -12), Vector2(flw + 12, 16)), UIStyle.PAPER)
-	draw_string(tb, flp, fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(UIStyle.INK_PEN, 0.8))
+	draw_string(tb, flp, fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(UIStyle.INK_TYPE, 0.6))
 	for d in FED_DOTS:
 		draw_circle(_at(d), 3.5, Color(ink, 0.5))
 		draw_arc(_at(d), 6.0, 0, TAU, 16, Color(ink, 0.25), 1.0, true)
