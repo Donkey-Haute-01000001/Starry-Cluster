@@ -272,7 +272,7 @@ func _net() -> Array:
 		fp.append(add.call(v, 6, "port"))
 	links.append([fp[0], fp[1], "rumor"])
 	links.append([fp[2], fp[3], "local"])
-	links.append([fp[4], fp[2], "rumor"])
+	links.append([fp[4], fp[2], "local"])
 	links.append([-1, fp[0], "trunk"])
 	links.append([-1, fp[4], "trunk"])
 	# The Faithful: out to the dead rifts.
