@@ -44,7 +44,7 @@ const PEN_NOTES := [
 ]
 
 var _sheet: PaperSheet
-var _dim: ColorRect
+var _dim: Control
 var _title_font: FontVariation
 
 
@@ -53,8 +53,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
-	_dim = ColorRect.new()
-	_dim.color = Color(0.0, 0.0, 0.02, 0.82)
+	_dim = UIStyle.lamp_backdrop()
 	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dim.visible = false
 	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

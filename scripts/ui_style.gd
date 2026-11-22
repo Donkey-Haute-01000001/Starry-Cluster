@@ -277,3 +277,23 @@ static func _photo_finish(ci: CanvasItem, p: Rect2, serial: String, seed: int) -
 		var f: Font = Data.font_type if Data.font_type else ThemeDB.fallback_font
 		ci.draw_rect(Rect2(p.position.x, p.end.y, p.size.x, 14), Color(0.93, 0.91, 0.86))
 		ci.draw_string(f, Vector2(p.position.x + 2, p.end.y + 11), serial, HORIZONTAL_ALIGNMENT_CENTER, p.size.x - 4, 10, INK_TYPE)
+
+
+## What's behind a paper overlay: the cockpit gone dark, one warm pool of lamp
+## light under the sheet. Hides the flight HUD so the paper is all you see.
+static func lamp_backdrop() -> TextureRect:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	g.colors = PackedColorArray([Color(0.13, 0.1, 0.07, 0.95), Color(0.05, 0.04, 0.04, 0.96), Color(0.0, 0.0, 0.01, 0.985)])
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.05, 1.0)
+	gt.width = 256
+	gt.height = 256
+	var r := TextureRect.new()
+	r.texture = gt
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_SCALE
+	return r

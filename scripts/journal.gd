@@ -16,7 +16,7 @@ var _flip := 1.0                  ## page-turn progress after a tab change
 var _cover: PaperSheet
 var _left: PaperSheet
 var _right: PaperSheet
-var _dim: ColorRect
+var _dim: Control
 var _title_font: FontVariation
 
 
@@ -25,8 +25,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
-	_dim = ColorRect.new()
-	_dim.color = Color(0.0, 0.0, 0.02, 0.8)
+	_dim = UIStyle.lamp_backdrop()
 	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dim.visible = false
 	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -265,6 +264,22 @@ func _standing(id: String) -> String:
 		"dynasty":
 			return "one exile flies with you" if Career.crew.has("mersham") else "never met"
 	return "rumor only"
+
+
+## Where you sit with a power, 0 (hostile) to 1 (trusted); -1 = no idea.
+func _standing_value(id: String) -> float:
+	match id:
+		"charter":
+			return 0.62 if Career.loan_balance <= 0 else 0.36
+		"federation":
+			return 0.5 + (0.12 if _flag("franz_met") else 0.0) + (0.14 if _flag("bounty_paid") else 0.0)
+		"grind":
+			if _flag("bounty_killed"):
+				return 0.24
+			return 0.45 if _flag("tally_done") else -1.0
+		"dynasty":
+			return 0.56 if Career.crew.has("mersham") else -1.0
+	return -1.0
 
 
 func _role_of(who: String) -> String:
@@ -543,8 +558,14 @@ func _place_page(r: Rect2, st_id: String) -> void:
 	draw_string(Data.font_type_bold, Vector2(r.position.x + 190, y), names.call(st.get("wants", [])), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 190, 13, UIStyle.INK_TYPE)
 	y += 32
 	y = _head(r, y, "PRICES THIS WEEK" if known else "PRICES")
+	_station_photo(Vector2(r.end.x - 128, r.end.y - 104), st_id, known)
+	if known:
+		var nt := str(Data.margin_notes.get("st_" + st_id, ""))
+		draw_set_transform(Vector2(r.position.x + 8, r.end.y - 70), deg_to_rad(-2.5), Vector2.ONE)
+		draw_multiline_string(Data.font_hand, Vector2.ZERO, nt, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 290, 26, -1, Color(UIStyle.INK_PEN, 0.92))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if not known:
-		_para(r, y, "No prices on file until you've docked in %s." % sys["name"], 13, UIStyle.INK_FADED)
+		_para(Rect2(r.position, Vector2(r.size.x - 290, r.size.y)), y, "No prices on file until you've docked in %s." % sys["name"], 13, UIStyle.INK_FADED)
 		return
 	var col := 0
 	var colw := r.size.x * 0.5
@@ -576,6 +597,13 @@ func _power_page(r: Rect2, pw: Dictionary) -> void:
 	y = _head(r, y + 8, "YOUR STANDING")
 	draw_string(Data.font_hand, Vector2(r.position.x + 6, y + 10), _standing(pw["id"]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 30, UIStyle.INK_PEN)
 	_pen_underline(Vector2(r.position.x + 4, y + 18), minf(Data.font_hand.get_string_size(_standing(pw["id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x + 8, r.size.x), 3)
+	_standing_scale(Rect2(Vector2(r.position.x, y + 70), Vector2(r.size.x, 60)), _standing_value(pw["id"]))
+	y += 150.0
+	y = _head(r, y, "DOSSIER")
+	for row in [["WANTS FROM YOU", "wants"], ["CAN DO TO YOU", "can"], ["A FRIEND THERE", "friend"]]:
+		draw_string(Data.font_type_bold, Vector2(r.position.x, y), row[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+		draw_multiline_string(Data.font_type, Vector2(r.position.x + 150, y), str(pw.get(row[1], "")), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 150, 13, -1, UIStyle.INK_TYPE)
+		y += 34.0
 
 
 func _accounts(l: Rect2, r: Rect2) -> void:
@@ -735,6 +763,69 @@ func _emblem(c: Vector2, id: String) -> void:
 			draw_line(c + Vector2(-8, 14), c + Vector2(8, 14), ink, 2.0)
 		_:
 			draw_string(Data.font_type_bold, c + Vector2(-5, 7), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, ink)
+
+
+## A printed scale from HOSTILE to TRUSTED with your pen mark on it.
+func _standing_scale(r: Rect2, v: float) -> void:
+	var ink := UIStyle.INK_TYPE
+	var y := r.position.y + 20.0
+	var labels := ["HOSTILE", "WARY", "NEUTRAL", "FRIENDLY", "TRUSTED"]
+	draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color(ink, 0.7), 1.5)
+	for i in 5:
+		var x := r.position.x + r.size.x * i / 4.0
+		draw_line(Vector2(x, y - 6), Vector2(x, y + 6), Color(ink, 0.7), 1.5)
+		var w := Data.font_type.get_string_size(labels[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+		var lx := clampf(x - w * 0.5, r.position.x, r.end.x - w)
+		draw_string(Data.font_type, Vector2(lx, y + 22), labels[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
+	for i in 21:
+		var x2 := r.position.x + r.size.x * i / 20.0
+		draw_line(Vector2(x2, y - 3), Vector2(x2, y), Color(ink, 0.4), 1.0)
+	if v < 0.0:
+		draw_string(Data.font_hand, Vector2(r.position.x + r.size.x * 0.5 - 50, y - 12), "no idea yet", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UIStyle.INK_PEN)
+		return
+	# Your mark: a pen chevron and a little X on the line.
+	var mx := r.position.x + r.size.x * v
+	draw_line(Vector2(mx - 6, y - 6), Vector2(mx + 6, y + 6), UIStyle.INK_PEN, 2.4, true)
+	draw_line(Vector2(mx - 6, y + 6), Vector2(mx + 6, y - 6), UIStyle.INK_PEN, 2.4, true)
+	draw_polyline(PackedVector2Array([Vector2(mx - 7, y - 24), Vector2(mx, y - 13), Vector2(mx + 7, y - 24)]), UIStyle.INK_PEN, 2.0, true)
+	draw_string(Data.font_hand, Vector2(mx - 12, y - 28), "me", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIStyle.INK_PEN)
+
+
+## A snapshot of the station taped into the log, or an empty frame if you
+## haven't been.
+func _station_photo(c: Vector2, st_id: String, known: bool) -> void:
+	var st: Dictionary = Data.stations[st_id]
+	var ph := Vector2(212, 148)
+	var rot := deg_to_rad(2.5 if st_id.hash() % 2 == 0 else -2.0)
+	draw_set_transform(c, rot, Vector2.ONE)
+	var frame := Rect2(-ph * 0.5 - Vector2(10, 10), ph + Vector2(20, 44))
+	draw_rect(Rect2(frame.position + Vector2(5, 7), frame.size), Color(0, 0, 0, 0.2))
+	draw_rect(frame, Color(0.95, 0.93, 0.88))
+	var img := Rect2(-ph * 0.5, ph)
+	if known:
+		draw_rect(img, Color(0.04, 0.05, 0.07))
+		var rng := RandomNumberGenerator.new()
+		rng.seed = st_id.hash()
+		for i in 40:
+			var p := img.position + Vector2(rng.randf() * ph.x, rng.randf() * ph.y)
+			draw_rect(Rect2(p, Vector2(1, 1)), Color(1, 1, 1, rng.randf_range(0.2, 0.8)))
+		var art := str(st.get("art", ""))
+		draw_set_transform(c + Vector2(0, -frame.size.y * 0.0).rotated(rot), rot, Vector2.ONE)
+		if art == "" or not Art.draw_fit(self, "stations/%s/00.png" % art, ph.y * 0.92, Color(0.95, 0.9, 0.8)):
+			draw_arc(Vector2.ZERO, 40.0, 0, TAU, 32, Color(0.8, 0.8, 0.8), 3.0)
+		# Film wash: warm, a touch faded.
+		draw_rect(img, Color(1.0, 0.85, 0.6, 0.08))
+		draw_rect(Rect2(img.position, Vector2(ph.x, ph.y * 0.3)), Color(1, 1, 1, 0.05))
+	else:
+		draw_rect(img, Color(0.86, 0.84, 0.78))
+		var w := Data.font_hand.get_string_size("no photo yet", HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+		draw_string(Data.font_hand, Vector2(-w * 0.5, 6), "no photo yet", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(UIStyle.INK_PEN, 0.7))
+	var cap := str(st["nick"])
+	var cw := Data.font_hand.get_string_size(cap, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+	draw_string(Data.font_hand, Vector2(-cw * 0.5, ph.y * 0.5 + 28), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UIStyle.INK_PEN)
+	# Tape across the top.
+	draw_colored_polygon(PackedVector2Array([Vector2(-36, -ph.y * 0.5 - 22), Vector2(36, -ph.y * 0.5 - 24), Vector2(38, -ph.y * 0.5 + 2), Vector2(-34, -ph.y * 0.5 + 4)]), Color(0.92, 0.87, 0.62, 0.6))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## A wire paperclip holding a photo to the page.

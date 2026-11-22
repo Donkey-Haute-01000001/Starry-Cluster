@@ -682,18 +682,31 @@ var margin_notes := {
 	"The Tallyman": "he didn't take the cargo. why?",
 	"Bounty: the Mud Lark": "alive pays better. alive is harder",
 	"Saltgate bar": "can I even afford one of them?",
+	"st_counter": "Charlie's on the third ring. bring coffee",
+	"st_bones": "they'll fit anything. for a price",
+	"st_drip": "leaks. smells like wet pennies",
+	"st_greenhouse": "only place out here that smells green",
+	"st_four": "Kessler's board. bounties",
+	"st_saltgate": "good bar. captains for hire",
+	"st_ambers": "too quiet out here",
+	"st_gatehouse": "need papers. don't have papers",
 }
 
-## The powers, as seen from a freighter cockpit. Standing text comes from the story so far.
+## The powers, as seen from a freighter cockpit. wants/can/friend lines are DRAFTS. Standing text comes from the story so far.
 var powers := [
 	{"id": "charter", "name": "The Charter Company", "kind": "Federation-chartered monopoly",
-		"desc": "Owns the routes, the dispatch board, and your rig until it's paid off. Bills weekly. Never forgets."},
+		"desc": "Owns the routes, the dispatch board, and your rig until it's paid off. Bills weekly. Never forgets.",
+		"wants": "Its money, every week, on time.", "can": "Repossess the rig. Pull your papers.", "friend": "Charlie in dispatch."},
 	{"id": "federation", "name": "The Federation", "kind": "Great power  ·  the pocket behind the Wall",
-		"desc": "Holds Hesper March and the interior behind its fortress gates. The navy keeps the core safe; the belt, less so."},
+		"desc": "Holds Hesper March and the interior behind its fortress gates. The navy keeps the core safe; the belt, less so.",
+		"wants": "Taxes, quiet lanes, and pilots for the navy.", "can": "Arrest you. Close the Wall.", "friend": "Lt. Kessler, Marcellus patrol."},
 	{"id": "grind", "name": "Pirates of the Grind", "kind": "Outlaws  ·  Marcellus belt",
-		"desc": "Clans in the Marcellus rocks. Some sponsored, most not. The Tallyman hunts Charter rigs and nobody else."},
+		"desc": "Clans in the Marcellus rocks. Some sponsored, most not. The Tallyman hunts Charter rigs and nobody else.",
+		"wants": "Your cargo, or your rig if it flies Charter colors.", "can": "Ion your engines and leave you drifting.", "friend": "Nobody. Yet."},
 	{"id": "dynasty", "name": "The Dynasty", "kind": "Great power  ·  holds the Crossroads",
-		"desc": "Warlords who stormed the old garrison after the Severance. Ruled by an aging, careful sultan. The heirs are circling."},
+		"desc": "Warlords who stormed the old garrison after the Severance. Ruled by an aging, careful sultan. The heirs are circling.",
+		"wants": "Tolls at the Crossroads. Loyalty, past it.", "can": "Shut the only road out.", "friend": "Mersham, if you hire him."},
 	{"id": "league", "name": "The Merchant League", "kind": "Great power  ·  rumor",
-		"desc": "Merchant houses on the lane stations past the Crossroads. Tolls on everything, they say."},
+		"desc": "Merchant houses on the lane stations past the Crossroads. Tolls on everything, they say.",
+		"wants": "Trade. On their terms.", "can": "Nobody here knows.", "friend": "Nobody."},
 ]
