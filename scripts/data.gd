@@ -650,3 +650,31 @@ func speaker_info(who: String) -> Dictionary:
 	if speakers.has(who):
 		return speakers[who]
 	return {"channel": "OPEN BAND", "role": "", "serial": "", "color": Color(0.75, 0.8, 0.85)}
+
+# --- The journal: who people are, and the powers you deal with ---------------------
+## One line per person, as you'd write it in your logbook. Drafts.
+var bios := {
+	"Charlie": "Charlotte Hansen, Charter dispatch, third ring. Roots for you while working for the people who own your rig. Loses paperwork on purpose, sometimes.",
+	"Dock crew": "Loading crews on every station. They'll load anything that's paid for, and remember who tips.",
+	"Dez": "Desmond Okafor. Your oldest friend. Flies for free, cracks wise, and won't let you forget who you were.",
+	"Franz": "Lt. Franz Kessler, Federation Navy, Marcellus patrol. Mining family, came up from the ranks. Decent, and stretched thin.",
+	"Tallyman": "Jack Tallyn. Ex-Charter trucker the debt broke. Takes Charter rigs, lets the crews walk, keeps a tally on his hull.",
+	"Fay": "Phaedra Andreou. Saltgate kid who has done every job on that dock. Cheap, eager, green. Wants to see the gate.",
+	"Mersham": "Mersham Ali of Clan Karabey. Dynasty exile and ace. His clan backed the wrong prince.",
+	"Marines": "Kessler's boarding team, on loan. Four of them, if you bring them all back.",
+	"Gate customs": "Aquila customs at the Wall. Nothing goes through to the Crossroads without stamped papers.",
+}
+
+## The powers, as seen from a freighter cockpit. Standing text comes from the story so far.
+var powers := [
+	{"id": "charter", "name": "The Charter Company", "kind": "Federation-chartered monopoly",
+		"desc": "Owns the routes, the dispatch board, and your rig until it's paid off. Bills weekly. Never forgets."},
+	{"id": "federation", "name": "The Federation", "kind": "Great power  ·  the pocket behind the Wall",
+		"desc": "Holds Hesper March and the interior behind its fortress gates. The navy keeps the core safe; the belt, less so."},
+	{"id": "grind", "name": "Pirates of the Grind", "kind": "Outlaws  ·  Marcellus belt",
+		"desc": "Clans in the Marcellus rocks. Some sponsored, most not. The Tallyman hunts Charter rigs and nobody else."},
+	{"id": "dynasty", "name": "The Dynasty", "kind": "Great power  ·  holds the Crossroads",
+		"desc": "Warlords who stormed the old garrison after the Severance. Ruled by an aging, careful sultan. The heirs are circling."},
+	{"id": "league", "name": "The Merchant League", "kind": "Great power  ·  rumor",
+		"desc": "Merchant houses on the lane stations past the Crossroads. Tolls on everything, they say."},
+]

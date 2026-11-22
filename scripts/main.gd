@@ -1037,7 +1037,7 @@ func _run_merchant_test() -> void:
 				if what == "crossroads":
 					story.arrive_crossroads()
 					await _wait(9.0)
-				elif what in ["map", "journal", "launch", "comms"]:
+				elif what in ["map", "launch", "comms"] or what.begins_with("journal"):
 					# The paperwork overlays, with a little history to show.
 					if Career.pilot.get("name", "") in ["", "Unnamed"]:
 						Career.pilot = {"name": "Hollis Graye", "rig": "Long Haul", "photo": 8}
@@ -1046,7 +1046,17 @@ func _run_merchant_test() -> void:
 					await _wait(0.5)
 					if what == "map":
 						sector_map.open()
-					elif what == "journal":
+					elif what.begins_with("journal"):
+						# Some history to fill the pages.
+						Career.flags["tally_hailed"] = true
+						Career.flags["tally_done"] = true
+						Career.flags["franz_met"] = true
+						Career.flags["bounty_taken"] = true
+						Career.visited["marcellus"] = true
+						Career.say("Franz", Data.franz["intro"])
+						Career.say("Tallyman", Data.tally["signoff"])
+						journal._tab = int(what.substr(7)) if what.length() > 7 else 0
+						journal._sel[1] = 1
 						journal.open()
 					elif what == "launch":
 						_launch()
@@ -1061,7 +1071,7 @@ func _run_merchant_test() -> void:
 					_shot("look_" + what)
 					if what == "map":
 						sector_map.close()
-					elif what == "journal":
+					elif what.begins_with("journal"):
 						journal.close()
 					continue
 				elif what == "fay":

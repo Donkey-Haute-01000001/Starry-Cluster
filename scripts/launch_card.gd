@@ -45,8 +45,9 @@ func _draw() -> void:
 	var fr: Font = Data.font_type
 	draw_string(ft, r.position + Vector2(16, 23), "THE CHARTER COMPANY  ·  LICENSED OPERATOR", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(UIStyle.PAPER, a))
 	draw_string(fr, r.position + Vector2(r.size.x - 130, 23), "CC-40817-M", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(UIStyle.PAPER, 0.75 * a))
+	draw_string(fr, r.position + Vector2(18, r.size.y - 14), "ISSUED DAY 1  ·  AURELIA HIGHPORT", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(UIStyle.INK_FADED, a))
 	# Photo.
-	var ph := Rect2(r.position + Vector2(18, 50), Vector2(128, 162))
+	var ph := Rect2(r.position + Vector2(18, 50), Vector2(128, 156))
 	UIStyle.draw_id_photo(self, ph, [Color(0.8, 0.65, 0.5), Color(0.2, 0.15, 0.1), Color(0.3, 0.35, 0.4)], "", 7, "You")
 	if a < 1.0:
 		draw_rect(ph.grow(4), Color(UIStyle.PAPER, 1.0 - a))
@@ -63,13 +64,15 @@ func _draw() -> void:
 	if _t > 1.1:
 		var sk := clampf((_t - 1.1) / 0.12, 0.0, 1.0)
 		var sc := lerpf(1.6, 1.0, sk)
-		draw_set_transform(pos + CARD * 0.5 + Vector2(140, 100), deg_to_rad(-8.0), Vector2(sc, sc))
+		# Inside the card, bottom right, square to its edges with a slight hand tilt.
+		var at := Vector2(CARD.x * 0.5 - 150.0, CARD.y * 0.5 - 44.0).rotated(deg_to_rad(-1.5))
+		draw_set_transform(pos + CARD * 0.5 + at, deg_to_rad(-4.0), Vector2(sc, sc))
 		var col := Color(UIStyle.INK_STAMP, 0.85 * a * sk)
-		var w := Data.font_stamp.get_string_size("CLEARED TO UNDOCK", HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
-		draw_rect(Rect2(Vector2(-w * 0.5 - 10, -26), Vector2(w + 20, 36)), col, false, 3.0)
-		draw_string(Data.font_stamp, Vector2(-w * 0.5, 2), "CLEARED TO UNDOCK", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, col)
+		var w := Data.font_stamp.get_string_size("CLEARED TO UNDOCK", HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+		draw_rect(Rect2(Vector2(-w * 0.5 - 10, -24), Vector2(w + 20, 32)), col, false, 2.5)
+		draw_string(Data.font_stamp, Vector2(-w * 0.5, 1), "CLEARED TO UNDOCK", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, col)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	draw_string(fr, Vector2(vp.x * 0.5 - 80, pos.y + CARD.y + 34), "Day 1  ·  Aurelia, the Plate", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, 0.6 * a))
+
 
 
 func _num(n: int) -> String:
