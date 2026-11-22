@@ -20,15 +20,14 @@ const LAYOUT := {
 const FED_DOTS := [Vector2(0.07, 0.22), Vector2(0.06, 0.78), Vector2(0.2, 0.1), Vector2(0.12, 0.88), Vector2(0.035, 0.5)]
 ## Rumors in pencil: [pos, title, line].
 const RUMORS := [
-	[Vector2(0.56, 0.13), "League lanes", "merchant houses. tolls on everything"],
+	[Vector2(0.6, 0.075), "League lanes", "merchant houses. tolls on everything"],
 	[Vector2(0.82, 0.2), "Remnant holdout?", "old empire colors, they say"],
-	[Vector2(0.86, 0.52), "Dynasty heartland", "warlords. don't go."],
+	[Vector2(0.855, 0.405), "Dynasty heartland", "warlords. don't go."],
 	[Vector2(0.57, 0.86), "Free Ports", "pirate country"],
 	[Vector2(0.84, 0.84), "the Faithful", "camped at the dead rifts"],
 ]
 ## Where the Crossroads' lanes run off into the fog.
-const LANES := [Vector2(0.58, 0.2), Vector2(0.75, 0.27), Vector2(0.8, 0.5), Vector2(0.74, 0.76), Vector2(0.58, 0.8), Vector2(0.45, 0.83), Vector2(0.44, 0.17)]
-const DEAD_RIFTS := [Vector2(0.97, 0.12), Vector2(0.985, 0.62), Vector2(0.9, 0.96), Vector2(0.62, 0.03), Vector2(0.4, 0.97)]
+const DEAD_RIFTS := [Vector2(0.97, 0.12), Vector2(0.985, 0.62), Vector2(0.9, 0.96), Vector2(0.47, 0.03), Vector2(0.4, 0.97)]
 const GRAPHITE := Color(0.36, 0.35, 0.34)
 
 
@@ -217,6 +216,80 @@ func _system_at(p: Vector2) -> String:
 	return "region_%d" % best if best >= 0 else ""
 
 
+var _net_cache: Array = []
+
+
+## The rumored jump networks past the Wall: [nodes, links]. Each power's
+## network has its own shape, and you can read the politics off it:
+##   Dynasty: spokes to a capital, one great road to the Crossroads.
+##   League: a single trade line of stations, end to end.
+##   Remnant: a few fortress systems, every one linked to every other.
+##   Free Ports: scattered, loose, half the lanes only rumor.
+##   Faithful: a short chain running out to the dead rifts.
+## nodes: [chart pos, region, kind ("sys", "capital", "hub")];
+## links: [from (-1 = Crossroads), to (or Vector2 for a dead rift), kind].
+func _net() -> Array:
+	if not _net_cache.is_empty():
+		return _net_cache
+	var nodes: Array = []
+	var links: Array = []
+	var add := func(v: Vector2, ri: int, kind := "sys") -> int:
+		nodes.append([v, ri, kind])
+		return nodes.size() - 1
+	# Dynasty heartland: capital below its name, six satellites on spokes.
+	var cap: int = add.call(Vector2(0.87, 0.62), 3, "capital")
+	for k in 6:
+		var ang := -PI * 0.5 + TAU * (k + 0.5) / 6.0
+		var i: int = add.call(Vector2(0.87, 0.62) + Vector2(cos(ang) * 0.075, sin(ang) * 0.13), 3)
+		links.append([cap, i, "spoke"])
+	links.append([-1, cap, "road"])
+	# Two Dynasty forts guarding the Crossroads.
+	for v in [Vector2(0.6, 0.37), Vector2(0.63, 0.66)]:
+		links.append([-1, add.call(v, 2), "spoke"])
+	# League: one long line of lane stations.
+	var prev := -1
+	for k in 6:
+		var t := float(k) / 5.0
+		var v := Vector2(lerpf(0.47, 0.705, t), 0.165 + sin(t * PI) * 0.05 + (0.012 if k % 2 else -0.008))
+		var i2: int = add.call(v, 4, "hub" if k == 0 else "sys")
+		if prev >= 0:
+			links.append([prev, i2, "line"])
+		prev = i2
+	links.append([-1, prev - 5, "trunk"])
+	# Remnant: a tight fortress, fully meshed.
+	var rem: Array = []
+	for v in [Vector2(0.75, 0.11), Vector2(0.885, 0.1), Vector2(0.74, 0.3), Vector2(0.9, 0.29)]:
+		rem.append(add.call(v, 5, "fort"))
+	for e in [[0, 1], [1, 3], [3, 2], [2, 0]]:
+		links.append([rem[e[0]], rem[e[1]], "mesh"])
+	links.append([-1, rem[2], "trunk"])
+	# Free Ports: scattered, loose.
+	var fp: Array = []
+	for v in [Vector2(0.46, 0.75), Vector2(0.45, 0.87), Vector2(0.69, 0.75), Vector2(0.72, 0.87), Vector2(0.6, 0.73)]:
+		fp.append(add.call(v, 6, "port"))
+	links.append([fp[0], fp[1], "rumor"])
+	links.append([fp[2], fp[3], "local"])
+	links.append([fp[4], fp[2], "rumor"])
+	links.append([-1, fp[0], "trunk"])
+	links.append([-1, fp[4], "trunk"])
+	# The Faithful: out to the dead rifts.
+	var f1: int = add.call(Vector2(0.76, 0.75), 7, "shrine")
+	var f2: int = add.call(Vector2(0.95, 0.91), 7, "shrine")
+	var f3: int = add.call(Vector2(0.95, 0.76), 7, "shrine")
+	links.append([f1, f3, "local"])
+	links.append([f3, f2, "local"])
+	links.append([f2, Vector2(0.9, 0.96), "dead"])
+	links.append([f3, Vector2(0.985, 0.62), "dead"])
+	links.append([-1, f1, "trunk"])
+	# Back roads that skip the Crossroads, if you believe the stories.
+	links.append([prev, rem[0], "rumor"])
+	links.append([rem[3], cap + 1, "rumor"])
+	links.append([f3, cap + 3, "rumor"])
+	links.append([fp[3], f1, "rumor"])
+	_net_cache = [nodes, links]
+	return _net_cache
+
+
 ## Which territory a hover target sits in, for the wash highlight.
 const _HOVER_REGION := {"marcellus": 1, "crossroads": 2, "aurelia": 0, "tiberine": 0, "porta_aquila": 0,
 		"rumor_0": 4, "rumor_1": 5, "rumor_2": 3, "rumor_3": 6, "rumor_4": 7}
@@ -280,23 +353,40 @@ func _draw() -> void:
 	for d in DEAD_RIFTS:
 		_dead_rift(_at(d))
 
-	# --- Past the Wall: printed but unsurveyed, then fog and pencil ----------------------
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 90210
-	var dots: Array = []
-	while dots.size() < 70:
-		var v := Vector2(rng.randf_range(0.4, 0.97), rng.randf_range(0.05, 0.95))
-		if v.distance_to(LAYOUT["crossroads"]) < 0.07 or v.distance_to(Vector2(0.945, 0.15)) < 0.06:
-			continue
-		dots.append(v)
-	for i in dots.size():
-		var v: Vector2 = dots[i]
-		draw_circle(_at(v), 2.0 + (i % 3) * 0.6, Color(ink, 0.3))
-		if i % 3 == 0 and i + 1 < dots.size() and v.distance_to(dots[i + 1]) < 0.22:
-			_dashed(_at(v), _at(dots[i + 1]), Color(ink, 0.12), 1.0, 4.0)
+	# --- Past the Wall: the networks, pencilled from rumor --------------------------------
+	# Each power's systems hang together on their own lanes; every network's
+	# trunk runs into the Crossroads. The Federation has none: one gate, the Wall.
 	var cx := _sys_pos("crossroads")
-	for l in LANES:
-		_dashed(cx + (_at(l) - cx).normalized() * 34.0, _at(l), Color(ink, 0.32), 1.5)
+	var nodes: Array = _net()[0]
+	var links: Array = _net()[1]
+	var hr := _region_of(_hover)
+	for l in links:
+		var pa: Vector2 = cx if l[0] < 0 else _at(nodes[l[0]][0])
+		var pb: Vector2 = _at(l[1]) if l[1] is Vector2 else _at(nodes[l[1]][0])
+		var ra: int = 2 if l[0] < 0 else nodes[l[0]][1]
+		var rb: int = 7 if l[1] is Vector2 else nodes[l[1]][1]
+		var hi := hr >= 0 and (hr == ra or hr == rb)
+		var m := 1.5 if hi else 1.0
+		if l[0] < 0:
+			pa += (pb - pa).normalized() * 34.0
+		match l[2]:
+			"road":
+				# The Sultan's road: double-ruled, the only proper highway out here.
+				var dn := (pb - pa).normalized().orthogonal() * 2.0
+				draw_line(pa + dn, pb + dn, Color(ink, 0.45 * m), 1.1, true)
+				draw_line(pa - dn, pb - dn, Color(ink, 0.45 * m), 1.1, true)
+			"trunk":
+				_dashed(pa, pb, Color(ink, 0.36 * m), 1.5, 9.0)
+			"spoke", "line", "local":
+				draw_line(pa, pb, Color(GRAPHITE, 0.5 * m), 1.3 if l[2] != "line" else 1.8, true)
+			"mesh":
+				draw_line(pa, pb, Color(GRAPHITE, 0.4 * m), 1.0, true)
+			"rumor":
+				_dashed(pa, pb, Color(GRAPHITE, 0.32 * m), 1.0, 3.0)
+			"dead":
+				_dashed(pa, pb, Color(UIStyle.INK_STAMP, 0.35 * m), 1.0, 4.0)
+	for n in nodes:
+		_net_glyph(_at(n[0]), str(n[2]), hr == n[1])
 	# Hatching where nobody you know has been.
 	var x0 := _at(Vector2(0.4, 0)).x
 	var hxx := x0
@@ -534,6 +624,47 @@ func _flag(k: String) -> bool:
 
 
 ## A system: a sun, its stations on a ring around it, a printed circle.
+## A rumored system, drawn in the mark its power would use.
+func _net_glyph(q: Vector2, kind: String, hi: bool) -> void:
+	var col := Color(GRAPHITE, 1.0 if hi else 0.78)
+	match kind:
+		"capital":
+			# An eight-point star: the Dynasty's seat.
+			var pts := PackedVector2Array()
+			for i in 16:
+				var a := -PI * 0.5 + TAU * i / 16.0
+				pts.append(q + Vector2(cos(a), sin(a)) * (9.0 if i % 2 == 0 else 4.0))
+			draw_colored_polygon(pts, UIStyle.PAPER)
+			pts.append(pts[0])
+			draw_polyline(pts, col, 1.4, true)
+			draw_circle(q, 2.0, col)
+		"sys":
+			# Dynasty / League holdings: a small diamond.
+			var d := PackedVector2Array([q + Vector2(0, -5), q + Vector2(5, 0), q + Vector2(0, 5), q + Vector2(-5, 0), q + Vector2(0, -5)])
+			draw_colored_polygon(d, UIStyle.PAPER)
+			draw_polyline(d, col, 1.3, true)
+		"hub":
+			draw_circle(q, 5.0, UIStyle.PAPER)
+			draw_arc(q, 5.0, 0, TAU, 16, col, 1.4, true)
+			draw_circle(q, 2.2, col)
+		"fort":
+			# Remnant: a square keep.
+			draw_rect(Rect2(q - Vector2(5, 5), Vector2(10, 10)), UIStyle.PAPER)
+			draw_rect(Rect2(q - Vector2(5, 5), Vector2(10, 10)), col, false, 1.4)
+			draw_rect(Rect2(q - Vector2(2, 2), Vector2(4, 4)), col)
+		"port":
+			draw_circle(q, 4.5, UIStyle.PAPER)
+			draw_arc(q, 4.5, 0, TAU, 14, col, 1.2, true)
+		"shrine":
+			# The Faithful: a small upward triangle.
+			var t := PackedVector2Array([q + Vector2(0, -6), q + Vector2(5.5, 4), q + Vector2(-5.5, 4), q + Vector2(0, -6)])
+			draw_colored_polygon(t, UIStyle.PAPER)
+			draw_polyline(t, col, 1.3, true)
+		_:
+			draw_circle(q, 4.0, UIStyle.PAPER)
+			draw_arc(q, 4.0, 0, TAU, 14, col, 1.2, true)
+
+
 func _system_glyph(p: Vector2, rad: float, col: Color, n_st: int, hov: bool, rough: bool, sd: int) -> void:
 	draw_circle(p, rad, UIStyle.PAPER)
 	if rough:
