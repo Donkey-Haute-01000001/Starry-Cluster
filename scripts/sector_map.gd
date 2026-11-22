@@ -282,7 +282,6 @@ func _net() -> Array:
 	links.append([f3, Vector2(0.985, 0.62), "dead"])
 	links.append([-1, f1, "trunk"])
 	# Back roads that skip the Crossroads, if you believe the stories.
-	links.append([prev, rem[0], "rumor"])
 	links.append([rem[3], cap + 1, "rumor"])
 	links.append([f3, cap + 3, "rumor"])
 	links.append([fp[3], f1, "rumor"])
