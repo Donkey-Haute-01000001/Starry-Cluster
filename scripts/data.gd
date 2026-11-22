@@ -417,6 +417,12 @@ var starts := [
 		"blurb": "You were alone for as long as you could remember. No crew, no flag, no one to watch your back. You took what you needed from whoever couldn't stop you, until the day you jumped the wrong ship. Captain Rex outflew you, shot out your engines, and boarded you himself. Then, instead of spacing you, he laughed. \"Work for me, kid.\" Nobody had ever offered you anything before. Six years later, his crew is the only family you've known. You've bled for his dream: a fleet, a flag, a name nobody can take away. Tonight is the big one. One last run, Rex says, and the dream comes true for all of you. Where would you be without him?"},
 ]
 
+## ID photos you can pick on the financing agreement (art/portraits/pilot_N.png).
+const PILOT_PHOTOS := 12
+## Name ideas for the blank on the form; you can type your own.
+var pilot_names := ["Ines Varga", "Tobias Reyes", "Mara Quill", "Sol Benedek", "Yara Mensah", "Pell Okonkwo", "Rosa Lindqvist", "Arun Desai", "Hollis Graye", "Nadia Ferro"]
+var rig_names := ["Second Wind", "Paid in Full", "Long Haul", "Small Mercy", "Old Faithful", "Debt Collector", "Fair Weather", "Last Light"]
+
 ## Charlie Hansen, Charter Company dispatch. Lines from the script doc.
 var charlie := {
 	"first_job": "Morning, captain. Sorry, still getting used to calling you that. Charlotte Hansen, Dispatch. Call me Charlie. I've got a starter run for you: twenty tons of water from the Drip to the Greenhouse. Easy money, patrolled route. Oh, and if you've got space left over, the Greenhouse always needs machine parts. Grab some at the Bones next door. Those hydroponic pumps eat seals like candy. You didn't hear that from me.",

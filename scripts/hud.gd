@@ -10,6 +10,8 @@ var _comms_t := 0.0
 var _comms_queue: Array = []
 var _comms_age := 0.0
 var comms_top := 0.0      ## top edge of the comms panel this frame (cards stack above it)
+var comms_rect := Rect2()  ## the comms panel on screen, for clicks
+var _comms_hold := false   ## this line waits for you (Space, Enter or a click)
 
 const COL_SHIELD := Color(0.35, 0.7, 1.0)
 const COL_HULL := Color(0.95, 0.75, 0.3)
@@ -22,7 +24,7 @@ const COL_ENERGY := Color(0.75, 0.55, 1.0)
 ## Each shows once per career, when it's useful, and clears once you've done it.
 const TIPS := {
 	"fly": [["W", "thrust"], ["MOUSE", "steer"], ["X", "brake"]],
-	"travel": [["G", "autopilot to the job"], ["C", "cruise"]],
+	"travel": [["G", "autopilot to the job"], ["C", "cruise"], ["M", "chart"], ["J", "journal"]],
 	"guns": [["LMB", "turrets"], ["RMB", "ion / torpedo"], ["R", "swap"]],
 	"tactics": [["HOLD TAB", "fleet orders"]],
 }
@@ -114,7 +116,8 @@ func _draw_tip(vp: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	_tip_step(delta)
-	_comms_t = maxf(0.0, _comms_t - delta)
+	if not (_comms_hold and _comms_t > 0.0):
+		_comms_t = maxf(0.0, _comms_t - delta)
 	_comms_age += delta
 	if _comms_t <= 0.0 and not _comms_queue.is_empty():
 		var next: Array = _comms_queue.pop_front()
@@ -125,19 +128,53 @@ func _process(delta: float) -> void:
 ## Comms messages from people (Charlie, dock crews). Shown in flight for a while.
 ## In flight, a line that arrives while another is showing waits its turn.
 func on_comms(speaker: String, text: String) -> void:
-	if main.docked_at == "" and _comms_t > 0.0:
-		_comms_t = minf(_comms_t, 2.5)
+	if main.docked_at != "":
+		# Docked: the station's comms board shows it; don't replay it in flight.
+		_comms_queue.clear()
+		_comms_t = 0.0
+		return
+	if _comms_t > 0.0:
+		if not hold_enabled():
+			_comms_t = minf(_comms_t, 2.5)
 		_comms_queue.append([speaker, text])
 		return
-	_comms_queue.clear()
 	_show_comms(speaker, text)
+
+
+## Lines wait for the player, except in scripted tests.
+func hold_enabled() -> bool:
+	return not main._merchant_test and DisplayServer.get_name() != "headless"
 
 
 func _show_comms(speaker: String, text: String) -> void:
 	_comms_speaker = speaker
 	_comms_text = text
+	_comms_hold = hold_enabled()
 	_comms_t = 6.0 + text.length() * 0.04
 	_comms_age = 0.0
+
+
+## A line is up, or waiting its turn.
+func comms_waiting() -> bool:
+	return (_comms_hold and _comms_t > 0.0) or not _comms_queue.is_empty()
+
+
+func comms_showing() -> bool:
+	return _comms_t > 0.0 and main.docked_at == ""
+
+
+## Space / Enter / click: finish the line if it's still typing, else the next one.
+func advance_comms() -> void:
+	if _comms_age * 55.0 < _comms_text.length():
+		_comms_age = _comms_text.length() / 55.0 + 0.01
+		return
+	Sfx.play("tick", -12.0)
+	if not _comms_queue.is_empty():
+		var next: Array = _comms_queue.pop_front()
+		_show_comms(next[0], next[1])
+	else:
+		_comms_hold = false
+		_comms_t = minf(_comms_t, 0.35)
 
 
 func _to_screen(world_pos: Vector2) -> Vector2:
@@ -310,9 +347,10 @@ func _draw() -> void:
 		base = Vector2(vp.x * 0.5 - 220, vp.y - 108)
 		UIStyle.draw_glass(self, Rect2(base, Vector2(440, 92)))
 		# The rig's own plate: registration stencilled, speed on an amber readout.
-		var reg := "CC-40817-M" if main.merchant else "FLAGSHIP"
+		var reg: String = (str(Career.pilot.get("rig", "")).to_upper() if str(Career.pilot.get("rig", "")) != "" else "CC-40817-M") if main.merchant else "FLAGSHIP"
 		draw_string(Data.font_stamp, base + Vector2(18, 28), reg, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.86, 0.62, 0.18))
-		draw_string(Data.font_type, base + Vector2(132, 27), p.def["name"].to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.TEXT_DIM)
+		var reg_w := Data.font_stamp.get_string_size(reg, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+		draw_string(Data.font_type, base + Vector2(maxf(132.0, 18.0 + reg_w + 14.0), 27), p.def["name"].to_upper(), HORIZONTAL_ALIGNMENT_LEFT, 300.0 - reg_w, 12, UIStyle.TEXT_DIM)
 		var spd := "%03d m/s" % int(p.velocity.length())
 		var sr := Rect2(base + Vector2(330, 11), Vector2(94, 22))
 		draw_rect(sr, Color(0.03, 0.02, 0.01))
@@ -398,9 +436,9 @@ func _draw() -> void:
 	_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)
 
 	if show_help:
-		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer (M toggles)", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
-			"Mouse   aim turrets", "Left click   fire turrets", "Space   fire cannons (if fitted)", "Right click   fire secondary", "R   swap secondary",
-			"C   cruise drive", "G   autopilot to the job", "Tab (hold)   tactics wheel", "T   attack target under cursor", "Wheel   zoom", "Esc   pause", "H   hide controls"]
+		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
+			"Mouse   aim turrets", "Left click   fire turrets", "Space / Enter   next comms line", "Right click   fire secondary", "R   swap secondary",
+			"C   cruise drive", "G   autopilot to the job", "Tab (hold)   tactics wheel", "T   attack target under cursor", "M   sector chart", "J   journal", "Wheel   zoom", "Esc   pause", "H   hide controls"]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
 		UIStyle.draw_glass(self, hr, 1.0, 10.0)
 		_text(hr.position + Vector2(14, 24), _sp("CONTROLS"), 11, UIStyle.KICKER)
@@ -630,6 +668,7 @@ func _draw_comms(vp: Vector2) -> void:
 	var h := maxf(152.0, 70.0 + text_h + 18.0)
 	var r := Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
 	comms_top = r.position.y
+	comms_rect = r
 	draw_rect(r, Color(0.02, 0.035, 0.045, 0.92 * a))
 	draw_rect(r, Color(col.r, col.g, col.b, 0.35 * a), false, 1.0)
 	# Channel strip across the top.
@@ -666,5 +705,15 @@ func _draw_comms(vp: Vector2) -> void:
 	_text(Vector2(x, r.position.y + 44), _comms_speaker.to_upper(), 15, Color(1, 1, 1, a), false, true)
 	var role_w := (Data.font_bold if Data.font_bold else ThemeDB.fallback_font).get_string_size(_comms_speaker.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	_text(Vector2(x + role_w + 10, r.position.y + 44), info["role"], 12, Color(col.r, col.g, col.b, 0.85 * a))
+	# What to press, and how many lines are waiting.
+	if _comms_hold:
+		var more := _comms_queue.size()
+		var hint := ("SPACE  ▸  next (%d more)" % more) if more > 0 else "SPACE  ▸  close"
+		if _comms_age * 55.0 < _comms_text.length():
+			hint = "SPACE  ▸  skip"
+		var hf: Font = Data.font_type_bold if Data.font_type_bold else ThemeDB.fallback_font
+		var hw := hf.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		var blink := 0.55 + 0.45 * absf(sin(_comms_age * 3.0))
+		draw_string(hf, Vector2(r.end.x - hw - 12, r.end.y - 10), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, blink * a))
 	var shown := _comms_text.substr(0, int(_comms_age * 55.0))
 	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, body_w, 17, -1, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))

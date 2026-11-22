@@ -25,12 +25,19 @@ var objective := {}         ## {"text": String, "station": String} or empty
 var friend := {}
 var crew := {}              ## hired bar captains: id -> {"down": bool}
 var visited := {}           ## system ids you've been to
+## Who you are: signed on the Charter's financing agreement.
+var pilot := {"name": "", "rig": "", "photo": 0}
+var comms_log: Array = []         ## every comms line this career: [day, speaker, text]
+var contacts := {}          ## speaker -> true, everyone who has talked to you
 var _once := {}             ## friend lines that only play once
 var _prices := {}           ## station id -> good id -> price this week
 
 
-func start_merchant(p_friend: Dictionary = {}) -> void:
+func start_merchant(p_friend: Dictionary = {}, p_pilot: Dictionary = {}) -> void:
 	active = true
+	pilot = {"name": p_pilot.get("name", "Unnamed"), "rig": p_pilot.get("rig", "Unnamed rig"), "photo": int(p_pilot.get("photo", 0))}
+	comms_log = []
+	contacts = {}
 	friend = p_friend.duplicate()
 	friend["met"] = false
 	friend["down"] = false
@@ -242,14 +249,21 @@ func sell(station: String, good: String, tons: int) -> int:
 
 # --- Jobs and the opening -----------------------------------------------------
 
+## Charlie's hail on your first launch: the starter run.
+func first_job() -> void:
+	if flags.get("met_charlie", false):
+		return
+	flags["met_charlie"] = true
+	say("Charlie", Data.charlie["first_job"])
+	jobs.append({"id": "starter_water", "title": "Starter run: water to the Greenhouse",
+		"good": "water", "tons": 20, "from": "drip", "to": "greenhouse", "pay": 1500, "loaded": false})
+	_set_objective("Fly to the Drip and pick up 20 tons of water. Dock with F.", "drip")
+
+
 ## Called every time the player docks.
 func on_dock(station: String) -> void:
-	if station == "counter" and not flags.get("met_charlie", false):
-		flags["met_charlie"] = true
-		say("Charlie", Data.charlie["first_job"])
-		jobs.append({"id": "starter_water", "title": "Starter run: water to the Greenhouse",
-			"good": "water", "tons": 20, "from": "drip", "to": "greenhouse", "pay": 1500, "loaded": false})
-		_set_objective("Fly to the Drip and pick up 20 tons of water. Dock with F.", "drip")
+	if station == "counter":
+		first_job()
 	for j in jobs.duplicate():
 		if j["from"] == station and not j["loaded"]:
 			if cargo_free() < j["tons"]:
@@ -325,6 +339,12 @@ func player_name() -> String:
 	return friend.get("calls_you", "Cap")
 
 
+## Your first name, as signed.
+func first_name() -> String:
+	var n: String = pilot.get("name", "")
+	return n.split(" ")[0] if n != "" else "Captain"
+
+
 func friend_with_you() -> bool:
 	return friend.get("met", false) and not friend.get("down", false)
 
@@ -370,6 +390,11 @@ func _set_objective(text: String, station: String) -> void:
 
 
 func say(speaker: String, text: String) -> void:
+	comms_log.append([day, speaker, text])
+	if comms_log.size() > 200:
+		comms_log.pop_front()
+	if speaker != "You":
+		contacts[speaker] = true
 	comms.emit(speaker, text)
 
 
@@ -422,7 +447,7 @@ func prize_share(keep: float) -> int:
 
 const SAVE_PATH := "user://merchant_save.txt"
 const SAVE_KEYS := ["credits", "loan_balance", "cargo", "job_cargo", "cargo_capacity", "day",
-	"next_payment_day", "system_id", "jobs", "flags", "objective", "friend", "crew", "visited", "_once", "_prices"]
+	"next_payment_day", "system_id", "jobs", "flags", "objective", "friend", "crew", "visited", "_once", "_prices", "pilot", "comms_log", "contacts"]
 var resume_station := ""
 
 

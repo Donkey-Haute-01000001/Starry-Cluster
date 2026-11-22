@@ -213,7 +213,7 @@ func _show_settings() -> void:
 				gauge.add_theme_font_size_override("font_size", 18)
 				gauge.custom_minimum_size = Vector2(190, 0)
 				row.add_child(gauge)
-	_small("V and M also toggle assist and steering in flight.")
+	_small("V also toggles flight assist in flight.")
 	_button("BACK", _show_main, 20)
 
 

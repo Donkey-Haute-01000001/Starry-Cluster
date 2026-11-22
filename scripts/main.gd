@@ -24,6 +24,9 @@ var fx: Node2D
 var camera: Camera2D
 var hud: Control
 var pause_menu: Control
+var sector_map: Control
+var journal: Control
+var launch_card: Control  ## the ID card on a new career's first launch
 var wheel: Control
 
 var player: Ship = null
@@ -113,6 +116,14 @@ func _ready() -> void:
 	pause_menu.set_script(preload("res://scripts/pause_menu.gd"))
 	pause_menu.main = self
 	ui.add_child.call_deferred(pause_menu)
+	sector_map = Control.new()
+	sector_map.set_script(preload("res://scripts/sector_map.gd"))
+	sector_map.main = self
+	ui.add_child.call_deferred(sector_map)
+	journal = Control.new()
+	journal.set_script(preload("res://scripts/journal.gd"))
+	journal.main = self
+	ui.add_child.call_deferred(journal)
 
 	merchant = Data.mode == "merchant"
 	_merchant_test = "--merchant-test" in OS.get_cmdline_user_args()
@@ -149,7 +160,12 @@ func _ready() -> void:
 		var st: Dictionary = Data.stations[at]
 		player.position = st["pos"] + Vector2(0, 120)
 		camera.global_position = player.position
-		dock(at)
+		if Career.resume_station == "" and not _merchant_test:
+			_launch()
+			if "--new-career-test" in OS.get_cmdline_user_args():
+				_new_career_test()
+		else:
+			dock(at)
 		return
 
 	player = spawn_ship("kestrel", 0, Vector2.ZERO)
@@ -299,6 +315,43 @@ func dock(id: String) -> void:
 	Career.on_dock(id)
 	if not _merchant_test:
 		Career.save_game(id)
+
+
+## A new career: the rig eases out of the Counter's berth under your ID card,
+## then Charlie calls with the first job.
+func _launch() -> void:
+	var st: Dictionary = Data.stations["counter"]
+	player.position = st["pos"] + Vector2(0, float(st.get("art_size", 260.0)) * 0.5 + 60.0)
+	player.rotation = PI * 0.5
+	player.velocity = Vector2(0, 70)
+	camera.global_position = player.position
+	Sfx.play("undock", -3.0)
+	var card := Control.new()
+	card.set_script(preload("res://scripts/launch_card.gd"))
+	hud.get_parent().add_child(card)
+	launch_card = card
+	card.finished.connect(func():
+		launch_card = null
+		Career.first_job())
+
+
+func _new_career_test() -> void:
+	await _wait(7.0)
+	print("[launch] docked=%s card=%s jobs=%d log=%d waiting=%s objective=%s" % [docked_at, launch_card != null, Career.jobs.size(), Career.comms_log.size(), hud.comms_waiting(), Career.objective.get("text", "")])
+	hud.advance_comms()
+	hud.advance_comms()
+	await _wait(1.0)
+	print("[launch] after space: waiting=%s pilot=%s" % [hud.comms_waiting(), Career.pilot])
+	sector_map.open()
+	await _wait(0.3)
+	print("[launch] map paused=%s" % get_tree().paused)
+	journal.open()
+	await _wait(0.3)
+	print("[launch] journal over map: map=%s journal=%s paused=%s" % [sector_map.visible, journal.visible, get_tree().paused])
+	journal.close()
+	await _wait(0.3)
+	print("[launch] closed: paused=%s" % get_tree().paused)
+	get_tree().quit()
 
 
 func undock() -> void:
@@ -620,6 +673,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			pause_menu.open()
 			get_viewport().set_input_as_handled()
 		return
+	# Comms wait for you: Space, Enter, or a click on the panel moves them on.
+	if hud.comms_showing() and ((event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER])
+			or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and hud.comms_rect.has_point(event.position))):
+		hud.advance_comms()
+		get_viewport().set_input_as_handled()
+		return
+	if launch_card and event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
+		launch_card.skip()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("restart") and not is_instance_valid(player):
 		Engine.time_scale = 1.0
 		if merchant:
@@ -633,7 +696,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
 		PlayerController.toggle("assist")
 		show_message("Flight assist %s" % ("ON: drift damped" if PlayerController.assist else "OFF: pure drift"), 2.0)
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
+	elif not merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
 		PlayerController.toggle("mouse_steer")
 		show_message("Mouse steering %s" % ("ON: ship faces the cursor" if PlayerController.mouse_steer else "OFF: Q/E to turn"), 2.0)
 	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C and is_instance_valid(player):
@@ -974,6 +1037,33 @@ func _run_merchant_test() -> void:
 				if what == "crossroads":
 					story.arrive_crossroads()
 					await _wait(9.0)
+				elif what in ["map", "journal", "launch", "comms"]:
+					# The paperwork overlays, with a little history to show.
+					if Career.pilot.get("name", "") in ["", "Unnamed"]:
+						Career.pilot = {"name": "Hollis Graye", "rig": "Long Haul", "photo": 8}
+					if station_ui.visible:
+						undock()
+					await _wait(0.5)
+					if what == "map":
+						sector_map.open()
+					elif what == "journal":
+						journal.open()
+					elif what == "launch":
+						_launch()
+						await _wait(1.6)
+					elif what == "comms":
+						hud._comms_queue.append(["Charlie", "Second line waiting."])
+						hud._show_comms("Charlie", Data.charlie["first_job"])
+						hud._comms_hold = true
+						await _wait(3.0)
+					await get_tree().process_frame
+					await RenderingServer.frame_post_draw
+					_shot("look_" + what)
+					if what == "map":
+						sector_map.close()
+					elif what == "journal":
+						journal.close()
+					continue
 				elif what == "fay":
 					Career.credits += 5000
 					Career.hire("fay")

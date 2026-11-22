@@ -9,6 +9,7 @@ const PAPER_H := 780.0
 
 var _selected := 0
 var _bg := ""                       ## Dez's background on the contact form
+var _pilot := {}                     ## name, rig and photo from the ID form
 var _board: Control                 ## the clipboard
 var _bulletin: Control              ## top-right sector bulletin (hidden under the clipboard)
 var _page: Control                  ## the current sheet of paper
@@ -22,6 +23,10 @@ func _ready() -> void:
 	if "--autotest" in args:
 		Data.mode = "sandbox"
 		get_tree().change_scene_to_file.call_deferred("res://scenes/main.tscn")
+		return
+	if "--new-career-test" in args:
+		_pilot = {"name": "Test Pilot", "rig": "Test Rig", "photo": 3}
+		_begin.call_deferred(Data.friend_for(Data.friend_background_order[0]))
 		return
 	if "--merchant-test" in args:
 		var bg := "dock_hustler"
@@ -96,6 +101,10 @@ func _ready() -> void:
 			_open_board()
 			_show_file(0, false)
 			_snapshot.call_deferred(a.substr(13))
+		elif a.begins_with("--id-shot="):
+			_open_board()
+			_show_identity(false)
+			_snapshot.call_deferred(a.substr(10))
 		elif a.begins_with("--creator-shot="):
 			_open_board()
 			_show_contact(false)
@@ -119,7 +128,7 @@ func _ambience() -> void:
 
 func _begin(friend: Dictionary) -> void:
 	Data.mode = "merchant"
-	Career.start_merchant(friend)
+	Career.start_merchant(friend, _pilot)
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
@@ -312,7 +321,7 @@ func _show_settings(animate := true) -> void:
 	_rule(v)
 	var rows := [
 		["Flight assist", "Thrusters damp unwanted drift. (V in flight)", "assist"],
-		["Mouse steering", "The rig turns to face your cursor. (M in flight)", "mouse_steer"],
+		["Mouse steering", "The rig turns to face your cursor. Off: Q/E to turn.", "mouse_steer"],
 	]
 	for r in rows:
 		var key: String = r[2]
@@ -647,7 +656,7 @@ func _sign() -> void:
 	scrawl.size = Vector2(240, 50)
 	_page.add_child(scrawl)
 	await get_tree().create_timer(0.75).timeout
-	_show_contact(true)
+	_show_identity(true)
 	_busy = false
 
 
@@ -670,7 +679,115 @@ class Scrawl extends Control:
 			draw_polyline(pts, UIStyle.INK_PEN, 2.0, true)
 
 
-# --- Page two: Dez on the emergency-contact form -------------------------------------
+# --- Page two: who you are ----------------------------------------------------------
+
+## Form ID-1: your name, your rig's name and the photo the Charter keeps on file.
+func _show_identity(animate := true) -> void:
+	if _pilot.is_empty():
+		_pilot = {"name": Data.pilot_names.pick_random(), "rig": Data.rig_names.pick_random(), "photo": randi() % Data.PILOT_PHOTOS}
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	v.add_theme_constant_override("separation", 8)
+	_type(v, "THE CHARTER COMPANY", 21, true)
+	_type(v, "Form ID-1  ·  Licensed Operator Identification", 13)
+	_type(v, "Attach to file CC-40817-M. Print clearly. Photo must be current.", 11, false, UIStyle.INK_FADED)
+	_rule(v)
+
+	var who := HBoxContainer.new()
+	who.add_theme_constant_override("separation", 22)
+	v.add_child(who)
+	# The photo, with arrows to pick another.
+	var pcol := VBoxContainer.new()
+	pcol.add_theme_constant_override("separation", 4)
+	who.add_child(pcol)
+	var photo := Control.new()
+	photo.custom_minimum_size = Vector2(150, 190)
+	photo.draw.connect(func():
+		UIStyle.draw_id_photo(photo, Rect2(Vector2(4, 4), Vector2(142, 182)), [Color(0.8, 0.65, 0.5), Color(0.2, 0.15, 0.1), Color(0.3, 0.35, 0.4)], "CC-40817-M", 7, "pilot_%d" % _pilot["photo"]))
+	pcol.add_child(photo)
+	var arrows := HBoxContainer.new()
+	arrows.alignment = BoxContainer.ALIGNMENT_CENTER
+	arrows.add_theme_constant_override("separation", 18)
+	pcol.add_child(arrows)
+	for d in [-1, 1]:
+		_type_button(arrows, "<  prev" if d < 0 else "next  >", func():
+			_pilot["photo"] = posmod(int(_pilot["photo"]) + d, Data.PILOT_PHOTOS)
+			Sfx.play("flip", -10.0, 1.3)
+			photo.queue_redraw(), 13)
+
+	var fields := VBoxContainer.new()
+	fields.add_theme_constant_override("separation", 2)
+	fields.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	who.add_child(fields)
+	_field(fields, "OPERATOR NAME", "name", 30)
+	var gap0 := Control.new()
+	gap0.custom_minimum_size = Vector2(0, 12)
+	fields.add_child(gap0)
+	_field(fields, "RIG NAME  (as painted on hull)", "rig", 30)
+	var gap1 := Control.new()
+	gap1.custom_minimum_size = Vector2(0, 12)
+	fields.add_child(gap1)
+	_type(fields, "RIG CLASS", 11, false, UIStyle.INK_FADED)
+	_type(fields, "Light freighter, used.\nCharter lien until paid.", 14)
+
+	_rule(v)
+	var note := _type(v, "Click a line to change it. The Charter will use this name on every invoice it sends you.", 12, false, UIStyle.INK_FADED)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size.x = PAPER_W - 70
+	var gap := Control.new()
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(gap)
+	_rule(v)
+	var foot := HBoxContainer.new()
+	foot.add_theme_constant_override("separation", 14)
+	v.add_child(foot)
+	var go := _type_button(foot, "next form", func():
+		if _busy:
+			return
+		for k in ["name", "rig"]:
+			_pilot[k] = str(_pilot[k]).strip_edges()
+			if _pilot[k] == "":
+				_pilot[k] = (Data.pilot_names if k == "name" else Data.rig_names).pick_random()
+		Sfx.play("flip", -4.0)
+		_show_contact(true), 17)
+	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_type_button(foot, "back", func():
+		if not _busy:
+			_show_file(_selected), 12)
+
+
+## A blank on a form: typed label, your handwriting on the line.
+func _field(parent: Node, label: String, key: String, sz: int) -> void:
+	_type(parent, label, 11, false, UIStyle.INK_FADED)
+	var e := LineEdit.new()
+	e.text = str(_pilot[key])
+	e.max_length = 24
+	e.flat = true
+	e.caret_blink = true
+	e.select_all_on_focus = true
+	e.add_theme_font_override("font", Data.font_hand)
+	e.add_theme_font_size_override("font_size", sz)
+	e.add_theme_color_override("font_color", UIStyle.INK_PEN)
+	e.add_theme_color_override("caret_color", UIStyle.INK_PEN)
+	e.add_theme_color_override("selection_color", Color(UIStyle.INK_PEN, 0.2))
+	e.add_theme_color_override("font_selected_color", UIStyle.INK_PEN)
+	var line := StyleBoxLine.new()
+	line.color = Color(UIStyle.INK_TYPE, 0.5)
+	line.thickness = 1
+	line.vertical = false
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = Color(UIStyle.INK_TYPE, 0.45)
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 2
+	for st in ["normal", "focus", "read_only"]:
+		e.add_theme_stylebox_override(st, sb)
+	e.text_changed.connect(func(t: String): _pilot[key] = t)
+	e.text_submitted.connect(func(_t: String): e.release_focus())
+	parent.add_child(e)
+
+
+# --- Page three: Dez on the emergency-contact form -------------------------------------
 
 func _show_contact(animate := true) -> void:
 	if _bg == "":
@@ -719,7 +836,7 @@ func _show_contact(animate := true) -> void:
 	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_type_button(foot, "back", func():
 		if not _busy:
-			_show_file(_selected), 12)
+			_show_identity(true), 12)
 
 	var b: Dictionary = Data.friend_backgrounds[_bg]
 	var note := _pen(page, b["note"], Vector2(300, 172), -5.0, 24)

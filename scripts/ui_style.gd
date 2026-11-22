@@ -187,13 +187,17 @@ const PORTRAIT_FILES := {
 
 ## Hand-made pixel portrait for a speaker, or null.
 static func portrait_tex(who: String) -> Texture2D:
-	if not PORTRAIT_FILES.has(who):
+	# You: the photo you picked on the financing agreement.
+	if who == "You":
+		who = "pilot_%d" % int(Career.pilot.get("photo", 0))
+	var file: String = who if who.begins_with("pilot_") else PORTRAIT_FILES.get(who, "")
+	if file == "":
 		return null
 	if _portrait_cache.has(who):
 		return _portrait_cache[who]
 	# Vishnu's portrait pack (art/, not in git) wins over the hand-made set.
 	var tex: Texture2D = null
-	for path in ["res://art/portraits/%s.png" % PORTRAIT_FILES[who], "res://portraits/%s.png" % PORTRAIT_FILES[who]]:
+	for path in ["res://art/portraits/%s.png" % file, "res://portraits/%s.png" % file]:
 		if ResourceLoader.exists(path):
 			tex = load(path)
 		elif FileAccess.file_exists(path):

@@ -99,6 +99,9 @@ func _fleet() -> Array:
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(main) or not main.merchant:
 		return
+	# Talky beats wait while you read: the clock stops until the comms are clear.
+	if scene == "ambush" and _phase in ["talk", "gone", "navy"] and main.hud.comms_waiting():
+		return
 	_t += delta
 	if _choices:
 		_choices.position.y = main.hud.comms_top - 12.0 - _choices.size.y
