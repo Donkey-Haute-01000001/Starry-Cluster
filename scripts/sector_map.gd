@@ -35,7 +35,7 @@ const GRAPHITE := Color(0.36, 0.35, 0.34)
 ## Pen notes you've made on the chart: [where, text, tilt (deg), flag or "", key].
 ## The chart is yours; it fills in as the story does. DRAFT lines.
 const PEN_NOTES := [
-	[Vector2(0.335, 0.705), "40,000 cr to cross this line", -3.0, "", "wall"],
+	[Vector2(0.262, 0.695), "40,000 cr to get past the Wall", -1.5, "", "wall"],
 	[Vector2(0.455, 0.355), "papers. PAPERS.", -5.0, "", "papers"],
 	[Vector2(0.245, 0.215), "his count. jump exit.", 3.0, "tally_hailed", "tally"],
 	[Vector2(0.012, 0.3), "Mud Lark. 4,500 alive", -2.0, "bounty_taken", "lark"],
@@ -425,8 +425,6 @@ func _draw() -> void:
 			_pen_underline(Vector2(68, 5), 72, k3, 5)
 			_pen_underline(Vector2(70, 9), 66, k3, 9)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	if _ink(1.0) > 0.0:
-		_pen_arrow(_at(Vector2(0.33, 0.66)), _sys_pos("porta_aquila") + Vector2(26, 26), _ink(1.15))
 
 	# --- Footer: a typed slip, the legend, the fine print --------------------------------
 	var fy := c.end.y + 30.0
