@@ -223,7 +223,8 @@ var _net_cache: Array = []
 ## network has its own shape, and you can read the politics off it:
 ##   Dynasty: spokes to a capital, one great road to the Crossroads.
 ##   League: a single trade line of stations, end to end.
-##   Remnant: a few fortress systems, every one linked to every other.
+##   Remnant: a ring of fortress systems, hidden: no Crossroads lane, only
+##   a back way in from the League and one from the Dynasty.
 ##   Free Ports: scattered, loose, half the lanes only rumor.
 ##   Faithful: a short chain running out to the dead rifts.
 ## nodes: [chart pos, region, kind ("sys", "capital", "hub")];
@@ -262,7 +263,9 @@ func _net() -> Array:
 		rem.append(add.call(v, 5, "fort"))
 	for e in [[0, 1], [1, 3], [3, 2], [2, 0]]:
 		links.append([rem[e[0]], rem[e[1]], "mesh"])
-	links.append([-1, rem[2], "trunk"])
+	# Hidden away: no lane from the Crossroads. You reach the Remnant only
+	# through a League station or a Dynasty system, out of your way.
+	links.append([prev - 2, rem[0], "local"])
 	# Free Ports: scattered, loose.
 	var fp: Array = []
 	for v in [Vector2(0.46, 0.75), Vector2(0.45, 0.87), Vector2(0.69, 0.75), Vector2(0.72, 0.87), Vector2(0.6, 0.73)]:
@@ -282,7 +285,7 @@ func _net() -> Array:
 	links.append([f3, Vector2(0.985, 0.62), "dead"])
 	links.append([-1, f1, "trunk"])
 	# Back roads that skip the Crossroads, if you believe the stories.
-	links.append([rem[3], cap + 1, "rumor"])
+	links.append([rem[3], cap + 1, "local"])
 	links.append([f3, cap + 3, "rumor"])
 	links.append([fp[3], f1, "rumor"])
 	_net_cache = [nodes, links]
