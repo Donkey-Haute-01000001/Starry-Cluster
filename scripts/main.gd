@@ -1044,20 +1044,23 @@ func _run_merchant_test() -> void:
 					if station_ui.visible:
 						undock()
 					await _wait(0.5)
-					if what == "map":
-						sector_map.open()
-					elif what.begins_with("journal"):
+					if what == "map" or what.begins_with("journal"):
 						# Some history to fill the pages.
 						Career.flags["tally_hailed"] = true
 						Career.flags["tally_done"] = true
 						Career.flags["franz_met"] = true
 						Career.flags["bounty_taken"] = true
 						Career.visited["marcellus"] = true
+						Career.friend["met"] = true
 						Career.say("Franz", Data.franz["intro"])
 						Career.say("Tallyman", Data.tally["signoff"])
 						journal._tab = int(what.substr(7)) if what.length() > 7 else 0
 						journal._sel[1] = 1
-						journal.open()
+						if what == "map":
+							sector_map.open()
+						else:
+							journal.open()
+						await get_tree().create_timer(2.4).timeout
 					elif what == "launch":
 						_launch()
 						await _wait(1.6)

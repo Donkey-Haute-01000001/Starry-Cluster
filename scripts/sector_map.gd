@@ -32,11 +32,50 @@ const DEAD_RIFTS := [Vector2(0.97, 0.12), Vector2(0.985, 0.62), Vector2(0.9, 0.9
 const GRAPHITE := Color(0.36, 0.35, 0.34)
 
 
+## Pen notes you've made on the chart: [where, text, tilt (deg), flag or "", key].
+## The chart is yours; it fills in as the story does. DRAFT lines.
+const PEN_NOTES := [
+	[Vector2(0.335, 0.705), "40,000 cr to cross this line", -3.0, "", "wall"],
+	[Vector2(0.455, 0.355), "papers. PAPERS.", -5.0, "", "papers"],
+	[Vector2(0.245, 0.215), "his count. jump exit.", 3.0, "tally_hailed", "tally"],
+	[Vector2(0.012, 0.3), "Mud Lark. 4,500 alive", -2.0, "bounty_taken", "lark"],
+	[Vector2(0.425, 0.952), "%s says his grandad flew one of these", -1.5, "friend", "rift"],
+	[Vector2(0.035, 0.955), "never been. not on this lien", 2.0, "", "fed"],
+]
+
+var _sheet: PaperSheet
+var _dim: ColorRect
+var _title_font: FontVariation
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
+	_dim = ColorRect.new()
+	_dim.color = Color(0.0, 0.0, 0.02, 0.82)
+	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dim.visible = false
+	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_add_dim.call_deferred()
+	_sheet = PaperSheet.new({"folds": Vector2(3, 1), "wear": 1.0, "seed": 3.0})
+	add_child(_sheet)
+	_title_font = FontVariation.new()
+	_title_font.base_font = Data.font_bold
+	_title_font.spacing_glyph = 6
+
+
+## The dim sits under the sheet as a sibling, so it doesn't turn with it.
+func _add_dim() -> void:
+	get_parent().add_child(_dim)
+	get_parent().move_child(_dim, get_index())
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED and _dim and _dim.is_inside_tree():
+		_dim.visible = visible
+		_dim.modulate.a = 0.0
 
 
 func toggle() -> void:
@@ -94,19 +133,38 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if visible:
-		_t += delta
-		queue_redraw()
+	if not visible:
+		return
+	_t += delta
+	# The sheet comes up off the desk and settles.
+	var k := 1.0 - pow(1.0 - clampf(_t / 0.38, 0.0, 1.0), 3.0)
+	pivot_offset = size * 0.5
+	scale = Vector2.ONE * lerpf(0.94, 1.0, k)
+	rotation = lerpf(-0.035, 0.0, k)
+	modulate.a = clampf(_t / 0.2, 0.0, 1.0)
+	_dim.modulate.a = modulate.a
+	var pr := _paper_rect()
+	_sheet.place(pr)
+	var c := _chart_rect()
+	_sheet.param("fog_from", c.position.x - pr.position.x + c.size.x * 0.4)
+	_sheet.param("ring", Vector3(pr.size.x * 0.035, pr.size.y * 0.965, 54.0))
+	queue_redraw()
+
+
+## How far the ink has come in, for things drawn `delay` seconds after opening.
+func _ink(delay := 0.0) -> float:
+	var k := clampf((_t - 0.3 - delay) / 0.45, 0.0, 1.0)
+	return k * k * (3.0 - 2.0 * k)
 
 
 func _paper_rect() -> Rect2:
-	var ps := Vector2(minf(1240.0, size.x - 60.0), minf(740.0, size.y - 50.0))
+	var ps := Vector2(minf(1260.0, size.x - 60.0), minf(770.0, size.y - 40.0))
 	return Rect2((size - ps) * 0.5, ps)
 
 
 func _chart_rect() -> Rect2:
 	var p := _paper_rect()
-	return Rect2(p.position + Vector2(30, 92), Vector2(p.size.x - 60, p.size.y - 170))
+	return Rect2(p.position + Vector2(44, 112), Vector2(p.size.x - 88, p.size.y - 222))
 
 
 func _at(v: Vector2) -> Vector2:
@@ -135,93 +193,112 @@ func _all_systems() -> Dictionary:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.02, 0.8))
 	var pr := _paper_rect()
-	draw_rect(Rect2(pr.position + Vector2(6, 8), pr.size), Color(0, 0, 0, 0.4))
-	draw_rect(pr, UIStyle.PAPER)
 	var c := _chart_rect()
 	var tb: Font = Data.font_type_bold
 	var tr: Font = Data.font_type
 	var hand: Font = Data.font_hand
 	var ink := UIStyle.INK_TYPE
+	var faded := UIStyle.INK_FADED
 
-	# Header.
-	draw_string(tb, pr.position + Vector2(30, 42), "THE CLUSTER  ·  CHARTER ROUTE CHART", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, ink)
-	draw_string(tr, pr.position + Vector2(30, 64), "Charter routes in ink. Past the Wall, it's rumor and pencil.", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_FADED)
-	draw_string(tr, Vector2(pr.end.x - 110, pr.position.y + 42), "DAY %d" % (int(Career.day) + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ink)
-	draw_line(pr.position + Vector2(30, 76), Vector2(pr.end.x - 30, pr.position.y + 76), Color(ink, 0.5), 1.0)
+	# --- Header: the Charter's title block, seal, edition --------------------------
+	var hx := pr.position.x + 44.0
+	var hy := pr.position.y + 26.0
+	draw_line(Vector2(hx, hy), Vector2(pr.end.x - 44, hy), Color(ink, 0.8), 2.0)
+	draw_line(Vector2(hx, hy + 4), Vector2(pr.end.x - 44, hy + 4), Color(ink, 0.5), 1.0)
+	draw_string(_title_font, Vector2(hx, hy + 46), "THE CLUSTER", HORIZONTAL_ALIGNMENT_LEFT, -1, 40, ink)
+	var tw := _title_font.get_string_size("THE CLUSTER", HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x
+	draw_string(tb, Vector2(hx + tw + 22, hy + 28), "CHARTER COMPANY ROUTE CHART  ·  No. 61-H", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
+	draw_string(tr, Vector2(hx + tw + 22, hy + 45), "Charter routes in ink. Past the Wall, rumor and pencil.", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, faded)
+	draw_string(tr, Vector2(pr.end.x - 290, hy + 28), "OPERATOR'S COPY", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, faded)
+	draw_string(tb, Vector2(pr.end.x - 290, hy + 47), "DAY %d" % (int(Career.day) + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, ink)
+	_seal(Vector2(pr.end.x - 104, hy + 34), 0.82 * _ink(0.05))
+	draw_line(Vector2(hx, hy + 62), Vector2(pr.end.x - 44, hy + 62), Color(ink, 0.5), 1.0)
 
-	# The cluster's edge: beyond it the outbound rifts went dark.
-	_dashed_rect(c.grow(-4), Color(ink, 0.35))
+	# --- The grid and the cluster's edge ----------------------------------------------
+	var cols := 12
+	var rows := 6
+	for i in cols + 1:
+		var x := c.position.x + c.size.x * i / cols
+		draw_line(Vector2(x, c.position.y), Vector2(x, c.end.y), Color(ink, 0.045), 1.0)
+		draw_line(Vector2(x, c.position.y - 5), Vector2(x, c.position.y), Color(ink, 0.5), 1.0)
+		draw_line(Vector2(x, c.end.y), Vector2(x, c.end.y + 5), Color(ink, 0.5), 1.0)
+		if i < cols:
+			var L := String.chr(65 + i)
+			draw_string(tr, Vector2(x + c.size.x / cols * 0.5 - 4, c.position.y - 9), L, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+	for j in rows + 1:
+		var y := c.position.y + c.size.y * j / rows
+		draw_line(Vector2(c.position.x, y), Vector2(c.end.x, y), Color(ink, 0.045), 1.0)
+		draw_line(Vector2(c.position.x - 5, y), Vector2(c.position.x, y), Color(ink, 0.5), 1.0)
+		draw_line(Vector2(c.end.x, y), Vector2(c.end.x + 5, y), Color(ink, 0.5), 1.0)
+		if j < rows:
+			draw_string(tr, Vector2(c.position.x - 16, y + c.size.y / rows * 0.5 + 4), str(j + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+	draw_rect(c, Color(ink, 0.55), false, 1.0)
+	draw_rect(c.grow(4), Color(ink, 0.3), false, 1.0)
 	for d in DEAD_RIFTS:
 		_dead_rift(_at(d))
-	draw_string(tb, Vector2(c.end.x - 330, c.end.y + 24), "⊗  THE SEVERANCE", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(ink, 0.7))
-	draw_string(tr, Vector2(c.end.x - 330, c.end.y + 40), "Outbound rifts, dark seventy years. Cause unknown.", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
 
-	# Uncharted systems: faint printed dots, most of them under fog.
+	# --- Past the Wall: printed but unsurveyed, then fog and pencil ----------------------
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 90210
 	var dots: Array = []
 	while dots.size() < 70:
-		var v := Vector2(rng.randf_range(0.38, 0.97), rng.randf_range(0.05, 0.95))
-		if v.distance_to(LAYOUT["crossroads"]) < 0.07:
+		var v := Vector2(rng.randf_range(0.4, 0.97), rng.randf_range(0.05, 0.95))
+		if v.distance_to(LAYOUT["crossroads"]) < 0.07 or v.distance_to(Vector2(0.945, 0.15)) < 0.06:
 			continue
 		dots.append(v)
 	for i in dots.size():
 		var v: Vector2 = dots[i]
-		draw_circle(_at(v), 2.5, Color(ink, 0.35))
-		# A few faint printed links, as if half-surveyed.
+		draw_circle(_at(v), 2.0 + (i % 3) * 0.6, Color(ink, 0.3))
 		if i % 3 == 0 and i + 1 < dots.size() and v.distance_to(dots[i + 1]) < 0.22:
-			draw_line(_at(v), _at(dots[i + 1]), Color(ink, 0.1), 1.0)
-	# The Crossroads' lanes into the dark.
+			_dashed(_at(v), _at(dots[i + 1]), Color(ink, 0.12), 1.0, 4.0)
 	var cx := _sys_pos("crossroads")
 	for l in LANES:
-		_dashed(cx, _at(l), Color(ink, 0.3), 1.5)
-	# Fog: soft paper-coloured cloud over everything past the Wall.
-	var fog := RandomNumberGenerator.new()
-	fog.seed = 31337
-	for i in 260:
-		var v := Vector2(fog.randf_range(0.4, 1.0), fog.randf_range(0.0, 1.0))
-		var rr := fog.randf_range(30.0, 90.0)
-		draw_circle(_at(v), rr, Color(UIStyle.PAPER_SHADE.r, UIStyle.PAPER_SHADE.g, UIStyle.PAPER_SHADE.b, 0.07))
-		draw_circle(_at(v), rr * 0.6, Color(UIStyle.PAPER.r, UIStyle.PAPER.g, UIStyle.PAPER.b, 0.12))
-	# Pencil hatching where nobody's been.
-	var hx := _at(Vector2(0.4, 0)).x
-	while hx < c.end.x + c.size.y:
-		var a := Vector2(hx, c.position.y)
-		var b := Vector2(hx - c.size.y, c.end.y)
-		if b.x < _at(Vector2(0.4, 0)).x:
-			var k := (_at(Vector2(0.4, 0)).x - b.x) / (a.x - b.x)
-			b = b.lerp(a, k)
+		_dashed(cx + (_at(l) - cx).normalized() * 34.0, _at(l), Color(ink, 0.32), 1.5)
+	# Hatching where nobody you know has been.
+	var x0 := _at(Vector2(0.4, 0)).x
+	var hxx := x0
+	while hxx < c.end.x + c.size.y:
+		var a := Vector2(hxx, c.position.y)
+		var b := Vector2(hxx - c.size.y, c.end.y)
+		if b.x < x0:
+			b = b.lerp(a, (x0 - b.x) / (a.x - b.x))
 		if a.x > c.end.x:
-			var k2 := (a.x - c.end.x) / (a.x - b.x)
-			a = a.lerp(b, k2)
-		draw_line(a, b, Color(GRAPHITE, 0.07), 1.0)
-		hx += 14.0
-	# Rumors, pencilled in.
+			a = a.lerp(b, (a.x - c.end.x) / (a.x - b.x))
+		draw_line(a, b, Color(UIStyle.INK_TYPE, 0.045), 1.0)
+		hxx += 11.0
+	# Rumors, pencilled in by someone who's never been either.
 	for i in RUMORS.size():
 		var rm: Array = RUMORS[i]
 		var p := _at(rm[0])
 		var hov := _hover == "rumor_%d" % i
-		var w := hand.get_string_size(rm[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-		draw_string(hand, p - Vector2(w * 0.5, 0), rm[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(GRAPHITE, 0.95 if hov else 0.75))
-		var w2 := hand.get_string_size(rm[2], HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-		draw_string(hand, p + Vector2(-w2 * 0.5, 20), rm[2], HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(GRAPHITE, 0.6))
+		var k := _ink(0.35 + i * 0.07)
+		var w := hand.get_string_size(rm[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+		draw_string(hand, p - Vector2(w * 0.5, 0), rm[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(GRAPHITE, (0.95 if hov else 0.72) * k))
+		var w2 := hand.get_string_size(rm[2], HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
+		draw_string(hand, p + Vector2(-w2 * 0.5, 21), rm[2], HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color(GRAPHITE, 0.58 * k))
+		if hov:
+			_scribble_ring(p + Vector2(0, 4), Vector2(w * 0.5 + 18, 30), UIStyle.INK_PEN, 1.6, 1.0, i)
+	_compass(_at(Vector2(0.945, 0.15)), 30.0)
 
-	# The Federation pocket: a printed border around what you know.
+	# --- The Federation pocket ------------------------------------------------------------
 	var fed := PackedVector2Array()
-	for k in 48:
-		var ang := TAU * k / 48.0
-		var e := Vector2(cos(ang) * 0.17, sin(ang) * 0.45)
-		fed.append(_at(Vector2(0.19, 0.5) + e))
+	for k in 64:
+		var ang := TAU * k / 64.0
+		fed.append(_at(Vector2(0.19, 0.5) + Vector2(cos(ang) * 0.17, sin(ang) * 0.45)))
 	fed.append(fed[0])
-	draw_polyline(fed, Color(UIStyle.INK_PEN, 0.35), 2.0, true)
-	draw_string(tb, _at(Vector2(0.15, 0.03)) + Vector2(0, 8), "FEDERATION", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(UIStyle.INK_PEN, 0.7))
+	draw_polyline(fed, Color(UIStyle.INK_PEN, 0.12), 7.0, true)
+	draw_polyline(fed, Color(UIStyle.INK_PEN, 0.45), 1.6, true)
+	var fl := "FEDERATION"
+	var flw := tb.get_string_size(fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	var flp := _at(Vector2(0.19, 0.05)) + Vector2(-flw * 0.5, 4)
+	draw_rect(Rect2(flp + Vector2(-6, -12), Vector2(flw + 12, 16)), UIStyle.PAPER)
+	draw_string(tb, flp, fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(UIStyle.INK_PEN, 0.8))
 	for d in FED_DOTS:
-		draw_circle(_at(d), 4.0, Color(ink, 0.45))
-	draw_string(tr, _at(Vector2(0.01, 0.985)), "dots: Federation interior, no Charter routes", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
+		draw_circle(_at(d), 3.5, Color(ink, 0.5))
+		draw_arc(_at(d), 6.0, 0, TAU, 16, Color(ink, 0.25), 1.0, true)
 
-	# Hesper March: inked, in detail.
+	# --- Hesper March: the routes you fly -------------------------------------------------
 	var systems := _all_systems()
 	var drawn := {}
 	for id in Data.systems:
@@ -234,49 +311,48 @@ func _draw() -> void:
 			var a2 := _sys_pos(id)
 			var b2 := _sys_pos(j["to"])
 			if j.get("locked", false):
-				_dashed(a2, b2, Color(UIStyle.INK_STAMP, 0.8), 2.5)
-				draw_string(tr, (a2 + b2) * 0.5 + Vector2(-36, -10), "papers only", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_STAMP)
+				_dashed(a2 + (b2 - a2).normalized() * 26.0, b2 - (b2 - a2).normalized() * 34.0, Color(UIStyle.INK_STAMP, 0.85), 2.5)
+				var mid := (a2 + b2) * 0.5
+				draw_string(tb, mid + Vector2(-38, -10), "PAPERS ONLY", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_STAMP)
 			else:
-				draw_line(a2, b2, Color(ink, 0.7), 2.0, true)
-	draw_string(tb, _at(Vector2(0.03, 0.06)) + Vector2(0, 30), "HESPER MARCH", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ink)
-	draw_string(tr, _at(Vector2(0.03, 0.06)) + Vector2(0, 45), "\"the Long Haul\" · Charter sector", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+				# A Charter lane: double-ruled, like a road on an old map.
+				var dn := (b2 - a2).normalized().orthogonal() * 2.2
+				draw_line(a2 + dn, b2 + dn, Color(ink, 0.8), 1.2, true)
+				draw_line(a2 - dn, b2 - dn, Color(ink, 0.8), 1.2, true)
+	draw_string(tb, _at(Vector2(0.03, 0.065)) + Vector2(0, 30), "HESPER MARCH", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, ink)
+	draw_string(tr, _at(Vector2(0.03, 0.065)) + Vector2(0, 46), "\"the Long Haul\"  ·  Charter sector", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, faded)
 
 	var obj_station: String = Career.objective.get("station", "") if Career.objective else ""
 	var obj_sys: String = Data.stations[obj_station]["system"] if Data.stations.has(obj_station) else ""
 	var route_next: String = Career.next_hop(Career.system_id, obj_sys) if obj_sys != "" else ""
 	if route_next != "":
-		_pen_route(_sys_pos(Career.system_id), _sys_pos(route_next))
+		_pen_route(_sys_pos(Career.system_id), _sys_pos(route_next), _ink(0.6))
 
 	for id in Data.systems:
 		var sd: Dictionary = Data.systems[id]
 		var p := _sys_pos(id)
 		var rough: bool = sd.get("security", "") == "Rough"
 		var col := UIStyle.INK_STAMP if rough else ink
-		var rad := 15.0
-		draw_circle(p, rad, UIStyle.PAPER)
-		draw_arc(p, rad, 0, TAU, 32, col, 2.6 if id == _hover else 1.8, true)
-		if rough:
-			for k in range(-2, 3):
-				var o := k * 5.0
-				var h := sqrt(maxf(0.0, rad * rad - o * o)) * 0.8
-				draw_line(p + Vector2(o - h * 0.5, h * 0.5), p + Vector2(o + h * 0.5, -h * 0.5), Color(col, 0.3), 1.0)
-		if id == "porta_aquila":
-			# The fortress gate: a heavy bar across the way out.
-			draw_rect(Rect2(p + Vector2(20, -16), Vector2(5, 32)), ink)
-			draw_string(tb, p + Vector2(-26, -26), "THE WALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
-		var nm: String = sd["name"].to_upper()
-		var nw := tb.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-		var sub: String = "%s · %s" % [sd["nick"], sd["security"]]
-		var sw := tr.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+		var rad := 16.0
 		var n_st := 0
 		for st_id2 in Data.stations:
 			if Data.stations[st_id2]["system"] == id:
 				n_st += 1
+		_system_glyph(p, rad, col, n_st, id == _hover, rough, id.hash())
+		if id == "porta_aquila":
+			# The fortress gate: a heavy bar across the way out.
+			draw_rect(Rect2(p + Vector2(22, -18), Vector2(6, 36)), ink)
+			draw_rect(Rect2(p + Vector2(30, -18), Vector2(2, 36)), ink)
+			draw_string(tb, p + Vector2(-26, -28), "THE WALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
+		var nm: String = sd["name"].to_upper()
+		var nw := tb.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		var sub: String = "%s  ·  %s" % [sd["nick"], sd["security"]]
+		var sw := tr.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
 		var bw := maxf(maxf(nw, sw), 70.0) + 12.0
-		draw_rect(Rect2(p + Vector2(-bw * 0.5, rad + 3), Vector2(bw, 30 + n_st * 13)), Color(UIStyle.PAPER, 0.92))
-		draw_string(tb, p + Vector2(-nw * 0.5, rad + 16), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
-		draw_string(tr, p + Vector2(-sw * 0.5, rad + 28), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
-		var y := rad + 41.0
+		draw_rect(Rect2(p + Vector2(-bw * 0.5, rad + 4), Vector2(bw, 30 + n_st * 13)), Color(UIStyle.PAPER, 0.9))
+		draw_string(tb, p + Vector2(-nw * 0.5, rad + 17), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col if rough else ink)
+		draw_string(tr, p + Vector2(-sw * 0.5, rad + 29), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+		var y := rad + 42.0
 		for st_id in Data.stations:
 			var st: Dictionary = Data.stations[st_id]
 			if st["system"] != id:
@@ -285,61 +361,288 @@ func _draw() -> void:
 			var lw := tr.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 			draw_string(tr, p + Vector2(-lw * 0.5, y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
 			if st_id == obj_station:
-				var xp := p + Vector2(lw * 0.5 + 9, y - 4)
-				draw_line(xp + Vector2(-5, -5), xp + Vector2(5, 5), UIStyle.INK_PEN, 2.5, true)
-				draw_line(xp + Vector2(-5, 5), xp + Vector2(5, -5), UIStyle.INK_PEN, 2.5, true)
-				draw_line(p + Vector2(-lw * 0.5, y + 3), p + Vector2(lw * 0.5, y + 4), UIStyle.INK_PEN, 1.5, true)
+				var k := _ink(0.9)
+				var xp := p + Vector2(lw * 0.5 + 10, y - 4)
+				draw_line(xp + Vector2(-5, -5), xp + Vector2(-5, -5).lerp(Vector2(5, 5), k), UIStyle.INK_PEN, 2.6, true)
+				if k > 0.5:
+					draw_line(xp + Vector2(-5, 5), xp + Vector2(-5, 5).lerp(Vector2(5, -5), k * 2.0 - 1.0), UIStyle.INK_PEN, 2.6, true)
+				_pen_underline(p + Vector2(-lw * 0.5 - 2, y + 4), lw + 4, k, st_id.hash())
 			y += 13.0
 		if Career.visited.has(id) and id != Career.system_id:
-			var tk := p + Vector2(rad + 1, -rad + 1)
+			var tk := p + Vector2(rad + 2, -rad + 1)
 			draw_polyline(PackedVector2Array([tk + Vector2(-5, -2), tk + Vector2(-1, 3), tk + Vector2(7, -8)]), UIStyle.INK_PEN, 2.2, true)
 		if id == Career.system_id:
+			var k2 := _ink(0.45)
 			var pts := PackedVector2Array()
-			for i in 34:
-				var ang := -0.4 + TAU * 1.05 * i / 33.0
-				pts.append(p + Vector2(cos(ang), sin(ang)) * (rad + 7.0 + sin(i * 0.9) * 1.5))
-			draw_polyline(pts, UIStyle.INK_PEN, 2.0, true)
-			draw_string(hand, p + Vector2(-rad - 70, -rad - 2), "you're here", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIStyle.INK_PEN)
+			var n := int(34 * k2)
+			for i in n:
+				var ang := -0.4 + TAU * 1.08 * i / 33.0
+				pts.append(p + Vector2(cos(ang), sin(ang)) * (rad + 8.0 + sin(i * 0.9) * 1.6))
+			if pts.size() > 1:
+				draw_polyline(pts, UIStyle.INK_PEN, 2.0, true)
+			draw_string(hand, p + Vector2(-rad - 78, -rad - 4), "you're here", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(UIStyle.INK_PEN, k2))
 
-	# The Crossroads: printed, big, right in the way.
-	draw_circle(cx, 24.0, UIStyle.PAPER)
-	draw_arc(cx, 24.0, 0, TAU, 40, ink, 2.6 if _hover == "crossroads" else 2.0, true)
-	draw_arc(cx, 30.0, 0, TAU, 40, Color(ink, 0.4), 1.0, true)
-	draw_string(tb, cx + Vector2(-6, 7), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, ink)
+	# --- The Crossroads: printed big, right in the way ----------------------------------
+	var hov_c := _hover == "crossroads"
+	draw_circle(cx, 26.0, UIStyle.PAPER)
+	draw_arc(cx, 26.0, 0, TAU, 48, ink, 2.6 if hov_c else 2.0, true)
+	_dashed_arc(cx, 33.0, Color(ink, 0.5))
+	draw_arc(cx, 40.0, 0, TAU, 48, Color(ink, 0.18), 1.0, true)
+	draw_string(_title_font, cx + Vector2(-7, 9), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, ink)
 	var cn := "THE CROSSROADS"
 	var cnw := tb.get_string_size(cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-	draw_rect(Rect2(cx + Vector2(-cnw * 0.5 - 6, 36), Vector2(cnw + 12, 34)), Color(UIStyle.PAPER, 0.9))
-	draw_string(tb, cx + Vector2(-cnw * 0.5, 52), cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ink)
-	var cs := "Dynasty gate · every road meets here"
+	draw_rect(Rect2(cx + Vector2(-cnw * 0.5 - 8, 44), Vector2(cnw + 16, 34)), Color(UIStyle.PAPER, 0.92))
+	draw_string(tb, cx + Vector2(-cnw * 0.5, 60), cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ink)
+	var cs := "Dynasty gate  ·  every road meets here"
 	var csw := tr.get_string_size(cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
-	draw_string(tr, cx + Vector2(-csw * 0.5, 66), cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
+	draw_string(tr, cx + Vector2(-csw * 0.5, 74), cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
 
-	# Footer: what's under the cursor, or the job.
-	var fy := pr.end.y - 44.0
-	draw_line(Vector2(pr.position.x + 30, fy - 20), Vector2(pr.position.x + pr.size.x * 0.55, fy - 20), Color(ink, 0.4), 1.0)
-	var fw := pr.size.x * 0.55 - 30.0
+	# --- Your own pen ----------------------------------------------------------------------
+	for i in PEN_NOTES.size():
+		var pn: Array = PEN_NOTES[i]
+		var cond: String = pn[3]
+		var text: String = pn[1]
+		if cond == "friend":
+			if not Career.friend.get("met", false):
+				continue
+			text = text % str(Career.friend.get("name", "Dez"))
+		elif cond != "" and not _flag(cond):
+			continue
+		if pn[4] == "lark" and _flag("bounty_paid"):
+			text = "Mud Lark. done."
+		if pn[4] == "wall" and Career.loan_balance <= 0:
+			text = "paid. PAID."
+		var k3 := _ink(1.0 + i * 0.12)
+		if k3 <= 0.0:
+			continue
+		var at := _at(pn[0])
+		draw_set_transform(at, deg_to_rad(pn[2]), Vector2.ONE)
+		var nwid := hand.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+		draw_string(hand, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, nwid * k3 + 1.0, 24, Color(UIStyle.INK_PEN, 0.92))
+		if pn[4] == "tally":
+			_tally(Vector2(nwid + 12, -16), 7, k3)
+		elif pn[4] == "papers":
+			_pen_underline(Vector2(68, 5), 72, k3, 5)
+			_pen_underline(Vector2(70, 9), 66, k3, 9)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if _ink(1.0) > 0.0:
+		_pen_arrow(_at(Vector2(0.33, 0.66)), _sys_pos("porta_aquila") + Vector2(26, 26), _ink(1.15))
+
+	# --- Footer: a typed slip, the legend, the fine print --------------------------------
+	var fy := c.end.y + 30.0
+	var fx := pr.position.x + 44.0
+	var fw := pr.size.x * 0.5
 	if _hover.begins_with("rumor_"):
 		var rm2: Array = RUMORS[int(_hover.substr(6))]
-		draw_string(tb, Vector2(pr.position.x + 30, fy), str(rm2[1]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
-		draw_string(tr, Vector2(pr.position.x + 30, fy + 18), "Rumor only. Nobody you know has flown it.", HORIZONTAL_ALIGNMENT_LEFT, fw, 12, UIStyle.INK_FADED)
+		draw_string(tb, Vector2(fx, fy), str(rm2[1]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
+		draw_string(tr, Vector2(fx, fy + 18), "Rumor only. Nobody you know has flown it.", HORIZONTAL_ALIGNMENT_LEFT, fw, 12, faded)
 	elif _hover != "" and systems.has(_hover):
 		var sd2: Dictionary = systems[_hover]
-		draw_string(tb, Vector2(pr.position.x + 30, fy), str(sd2.get("name", _hover)).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
+		draw_string(tb, Vector2(fx, fy), str(sd2.get("name", _hover)).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
 		var desc: String = sd2.get("desc", "")
 		if _hover == "crossroads":
 			desc = "The cork in the bottle. Past the Wall, every lane in the cluster runs through it. Charter papers required."
-		draw_multiline_string(tr, Vector2(pr.position.x + 30, fy + 18), desc, HORIZONTAL_ALIGNMENT_LEFT, fw, 12, 2, UIStyle.INK_FADED)
+		draw_multiline_string(tr, Vector2(fx, fy + 18), desc, HORIZONTAL_ALIGNMENT_LEFT, fw, 12, 2, faded)
 	elif Career.objective:
-		draw_string(tb, Vector2(pr.position.x + 30, fy), "CURRENT JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
-		draw_multiline_string(hand, Vector2(pr.position.x + 30, fy + 22), Career.objective["text"], HORIZONTAL_ALIGNMENT_LEFT, fw, 22, 2, UIStyle.INK_PEN)
+		draw_string(tb, Vector2(fx, fy), "CURRENT JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, faded)
+		draw_multiline_string(hand, Vector2(fx, fy + 24), Career.objective["text"], HORIZONTAL_ALIGNMENT_LEFT, fw, 24, 2, Color(UIStyle.INK_PEN, _ink(0.2)))
 	else:
-		draw_string(tr, Vector2(pr.position.x + 30, fy), "No job on the board. Check a station's board when you dock.", HORIZONTAL_ALIGNMENT_LEFT, fw, 12, UIStyle.INK_FADED)
-	draw_string(tr, Vector2(pr.end.x - 230, pr.end.y - 10), "M or Esc to close  ·  J journal", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+		draw_string(tr, Vector2(fx, fy), "No job on the board. Check a station's board when you dock.", HORIZONTAL_ALIGNMENT_LEFT, fw, 12, faded)
+	# Legend.
+	var lx := pr.position.x + pr.size.x * 0.6
+	var ly := fy - 8.0
+	var dn2 := Vector2(0, 2.2)
+	draw_line(Vector2(lx, ly) + dn2, Vector2(lx + 26, ly) + dn2, ink, 1.2)
+	draw_line(Vector2(lx, ly) - dn2, Vector2(lx + 26, ly) - dn2, ink, 1.2)
+	draw_string(tr, Vector2(lx + 32, ly + 4), "Charter lane", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	_dashed(Vector2(lx + 120, ly), Vector2(lx + 146, ly), UIStyle.INK_STAMP, 2.0, 6.0)
+	draw_string(tr, Vector2(lx + 152, ly + 4), "papers only", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	_dead_rift(Vector2(lx + 248, ly))
+	draw_string(tr, Vector2(lx + 262, ly + 4), "dead rift", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	draw_arc(Vector2(lx + 342, ly), 7.0, 0, TAU, 16, UIStyle.INK_STAMP, 1.5, true)
+	draw_string(tr, Vector2(lx + 354, ly + 4), "rough", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	# Scale bar, of a sort.
+	var sy := ly + 20.0
+	for i in 4:
+		draw_rect(Rect2(Vector2(lx + i * 40, sy - 3), Vector2(40, 6)), ink if i % 2 == 0 else UIStyle.PAPER)
+	draw_rect(Rect2(Vector2(lx, sy - 3), Vector2(160, 6)), ink, false, 1.0)
+	for i in 3:
+		draw_string(tr, Vector2(lx + i * 80 - 3, sy + 15), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	draw_string(tr, Vector2(lx + 172, sy + 4), "jumps  ·  not to scale. nothing out here is.", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+	draw_string(tb, Vector2(lx, sy + 34), "THE SEVERANCE", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
+	draw_string(tr, Vector2(lx + 110, sy + 34), "outbound rifts, dark seventy years. Cause unknown.", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+	draw_string(tr, Vector2(pr.position.x + 44, pr.end.y - 14), "PROPERTY OF THE CHARTER COMPANY  ·  CHART 61-H  ·  ANNOTATION VOIDS LIEN WARRANTY  ·  DO NOT FOLD", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(faded, 0.85))
+	draw_string(tr, Vector2(pr.end.x - 230, pr.end.y - 14), "M or Esc to close  ·  J journal", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+	_tape(pr.position + Vector2(18, 14), -0.7)
+	_tape(Vector2(pr.end.x - 18, pr.position.y + 14), 0.7)
+	_tape(Vector2(pr.position.x + 20, pr.end.y - 12), 0.75)
+	_tape(pr.end - Vector2(20, 12), -0.68)
 
 
-func _dashed(a: Vector2, b: Vector2, col: Color, w: float) -> void:
+func _flag(k: String) -> bool:
+	return bool(Career.flags.get(k, false))
+
+
+## A system: a sun, its stations on a ring around it, a printed circle.
+func _system_glyph(p: Vector2, rad: float, col: Color, n_st: int, hov: bool, rough: bool, sd: int) -> void:
+	draw_circle(p, rad, UIStyle.PAPER)
+	if rough:
+		for k in range(-3, 4):
+			var o := k * 4.5
+			var h := sqrt(maxf(0.0, rad * rad - o * o)) * 0.85
+			draw_line(p + Vector2(o - h * 0.5, h * 0.5), p + Vector2(o + h * 0.5, -h * 0.5), Color(col, 0.22), 1.0)
+	draw_arc(p, rad, 0, TAU, 40, col, 2.6 if hov else 1.8, true)
+	draw_arc(p, 9.5, 0, TAU, 28, Color(col, 0.45), 1.0, true)
+	draw_circle(p, 3.2, col)
+	for i in n_st:
+		var ang := float(sd % 100) * 0.1 + TAU * i / maxf(1.0, n_st)
+		var q := p + Vector2(cos(ang), sin(ang)) * 9.5
+		draw_circle(q, 2.4, UIStyle.PAPER)
+		draw_circle(q, 1.8, col)
+	if hov:
+		_scribble_ring(p, Vector2(rad + 9, rad + 9), UIStyle.INK_PEN, 1.6, 1.0, sd)
+
+
+## The Charter's route-office seal, stamped a little crooked.
+func _seal(c: Vector2, a: float) -> void:
+	if a <= 0.0:
+		return
+	var col := Color(UIStyle.INK_STAMP, a)
+	draw_set_transform(c, deg_to_rad(-9.0), Vector2.ONE)
+	draw_arc(Vector2.ZERO, 36.0, 0, TAU, 48, col, 2.4, true)
+	draw_arc(Vector2.ZERO, 26.0, 0, TAU, 40, col, 1.2, true)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_ring_text(c, 29.5, "THE CHARTER COMPANY · ROUTE OFFICE · ", 8, col, deg_to_rad(-9.0) - PI * 0.5)
+	draw_set_transform(c, deg_to_rad(-9.0), Vector2.ONE)
+	var w := Data.font_stamp.get_string_size("CC", HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+	draw_string(Data.font_stamp, Vector2(-w * 0.5, 7), "CC", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, col)
+	draw_string(Data.font_type_bold, Vector2(-9, 18), "61", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+func _ring_text(c: Vector2, rad: float, text: String, sz: int, col: Color, start: float) -> void:
+	var f: Font = Data.font_type_bold
+	var total := 0.0
+	for ch in text:
+		total += f.get_char_size(ch.unicode_at(0), sz).x
+	var spread := TAU / maxf(total, 1.0) * rad
+	var ang := start
+	for ch in text:
+		var w := f.get_char_size(ch.unicode_at(0), sz).x * spread
+		var a := ang + w * 0.5 / rad
+		draw_set_transform(c + Vector2(cos(a), sin(a)) * rad, a + PI * 0.5, Vector2(spread, 1.0))
+		draw_char(f, Vector2(-w * 0.5 / spread, sz * 0.35), ch, sz, col)
+		ang += w / rad
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## A plain printed compass rose. Charter convention puts the core at north.
+func _compass(c: Vector2, r: float) -> void:
+	var ink := UIStyle.INK_TYPE
+	draw_circle(c, r + 8.0, Color(UIStyle.PAPER, 0.85))
+	draw_arc(c, r + 4.0, 0, TAU, 48, Color(ink, 0.6), 1.0, true)
+	draw_arc(c, r * 0.42, 0, TAU, 32, Color(ink, 0.5), 1.0, true)
+	for i in 8:
+		var ang := -PI * 0.5 + TAU * i / 8.0
+		var long := r if i % 2 == 0 else r * 0.58
+		var tip := c + Vector2(cos(ang), sin(ang)) * long
+		var side := Vector2(cos(ang + PI * 0.5), sin(ang + PI * 0.5)) * (5.0 if i % 2 == 0 else 3.5)
+		draw_colored_polygon(PackedVector2Array([c, tip, c + side]), ink)
+		draw_colored_polygon(PackedVector2Array([c, tip, c - side]), UIStyle.PAPER)
+		draw_polyline(PackedVector2Array([c + side, tip, c - side]), Color(ink, 0.8), 1.0, true)
+	for i in 32:
+		var ang := TAU * i / 32.0
+		var d := Vector2(cos(ang), sin(ang))
+		draw_line(c + d * (r + 4.0), c + d * (r + (1.0 if i % 4 else 7.0)), Color(ink, 0.6), 1.0)
+	draw_string(Data.font_type_bold, c + Vector2(-4, -r - 9), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
+	draw_string(Data.font_type, c + Vector2(-30, r + 22), "core-ward", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, UIStyle.INK_FADED)
+
+
+## A pen ring, loose and a little overdrawn.
+func _scribble_ring(c: Vector2, r: Vector2, col: Color, w: float, k: float, sd: int) -> void:
+	var pts := PackedVector2Array()
+	var n := int(40 * k)
+	for i in n:
+		var ang := -0.5 + TAU * 1.1 * i / 39.0
+		var wob := 1.0 + 0.04 * sin(i * 0.7 + sd)
+		pts.append(c + Vector2(cos(ang) * r.x, sin(ang) * r.y) * wob)
+	if pts.size() > 1:
+		draw_polyline(pts, col, w, true)
+
+
+func _pen_underline(at: Vector2, w: float, k: float, sd: int) -> void:
+	if k <= 0.0:
+		return
+	var pts := PackedVector2Array()
+	for i in 9:
+		var t := float(i) / 8.0 * k
+		pts.append(at + Vector2(w * t, sin(t * 6.0 + sd) * 1.2 + t * 1.5))
+	draw_polyline(pts, UIStyle.INK_PEN, 1.6, true)
+
+
+## A pen arrow from a note to what it's about, slightly bowed.
+func _pen_arrow(a: Vector2, b: Vector2, k: float) -> void:
+	if k <= 0.0:
+		return
+	var mid := (a + b) * 0.5 + (b - a).orthogonal().normalized() * 18.0
+	var pts := PackedVector2Array()
+	for i in 13:
+		var t := float(i) / 12.0 * k
+		pts.append(a.lerp(mid, t).lerp(mid.lerp(b, t), t))
+	draw_polyline(pts, UIStyle.INK_PEN, 1.8, true)
+	if k >= 1.0:
+		var d := (b - mid).normalized()
+		draw_line(b, b - d.rotated(0.45) * 11.0, UIStyle.INK_PEN, 1.8, true)
+		draw_line(b, b - d.rotated(-0.45) * 11.0, UIStyle.INK_PEN, 1.8, true)
+
+
+## Tally marks in pen: fives struck through.
+func _tally(at: Vector2, n: int, k: float) -> void:
+	var shown := int(ceil(n * k))
+	for i in shown:
+		var grp := i / 5
+		var j := i % 5
+		var x := at.x + grp * 34.0 + j * 6.0
+		if j < 4:
+			draw_line(Vector2(x, at.y), Vector2(x + 1.5, at.y + 18), UIStyle.INK_PEN, 1.8, true)
+		else:
+			var gx := at.x + grp * 34.0
+			draw_line(Vector2(gx - 4, at.y + 14), Vector2(gx + 24, at.y + 3), UIStyle.INK_PEN, 1.8, true)
+
+
+## A strip of yellowed tape across a corner.
+func _tape(c: Vector2, ang: float) -> void:
+	var L := 92.0
+	var W := 26.0
+	var pts := PackedVector2Array()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(c.x * 7.0 + c.y)
+	pts.append(Vector2(-L * 0.5, -W * 0.5))
+	pts.append(Vector2(L * 0.5, -W * 0.5))
+	for i in range(1, 6):
+		pts.append(Vector2(L * 0.5 + rng.randf_range(-3.0, 3.0), -W * 0.5 + W * i / 6.0))
+	pts.append(Vector2(L * 0.5, W * 0.5))
+	pts.append(Vector2(-L * 0.5, W * 0.5))
+	for i in range(5, 0, -1):
+		pts.append(Vector2(-L * 0.5 + rng.randf_range(-3.0, 3.0), -W * 0.5 + W * i / 6.0))
+	var xf := Transform2D(ang, c)
+	var poly := xf * pts
+	draw_colored_polygon(poly, Color(0.92, 0.87, 0.62, 0.5))
+	var closed := poly.duplicate()
+	closed.append(poly[0])
+	draw_polyline(closed, Color(0.6, 0.52, 0.3, 0.22), 1.0, true)
+	draw_line(xf * Vector2(-L * 0.5, -W * 0.5 + 3), xf * Vector2(L * 0.5, -W * 0.5 + 3), Color(1, 1, 1, 0.18), 2.0)
+
+
+func _dashed_arc(c: Vector2, r: float, col: Color) -> void:
+	for i in 24:
+		var a0 := TAU * i / 24.0
+		draw_arc(c, r, a0, a0 + TAU / 48.0, 4, col, 1.2, true)
+
+
+func _dashed(a: Vector2, b: Vector2, col: Color, w: float, dash := 10.0) -> void:
 	var d := b - a
-	var n := maxi(2, int(d.length() / 10.0))
+	var n := maxi(2, int(d.length() / dash))
 	for i in n:
 		if i % 2 == 0:
 			draw_line(a + d * (float(i) / n), a + d * (float(i + 1) / n), col, w)
@@ -360,12 +663,19 @@ func _dead_rift(p: Vector2) -> void:
 	draw_line(p + Vector2(-6, 6), p + Vector2(6, -6), col, 1.5)
 
 
-## A pen arrow along the next jump toward the job.
-func _pen_route(a: Vector2, b: Vector2) -> void:
+## A pen arrow along the next jump toward the job, drawn in as the sheet opens.
+func _pen_route(a: Vector2, b: Vector2, k: float) -> void:
+	if k <= 0.0:
+		return
 	var d := (b - a).normalized()
-	var s := a + d * 24.0
-	var e := b - d * 24.0
-	var n := d.orthogonal() * 6.0
-	draw_line(s + n, e + n, UIStyle.INK_PEN, 2.0, true)
-	draw_line(e + n, e + n - d.rotated(0.5) * 12.0, UIStyle.INK_PEN, 2.0, true)
-	draw_line(e + n, e + n - d.rotated(-0.5) * 12.0, UIStyle.INK_PEN, 2.0, true)
+	var n := d.orthogonal() * 8.0
+	var s := a + d * 26.0 + n
+	var e := b - d * 26.0 + n
+	var pts := PackedVector2Array()
+	for i in 17:
+		var t := float(i) / 16.0 * k
+		pts.append(s.lerp(e, t) + n * 0.4 * sin(t * PI))
+	draw_polyline(pts, UIStyle.INK_PEN, 2.2, true)
+	if k >= 1.0:
+		draw_line(e, e - d.rotated(0.5) * 13.0, UIStyle.INK_PEN, 2.2, true)
+		draw_line(e, e - d.rotated(-0.5) * 13.0, UIStyle.INK_PEN, 2.2, true)

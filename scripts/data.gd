@@ -665,6 +665,25 @@ var bios := {
 	"Gate customs": "Aquila customs at the Wall. Nothing goes through to the Crossroads without stamped papers.",
 }
 
+## Your own pen in the logbook's margin, next to each person and job. DRAFT lines.
+var margin_notes := {
+	"Charlie": "only kind voice on the company band",
+	"Dock crew": "tip them. always tip them",
+	"Dez": "same Dez. worse ship.",
+	"Franz": "decent. tired. half the belt owes him",
+	"Tallyman": "said my name like he'd read my file",
+	"Fay": "eager. maybe too eager",
+	"Mersham": "flies like he's done it in a war. he has",
+	"Marines": "bring all four back",
+	"Gate customs": "papers. always papers",
+	"The Charter loan": "every week. every single week.",
+	"Starter run: water": "\"easy money.\" Charlie isn't flying it",
+	"An old friend": "won't take a credit. stubborn",
+	"The Tallyman": "he didn't take the cargo. why?",
+	"Bounty: the Mud Lark": "alive pays better. alive is harder",
+	"Saltgate bar": "can I even afford one of them?",
+}
+
 ## The powers, as seen from a freighter cockpit. Standing text comes from the story so far.
 var powers := [
 	{"id": "charter", "name": "The Charter Company", "kind": "Federation-chartered monopoly",

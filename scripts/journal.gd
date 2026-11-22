@@ -11,12 +11,51 @@ var _hit: Array = []              ## [Rect2, kind, index] clickable areas this f
 
 const TABS := ["JOBS", "PEOPLE", "PLACES", "POWERS", "ACCOUNTS"]
 
+var _t := 0.0
+var _flip := 1.0                  ## page-turn progress after a tab change
+var _cover: PaperSheet
+var _left: PaperSheet
+var _right: PaperSheet
+var _dim: ColorRect
+var _title_font: FontVariation
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
+	_dim = ColorRect.new()
+	_dim.color = Color(0.0, 0.0, 0.02, 0.8)
+	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dim.visible = false
+	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_add_dim.call_deferred()
+	_cover = PaperSheet.new({"mode": 1, "tint": LEATHER, "seed": 11.0})
+	_cover.shadow = Vector2(8, 14)
+	_cover.shadow_alpha = 0.6
+	add_child(_cover)
+	_left = PaperSheet.new({"gutter": 1.0, "wear": 0.55, "seed": 4.0, "rule": 22.0, "rule_top": 86.0, "margin": 14.0})
+	_left.shadow_alpha = 0.0
+	add_child(_left)
+	_right = PaperSheet.new({"gutter": 0.0, "wear": 0.55, "seed": 8.0})
+	_right.shadow_alpha = 0.0
+	add_child(_right)
+	_title_font = FontVariation.new()
+	_title_font.base_font = Data.font_bold
+	_title_font.spacing_glyph = 3
+
+
+## The dim sits under the book as a sibling, so it doesn't turn with it.
+func _add_dim() -> void:
+	get_parent().add_child(_dim)
+	get_parent().move_child(_dim, get_index())
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED and _dim and _dim.is_inside_tree():
+		_dim.visible = visible
+		_dim.modulate.a = 0.0
 
 
 func toggle() -> void:
@@ -34,6 +73,8 @@ func open() -> void:
 		_was_paused = main.sector_map.close(true)
 	get_tree().paused = true
 	visible = true
+	_t = 0.0
+	_flip = 1.0
 	Sfx.play("flip", -4.0)
 	queue_redraw()
 
@@ -103,6 +144,7 @@ func _set_tab(i: int) -> void:
 	if i == _tab:
 		return
 	_tab = i
+	_flip = 0.0
 	Sfx.play("flip", -8.0, 1.2)
 	queue_redraw()
 
@@ -236,87 +278,159 @@ func _role_of(who: String) -> String:
 
 # --- Drawing ------------------------------------------------------------------------
 
+const TAB_TINTS := [Color(0.87, 0.79, 0.56), Color(0.68, 0.75, 0.6), Color(0.64, 0.71, 0.8), Color(0.83, 0.63, 0.58), Color(0.86, 0.71, 0.44)]
+const LEATHER := Color(0.33, 0.17, 0.11)
+const GOLD_FOIL := Color(0.8, 0.66, 0.38)
+const HIGHLIGHT := Color(1.0, 0.86, 0.25, 0.38)
+
+
+func _process(delta: float) -> void:
+	if not visible:
+		return
+	_t += delta
+	_flip = minf(_flip + delta / 0.3, 1.0)
+	var k := 1.0 - pow(1.0 - clampf(_t / 0.38, 0.0, 1.0), 3.0)
+	pivot_offset = size * 0.5
+	scale = Vector2.ONE * lerpf(0.94, 1.0, k)
+	rotation = lerpf(0.03, 0.0, k)
+	modulate.a = clampf(_t / 0.2, 0.0, 1.0)
+	_dim.modulate.a = modulate.a
+	var pr := _page_rect()
+	var half := pr.size.x * 0.42
+	_cover.place(Rect2(pr.position - Vector2(24, 24), pr.size + Vector2(48, 66)))
+	_left.place(Rect2(pr.position, Vector2(half, pr.size.y)))
+	_right.place(Rect2(pr.position + Vector2(half, 0), Vector2(pr.size.x - half, pr.size.y)))
+	queue_redraw()
+
+
+func _page_rect() -> Rect2:
+	var ps := Vector2(minf(1120.0, size.x - 90.0), minf(640.0, size.y - 150.0))
+	return Rect2((size - ps) * 0.5 + Vector2(0, 14), ps)
+
+
 func _draw() -> void:
 	_hit.clear()
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.02, 0.78))
-	var ps := Vector2(minf(1120.0, size.x - 60.0), minf(680.0, size.y - 90.0))
-	var pr := Rect2((size - ps) * 0.5 + Vector2(0, 18), ps)
-	# Tabs: paper flaps sticking up off the top edge.
-	var tx := pr.position.x + 30.0
-	for i in TABS.size():
-		var label: String = TABS[i]
-		var w := Data.font_type_bold.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 30.0
-		var on := i == _tab
-		var tr := Rect2(Vector2(tx, pr.position.y - (34.0 if on else 28.0)), Vector2(w, 36.0))
-		draw_rect(tr, UIStyle.PAPER if on else UIStyle.PAPER_SHADE)
-		draw_rect(tr, Color(UIStyle.INK_TYPE, 0.25), false, 1.0)
-		draw_string(Data.font_type_bold, tr.position + Vector2(15, 22), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_TYPE if on else UIStyle.INK_FADED)
-		_hit.append([tr, "tab", i])
-		tx += w + 4.0
-	draw_rect(Rect2(pr.position + Vector2(6, 8), pr.size), Color(0, 0, 0, 0.4))
+	var pr := _page_rect()
 	var half := pr.size.x * 0.42
 	var lp := Rect2(pr.position, Vector2(half, pr.size.y))
 	var rp := Rect2(pr.position + Vector2(half, 0), Vector2(pr.size.x - half, pr.size.y))
-	draw_rect(lp, UIStyle.PAPER.darkened(0.03))
-	draw_rect(rp, UIStyle.PAPER)
-	for k in 6:
-		draw_line(Vector2(rp.position.x - 3 + k, pr.position.y), Vector2(rp.position.x - 3 + k, pr.end.y), Color(0, 0, 0, 0.05 + 0.02 * (3 - absi(k - 3))), 1.0)
-	draw_string(Data.font_type, Vector2(pr.position.x + 30, pr.end.y - 12), "OPERATOR'S LOG  ·  %s  ·  day %d" % [str(Career.pilot.get("name", "")), int(Career.day) + 1], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
-	draw_string(Data.font_type, Vector2(pr.end.x - 450, pr.end.y - 12), "Tab / 1-5 pages  ·  click or wheel entries  ·  J or Esc closes", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+	var cover := Rect2(pr.position - Vector2(24, 24), pr.size + Vector2(48, 66))
+	# The page block's edges, under the pages.
+	for k in range(4, 0, -1):
+		draw_line(Vector2(pr.position.x + 4, pr.end.y + k * 2.0), Vector2(pr.end.x - 4, pr.end.y + k * 2.0), Color(0.86, 0.82, 0.72).darkened(0.08 * k), 2.0)
+	# Gold foil on the cover's lip.
+	var foil := "OPERATOR'S LOG  ·  THE CHARTER COMPANY  ·  CC-40817-M"
+	var fw := Data.font_type_bold.get_string_size(foil, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+	draw_string(Data.font_type_bold, Vector2(cover.get_center().x - fw * 0.5, cover.end.y - 17), foil, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(GOLD_FOIL, 0.75))
+	# The ribbon, hanging out of the bottom.
+	_ribbon(Vector2(rp.position.x + rp.size.x * 0.72, pr.end.y - 4), cover.end.y + 46.0)
+	# Index tabs, sticking up from behind the pages.
+	var tx := pr.position.x + 34.0
+	for i in TABS.size():
+		var label: String = TABS[i]
+		var w := Data.font_type_bold.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 44.0
+		var on := i == _tab
+		var h := 40.0 if on else 32.0
+		var tr := Rect2(Vector2(tx, cover.position.y - h + 10), Vector2(w, h))
+		var tint: Color = TAB_TINTS[i]
+		var poly := PackedVector2Array([tr.position + Vector2(0, h), tr.position + Vector2(5, 4), tr.position + Vector2(9, 0),
+				tr.position + Vector2(w - 9, 0), tr.position + Vector2(w - 5, 4), tr.position + Vector2(w, h)])
+		draw_colored_polygon(poly, tint if on else tint.darkened(0.18))
+		draw_polyline(poly, Color(0, 0, 0, 0.25), 1.0, true)
+		draw_line(tr.position + Vector2(10, 2), tr.position + Vector2(w - 10, 2), Color(1, 1, 1, 0.25), 1.5)
+		draw_string(Data.font_type, tr.position + Vector2(13, 21), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(UIStyle.INK_TYPE, 0.55))
+		draw_string(Data.font_type_bold, tr.position + Vector2(26, 22), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_TYPE if on else Color(UIStyle.INK_TYPE, 0.6))
+		_hit.append([tr, "tab", i])
+		tx += w + 6.0
+	# Footers.
+	var name_s := str(Career.pilot.get("name", ""))
+	draw_string(Data.font_type, Vector2(lp.position.x + 30, pr.end.y - 14), "%s  ·  day %d  ·  p. %d" % [name_s, int(Career.day) + 1, _tab * 12 + _sel[_tab] * 2 + 1], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
+	draw_string(Data.font_type, Vector2(rp.end.x - 70, pr.end.y - 14), "p. %d" % (_tab * 12 + _sel[_tab] * 2 + 2), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
+	var hint := "Tab / 1-5 sections   ·   wheel or click entries   ·   J or Esc closes"
+	var hw := Data.font_type.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+	draw_string(Data.font_type, Vector2(pr.get_center().x - hw * 0.5, cover.end.y + 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.45))
+
 	if _tab == 4:
-		_accounts(lp.grow(-28), rp.grow(-34))
-		return
-	var list := _entries()
-	_sel[_tab] = clampi(_sel[_tab], 0, maxi(0, list.size() - 1))
-	_list(lp.grow(-26), list)
-	if list.is_empty():
-		draw_string(Data.font_type, rp.position + Vector2(34, 60), "Nothing here yet.", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_FADED)
-		return
-	var e: Array = list[_sel[_tab]]
-	var r := rp.grow(-34)
-	match _tab:
-		0: _job_page(r, e)
-		1: _person_page(r, e[3])
-		2: _place_page(r, e[3])
-		3: _power_page(r, e[3])
+		_accounts(lp.grow(-30), rp.grow(-38))
+	else:
+		var list := _entries()
+		_sel[_tab] = clampi(_sel[_tab], 0, maxi(0, list.size() - 1))
+		_list(lp.grow(-26), list)
+		if list.is_empty():
+			draw_string(Data.font_hand, rp.position + Vector2(40, 80), "nothing here yet.", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UIStyle.INK_PEN)
+		else:
+			var e: Array = list[_sel[_tab]]
+			var r := rp.grow(-38)
+			match _tab:
+				0: _job_page(r, e)
+				1: _person_page(r, e[3])
+				2: _place_page(r, e[3])
+				3: _power_page(r, e[3])
+	if _flip < 1.0:
+		_turning_page(lp, rp, _flip)
+
+
+## A page turning over, right to left: it lifts off the right page and lays
+## down on the left, shading as it goes.
+func _turning_page(lp: Rect2, rp: Rect2, t: float) -> void:
+	var g := rp.position.x
+	var top := rp.position.y
+	var bot := rp.end.y
+	var e := t * t * (3.0 - 2.0 * t)
+	var edge := lerpf(rp.end.x, lp.position.x, e)
+	var lift := sin(e * PI) * 22.0
+	var shade := 0.55 + 0.45 * absf(e - 0.5) * 2.0
+	var paper := UIStyle.PAPER * Color(shade, shade, shade * 0.97, 1.0)
+	var poly := PackedVector2Array([Vector2(g, top), Vector2(edge, top - lift), Vector2(edge, bot + lift * 0.4), Vector2(g, bot)])
+	var cols := PackedColorArray([paper.darkened(0.15), paper, paper, paper.darkened(0.15)])
+	# Its shadow on the page beneath.
+	var sh := 18.0 * sin(e * PI)
+	var sdir := 1.0 if edge > g else -1.0
+	draw_colored_polygon(PackedVector2Array([Vector2(g, top), Vector2(edge + sh * sdir, top), Vector2(edge + sh * sdir, bot), Vector2(g, bot)]), Color(0, 0, 0, 0.12 * sin(e * PI)))
+	draw_polygon(poly, cols)
+	draw_line(Vector2(edge, top - lift), Vector2(edge, bot + lift * 0.4), Color(0, 0, 0, 0.2), 1.0)
 
 
 func _list(r: Rect2, list: Array) -> void:
 	var tb: Font = Data.font_type_bold
 	var tr: Font = Data.font_type
 	var y := r.position.y + 6.0
-	draw_string(tb, Vector2(r.position.x, y + 14), TABS[_tab], HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIStyle.INK_TYPE)
-	y += 26.0
-	draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color(UIStyle.INK_TYPE, 0.5), 1.0)
-	y += 8.0
+	draw_string(_title_font, Vector2(r.position.x + 4, y + 22), TABS[_tab], HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UIStyle.INK_TYPE)
+	var cnt := "%d %s" % [list.size(), "entry" if list.size() == 1 else "entries"]
+	draw_string(tr, Vector2(r.end.x - tr.get_string_size(cnt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x, y + 20), cnt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
+	y += 34.0
 	var row_h := 44.0
-	# Keep the selection on the page.
-	var max_rows := int((r.end.y - y - 20.0) / row_h)
+	var max_rows := int((r.end.y - y - 24.0) / row_h)
 	var first := clampi(_sel[_tab] - max_rows + 1, 0, maxi(0, list.size() - max_rows))
 	for i in range(first, mini(list.size(), first + max_rows)):
 		var e: Array = list[i]
-		var rr := Rect2(Vector2(r.position.x - 8, y), Vector2(r.size.x + 16, row_h - 4))
-		if i == _sel[_tab]:
-			draw_rect(rr, Color(UIStyle.INK_PEN, 0.08))
-			draw_rect(Rect2(rr.position, Vector2(3, rr.size.y)), UIStyle.INK_PEN)
+		var rr := Rect2(Vector2(r.position.x - 8, y), Vector2(r.size.x + 16, row_h))
 		var done: bool = e[2]
+		var title := str(e[0])
+		var tw := minf(tb.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, r.size.x - 8)
+		if i == _sel[_tab]:
+			_highlighter(Vector2(r.position.x, y + 12), tw + 10, i)
+			draw_string(Data.font_hand, Vector2(r.position.x - 22, y + 20), "»", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UIStyle.INK_PEN)
 		var col := UIStyle.INK_FADED if done else UIStyle.INK_TYPE
-		draw_string(tb, Vector2(r.position.x + 4, y + 17), str(e[0]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 8, 14, col)
+		draw_string(tb, Vector2(r.position.x + 4, y + 17), title, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 8, 14, col)
 		if done and _tab == 0:
-			var tw := minf(tb.get_string_size(str(e[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, r.size.x - 8)
-			draw_line(Vector2(r.position.x + 2, y + 12), Vector2(r.position.x + 6 + tw, y + 11), Color(UIStyle.INK_PEN, 0.7), 1.5)
-		draw_string(tr, Vector2(r.position.x + 4, y + 33), str(e[1]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 8, 11, UIStyle.INK_FADED)
+			var pts := PackedVector2Array()
+			for k in 6:
+				pts.append(Vector2(r.position.x + 1 + (tw + 8) * k / 5.0, y + 12 + sin(k * 1.7 + i) * 0.9))
+			draw_polyline(pts, Color(UIStyle.INK_PEN, 0.8), 1.6, true)
+		draw_string(tr, Vector2(r.position.x + 4, y + 39), str(e[1]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 8, 11, UIStyle.INK_FADED)
 		_hit.append([rr, "row", i])
 		y += row_h
 	if list.size() > first + max_rows:
-		draw_string(tr, Vector2(r.position.x, r.end.y - 4), "▼ %d more" % (list.size() - first - max_rows), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+		draw_string(Data.font_hand, Vector2(r.position.x, r.end.y - 6), "%d more over the page..." % (list.size() - first - max_rows), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIStyle.INK_PEN)
 
 
 func _title(r: Rect2, title: String, sub: String) -> float:
-	draw_string(Data.font_type_bold, r.position + Vector2(0, 20), title.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 22, UIStyle.INK_TYPE)
-	draw_string(Data.font_type, r.position + Vector2(0, 40), sub, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 12, UIStyle.INK_FADED)
-	draw_line(r.position + Vector2(0, 50), Vector2(r.end.x, r.position.y + 50), Color(UIStyle.INK_TYPE, 0.5), 1.0)
-	return r.position.y + 72.0
+	draw_string(_title_font, r.position + Vector2(0, 28), title.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 30, UIStyle.INK_TYPE)
+	draw_string(Data.font_type, r.position + Vector2(0, 48), sub, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 12, UIStyle.INK_FADED)
+	draw_line(r.position + Vector2(0, 58), Vector2(r.end.x, r.position.y + 58), Color(UIStyle.INK_TYPE, 0.7), 1.5)
+	draw_line(r.position + Vector2(0, 61), Vector2(r.end.x, r.position.y + 61), Color(UIStyle.INK_TYPE, 0.35), 1.0)
+	return r.position.y + 84.0
 
 
 func _para(r: Rect2, y: float, text: String, sz := 14, col := UIStyle.INK_TYPE, font: Font = null) -> float:
@@ -326,35 +440,56 @@ func _para(r: Rect2, y: float, text: String, sz := 14, col := UIStyle.INK_TYPE, 
 
 
 func _head(r: Rect2, y: float, text: String) -> float:
-	draw_string(Data.font_type_bold, Vector2(r.position.x, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_FADED)
-	draw_line(Vector2(r.position.x, y + 5), Vector2(r.end.x, y + 5), Color(UIStyle.INK_TYPE, 0.25), 1.0)
+	draw_string(Data.font_type_bold, Vector2(r.position.x, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+	var w := Data.font_type_bold.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+	draw_line(Vector2(r.position.x + w + 10, y - 4), Vector2(r.end.x, y - 4), Color(UIStyle.INK_TYPE, 0.25), 1.0)
 	return y + 24.0
+
+
+## Your own pen in the margin, a little crooked.
+func _margin_note(at: Vector2, text: String, tilt := -3.0, sz := 26) -> void:
+	if text == "":
+		return
+	draw_set_transform(at, deg_to_rad(tilt), Vector2.ONE)
+	draw_string(Data.font_hand, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(UIStyle.INK_PEN, 0.92))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _job_page(r: Rect2, e: Array) -> void:
 	var d: Dictionary = e[3]
+	draw_string(Data.font_type, Vector2(r.end.x - 70, r.position.y + 10), "No. %02d" % (_sel[0] + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
 	var y := _title(r, e[0], e[1])
 	y = _para(r, y, d["desc"])
-	y = _head(r, y + 6, "STEPS")
+	y = _head(r, y + 8, "STEPS")
 	for st in d["steps"]:
 		var bx := Rect2(Vector2(r.position.x, y - 13), Vector2(15, 15))
 		draw_rect(bx, UIStyle.INK_TYPE, false, 1.3)
 		if st[1]:
 			draw_polyline(PackedVector2Array([bx.position + Vector2(2, 7), bx.position + Vector2(7, 13), bx.position + Vector2(20, -6)]), UIStyle.INK_PEN, 2.5, true)
 		draw_string(Data.font_type, Vector2(r.position.x + 26, y), st[0], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 26, 14, UIStyle.INK_FADED if st[1] else UIStyle.INK_TYPE)
-		y += 26.0
+		if st[1]:
+			var sw := minf(Data.font_type.get_string_size(st[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, r.size.x - 26)
+			draw_line(Vector2(r.position.x + 24, y - 5), Vector2(r.position.x + 28 + sw, y - 4), Color(UIStyle.INK_PEN, 0.55), 1.3, true)
+		y += 28.0
+	_margin_note(Vector2(r.position.x + 30, y + 34.0), str(Data.margin_notes.get(e[0], "")), -2.5)
 	if e[2]:
-		_stamp(r.end - Vector2(120, 60), "DONE")
+		_stamp(r.end - Vector2(110, 40), "DONE")
 
 
 func _person_page(r: Rect2, who: String) -> void:
-	var ph := Rect2(r.position, Vector2(120, 152))
-	UIStyle.draw_id_photo(self, ph, Data.portrait_for(who), str(Data.speaker_info(who).get("serial", "")), who.hash(), who)
-	var x := ph.end.x + 22.0
-	var tr := Rect2(Vector2(x, r.position.y), Vector2(r.end.x - x, 160))
-	draw_string(Data.font_type_bold, Vector2(x, r.position.y + 22), who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, tr.size.x, 22, UIStyle.INK_TYPE)
-	draw_string(Data.font_type, Vector2(x, r.position.y + 42), _role_of(who), HORIZONTAL_ALIGNMENT_LEFT, tr.size.x, 12, UIStyle.INK_FADED)
-	draw_string(Data.font_type, Vector2(x, r.position.y + 60), str(Data.speaker_info(who).get("channel", "")), HORIZONTAL_ALIGNMENT_LEFT, tr.size.x, 11, UIStyle.INK_FADED)
+	var ph := Rect2(Vector2.ZERO, Vector2(124, 156))
+	var pc := r.position + Vector2(66, 84)
+	# Clipped into the log, a little crooked.
+	draw_set_transform(pc, deg_to_rad(-3.0), Vector2.ONE)
+	draw_rect(Rect2(-ph.size * 0.5 + Vector2(4, 6), ph.size + Vector2(6, 6)), Color(0, 0, 0, 0.18))
+	UIStyle.draw_id_photo(self, Rect2(-ph.size * 0.5, ph.size), Data.portrait_for(who), str(Data.speaker_info(who).get("serial", "")), who.hash(), who)
+	_paperclip(Vector2(-ph.size.x * 0.5 + 34, -ph.size.y * 0.5 - 14))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var x := r.position.x + 152.0
+	var w := r.end.x - x
+	draw_string(_title_font, Vector2(x, r.position.y + 28), who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, w, 30, UIStyle.INK_TYPE)
+	draw_string(Data.font_type, Vector2(x, r.position.y + 48), _role_of(who), HORIZONTAL_ALIGNMENT_LEFT, w, 12, UIStyle.INK_FADED)
+	draw_line(Vector2(x, r.position.y + 58), Vector2(r.end.x, r.position.y + 58), Color(UIStyle.INK_TYPE, 0.7), 1.5)
 	var first := -1.0
 	var lines: Array = []
 	for l in Career.comms_log:
@@ -362,109 +497,162 @@ func _person_page(r: Rect2, who: String) -> void:
 			if first < 0.0:
 				first = l[0]
 			lines.append(l)
+	var meta := str(Data.speaker_info(who).get("channel", ""))
 	if first >= 0.0:
-		draw_string(Data.font_type, Vector2(x, r.position.y + 78), "first contact: day %d" % (int(first) + 1), HORIZONTAL_ALIGNMENT_LEFT, tr.size.x, 11, UIStyle.INK_FADED)
-	_para(Rect2(Vector2(x, 0), tr.size), r.position.y + 104, str(Data.bios.get(who, "")), 13)
-	var y := ph.end.y + 28.0
+		meta += "   ·   first contact day %d" % (int(first) + 1)
+	draw_string(Data.font_type, Vector2(x, r.position.y + 76), meta, HORIZONTAL_ALIGNMENT_LEFT, w, 11, UIStyle.INK_FADED)
+	var by := _para(Rect2(Vector2(x, 0), Vector2(w, 0)), r.position.y + 100, str(Data.bios.get(who, "")), 13)
+	_margin_note(Vector2(x + 4, maxf(by + 14.0, r.position.y + 160.0)), str(Data.margin_notes.get(who, "")), -2.0, 24)
+	var y := maxf(r.position.y + 200.0, by + 46.0)
 	y = _head(r, y, "ON THE RADIO")
-	# Newest last; as many as fit.
 	var shown: Array = []
 	var h := 0.0
 	for i in range(lines.size() - 1, -1, -1):
 		var t := "\"%s\"" % lines[i][2]
-		var lh := Data.font_type.get_multiline_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 60, 12).y + 8.0
+		var lh := Data.font_type.get_multiline_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 64, 12).y + 10.0
 		if y + h + lh > r.end.y:
 			break
 		shown.push_front([lines[i][0], t])
 		h += lh
+	if shown.is_empty():
+		draw_string(Data.font_type, Vector2(r.position.x, y), "No transmissions logged.", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_FADED)
 	for s in shown:
-		draw_string(Data.font_type, Vector2(r.position.x, y), "day %d" % (int(s[0]) + 1), HORIZONTAL_ALIGNMENT_LEFT, 56, 10, UIStyle.INK_FADED)
-		draw_multiline_string(Data.font_type, Vector2(r.position.x + 60, y), s[1], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 60, 12, -1, UIStyle.INK_TYPE)
-		y += Data.font_type.get_multiline_string_size(s[1], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 60, 12).y + 8.0
+		draw_string(Data.font_type_bold, Vector2(r.position.x, y), "D%02d" % (int(s[0]) + 1), HORIZONTAL_ALIGNMENT_LEFT, 56, 10, UIStyle.INK_FADED)
+		draw_line(Vector2(r.position.x + 52, y - 10), Vector2(r.position.x + 52, y + 2), Color(UIStyle.INK_STAMP, 0.4), 1.0)
+		draw_multiline_string(Data.font_type, Vector2(r.position.x + 64, y), s[1], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 64, 12, -1, UIStyle.INK_TYPE)
+		y += Data.font_type.get_multiline_string_size(s[1], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 64, 12).y + 10.0
 
 
 func _place_page(r: Rect2, st_id: String) -> void:
 	var st: Dictionary = Data.stations[st_id]
 	var sys: Dictionary = Data.systems[st["system"]]
 	var known: bool = Career.visited.has(st["system"])
-	var y := _title(r, st["name"], "\"%s\"  ·  %s, %s  ·  %s" % [st["nick"], sys["name"], sys["nick"], sys["security"]])
+	var y := _title(Rect2(r.position, Vector2(r.size.x - 110, r.size.y)), st["name"], "\"%s\"  ·  %s, %s  ·  %s" % [st["nick"], sys["name"], sys["nick"], sys["security"]])
+	if known:
+		_round_stamp(Vector2(r.end.x - 52, r.position.y + 36), sys["name"].to_upper(), "VISITED", st_id.hash())
+	else:
+		_margin_note(Vector2(r.end.x - 118, r.position.y + 40), "haven't been", 6.0, 24)
 	y = _para(r, y, st.get("desc", ""))
-	y = _head(r, y + 4, "TRADE")
+	y = _head(r, y + 6, "TRADE")
 	var names := func(arr: Array) -> String:
 		return ", ".join(arr.map(func(g): return str(Data.goods[g]["name"]).to_lower()))
 	draw_string(Data.font_type, Vector2(r.position.x, y), "Makes (cheap here):", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_FADED)
 	draw_string(Data.font_type_bold, Vector2(r.position.x + 190, y), names.call(st.get("makes", [])), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 190, 13, UIStyle.INK_TYPE)
-	y += 20
+	y += 22
 	draw_string(Data.font_type, Vector2(r.position.x, y), "Wants (pays well):", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_FADED)
 	draw_string(Data.font_type_bold, Vector2(r.position.x + 190, y), names.call(st.get("wants", [])), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 190, 13, UIStyle.INK_TYPE)
-	y += 30
+	y += 32
 	y = _head(r, y, "PRICES THIS WEEK" if known else "PRICES")
 	if not known:
-		_para(r, y, "You haven't been to %s yet." % sys["name"], 13, UIStyle.INK_FADED)
+		_para(r, y, "No prices on file until you've docked in %s." % sys["name"], 13, UIStyle.INK_FADED)
 		return
 	var col := 0
+	var colw := r.size.x * 0.5
 	for g in Data.goods_order:
-		var px := r.position.x + col * (r.size.x * 0.5)
-		draw_string(Data.font_type, Vector2(px, y), str(Data.goods[g]["name"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_FADED)
-		draw_string(Data.font_type_bold, Vector2(px + 150, y), "%d cr" % Career.price(st_id, g), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_TYPE)
+		var px := r.position.x + col * colw
+		var price := Career.price(st_id, g)
+		var nm := str(Data.goods[g]["name"])
+		var pv := "%d cr" % price
+		draw_string(Data.font_type, Vector2(px, y), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_FADED)
+		var nw := Data.font_type.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		var pw := Data.font_type_bold.get_string_size(pv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		_leader(Vector2(px + nw + 6, y), px + colw - pw - 24)
+		var pcol := UIStyle.INK_TYPE
+		if g in st.get("makes", []):
+			pcol = Color(0.18, 0.4, 0.22)
+		elif g in st.get("wants", []):
+			pcol = UIStyle.INK_STAMP
+		draw_string(Data.font_type_bold, Vector2(px + colw - pw - 18, y), pv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, pcol)
 		col += 1
 		if col == 2:
 			col = 0
-			y += 20
+			y += 22
 
 
 func _power_page(r: Rect2, pw: Dictionary) -> void:
-	var y := _title(r, pw["name"], pw["kind"])
+	var y := _title(Rect2(r.position, Vector2(r.size.x - 100, r.size.y)), pw["name"], pw["kind"])
+	_emblem(Vector2(r.end.x - 44, r.position.y + 32), str(pw["id"]))
 	y = _para(r, y, pw["desc"])
-	y = _head(r, y + 4, "YOUR STANDING")
-	draw_string(Data.font_hand, Vector2(r.position.x, y + 8), _standing(pw["id"]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 28, UIStyle.INK_PEN)
+	y = _head(r, y + 8, "YOUR STANDING")
+	draw_string(Data.font_hand, Vector2(r.position.x + 6, y + 10), _standing(pw["id"]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 30, UIStyle.INK_PEN)
+	_pen_underline(Vector2(r.position.x + 4, y + 18), minf(Data.font_hand.get_string_size(_standing(pw["id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x + 8, r.size.x), 3)
 
 
 func _accounts(l: Rect2, r: Rect2) -> void:
-	# Left: your ID.
-	var y := _title(l, "Operator", "Charter file CC-40817-M")
-	var ph := Rect2(Vector2(l.position.x, y - 8), Vector2(130, 166))
-	UIStyle.draw_id_photo(self, ph, [Color(0.8, 0.65, 0.5), Color(0.2, 0.15, 0.1), Color(0.3, 0.35, 0.4)], "CC-40817-M", 7, "You")
-	var yy := ph.end.y + 30.0
+	# Left: your ID, clipped to the page.
+	draw_string(_title_font, Vector2(l.position.x, l.position.y + 26), "OPERATOR", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UIStyle.INK_TYPE)
+	draw_string(Data.font_type, Vector2(l.position.x, l.position.y + 46), "Charter file CC-40817-M", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_FADED)
+	var ph := Vector2(132, 168)
+	var pc := l.position + Vector2(ph.x * 0.5 + 6, 76 + ph.y * 0.5)
+	draw_set_transform(pc, deg_to_rad(2.5), Vector2.ONE)
+	draw_rect(Rect2(-ph * 0.5 + Vector2(4, 6), ph + Vector2(6, 6)), Color(0, 0, 0, 0.18))
+	UIStyle.draw_id_photo(self, Rect2(-ph * 0.5, ph), [Color(0.8, 0.65, 0.5), Color(0.2, 0.15, 0.1), Color(0.3, 0.35, 0.4)], "CC-40817-M", 7, "You")
+	_paperclip(Vector2(-ph.x * 0.5 + 18, -ph.y * 0.5 - 14))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var fx := l.position.x + ph.x + 34.0
+	var yy := l.position.y + 96.0
 	for f in [["OPERATOR", str(Career.pilot.get("name", ""))], ["RIG", str(Career.pilot.get("rig", ""))]]:
-		draw_string(Data.font_type, Vector2(l.position.x, yy), f[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
-		draw_string(Data.font_hand, Vector2(l.position.x, yy + 30), f[1], HORIZONTAL_ALIGNMENT_LEFT, l.size.x, 32, UIStyle.INK_PEN)
-		yy += 64.0
-	draw_string(Data.font_type, Vector2(l.position.x, yy), "Light freighter  ·  Charter lien", HORIZONTAL_ALIGNMENT_LEFT, l.size.x, 12, UIStyle.INK_TYPE)
+		draw_string(Data.font_type, Vector2(fx, yy), f[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+		draw_string(Data.font_hand, Vector2(fx, yy + 30), f[1], HORIZONTAL_ALIGNMENT_LEFT, l.end.x - fx, 32, UIStyle.INK_PEN)
+		yy += 66.0
+	var y := l.position.y + 280.0
+	y = _head(l, y, "FLEET")
+	var fleet: Array = [[str(Career.pilot.get("rig", "your rig")), "light freighter  ·  you"]]
+	if Career.friend.get("met", false):
+		fleet.append([str(Career.friend.get("name", "Dez")), "%s%s" % [Data.friend_roles[Career.friend["role"]]["ship"], "  ·  down till next dock" if Career.friend.get("down", false) else ""]])
+	for id in Career.crew:
+		fleet.append([Data.captains[id]["name"], "%s  ·  %d cr/wk" % [Data.captains[id]["ship"], Data.captains[id]["wage"]]])
+	for f in fleet:
+		draw_string(Data.font_type_bold, Vector2(l.position.x, y), f[0], HORIZONTAL_ALIGNMENT_LEFT, l.size.x, 13, UIStyle.INK_TYPE)
+		draw_string(Data.font_type, Vector2(l.position.x, y + 16), f[1], HORIZONTAL_ALIGNMENT_LEFT, l.size.x, 11, UIStyle.INK_FADED)
+		y += 40.0
+	if Career.loan_balance > 0:
+		_stamp(Vector2(l.end.x - 90, l.end.y - 40), "UNDER LIEN")
+
 	# Right: the books.
 	y = _title(r, "Accounts", "Day %d  ·  week %d" % [int(Career.day) + 1, int(Career.day / 7.0) + 1])
-	var due_in := maxf(0.0, Career.next_payment_day - Career.day)
 	var rows := [
-		["Credits", "%s cr" % _num(Career.credits)],
-		["Charter loan", "%s cr" % _num(Career.loan_balance) if Career.loan_balance > 0 else "PAID IN FULL"],
-		["Next payment", ("%s cr in %.1f days" % [_num(Data.LOAN_WEEKLY), due_in]) if Career.loan_balance > 0 else "none"],
-		["Wages", "%s cr a week" % _num(_wages())],
-		["Hold", "%d / %d t" % [Career.cargo_used(), Career.cargo_capacity]],
+		["Credits on hand", "%s cr" % _num(Career.credits), UIStyle.INK_TYPE],
+		["Charter loan", "%s cr" % _num(Career.loan_balance) if Career.loan_balance > 0 else "PAID IN FULL", UIStyle.INK_STAMP if Career.loan_balance > 0 else UIStyle.INK_TYPE],
+		["Wages", "%s cr / week" % _num(_wages()), UIStyle.INK_TYPE],
+		["Hold", "%d / %d t" % [Career.cargo_used(), Career.cargo_capacity], UIStyle.INK_TYPE],
 	]
 	for row in rows:
 		draw_string(Data.font_type, Vector2(r.position.x, y), row[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_FADED)
-		draw_string(Data.font_type_bold, Vector2(r.position.x + 200, y), row[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_TYPE)
-		y += 22.0
-	y = _head(r, y + 12, "IN THE HOLD")
+		var vw := Data.font_type_bold.get_string_size(row[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		_leader(Vector2(r.position.x + Data.font_type.get_string_size(row[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 8, y), r.end.x - vw - 8)
+		draw_string(Data.font_type_bold, Vector2(r.end.x - vw, y), row[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, row[2])
+		y += 26.0
+	y = _head(r, y + 10, "IN THE HOLD")
 	var any := false
 	for src in [[Career.cargo, ""], [Career.job_cargo, "  (job)"]]:
 		for g in src[0]:
-			draw_string(Data.font_type, Vector2(r.position.x, y), "%s%s" % [Data.goods[g]["name"], src[1]], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_TYPE)
-			draw_string(Data.font_type_bold, Vector2(r.position.x + 200, y), "%d t" % src[0][g], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_TYPE)
-			y += 20.0
+			var nm := "%s%s" % [Data.goods[g]["name"], src[1]]
+			var v := "%d t" % src[0][g]
+			draw_string(Data.font_type, Vector2(r.position.x, y), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_TYPE)
+			var vw2 := Data.font_type_bold.get_string_size(v, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+			_leader(Vector2(r.position.x + Data.font_type.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 8, y), r.end.x - vw2 - 8)
+			draw_string(Data.font_type_bold, Vector2(r.end.x - vw2, y), v, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_TYPE)
+			y += 22.0
 			any = true
 	if not any:
-		draw_string(Data.font_type, Vector2(r.position.x, y), "Empty.", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_FADED)
-		y += 20.0
-	y = _head(r, y + 12, "FLEET")
-	var fleet: Array = ["%s  ·  light freighter  ·  you" % str(Career.pilot.get("rig", "your rig"))]
-	if Career.friend.get("met", false):
-		fleet.append("Dez  ·  %s%s" % [Data.friend_roles[Career.friend["role"]]["ship"], "  ·  down, back at next dock" if Career.friend.get("down", false) else ""])
-	for id in Career.crew:
-		fleet.append("%s  ·  %s  ·  %d cr/wk" % [Data.captains[id]["name"], Data.captains[id]["ship"], Data.captains[id]["wage"]])
-	for f in fleet:
-		draw_string(Data.font_type, Vector2(r.position.x, y), f, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 13, UIStyle.INK_TYPE)
-		y += 20.0
+		draw_string(Data.font_hand, Vector2(r.position.x, y + 4), "empty. that's money sitting still.", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UIStyle.INK_PEN)
+		y += 24.0
+	# The remittance coupon for the next payment, ready to tear off.
+	if Career.loan_balance > 0:
+		var due_in := maxf(0.0, Career.next_payment_day - Career.day)
+		var cp := Rect2(Vector2(r.position.x, r.end.y - 104), Vector2(r.size.x, 96))
+		draw_rect(cp, Color(0.95, 0.9, 0.78, 0.6))
+		_dashed_rect(cp, Color(UIStyle.INK_TYPE, 0.6))
+		draw_string(Data.font_type, Vector2(cp.position.x + 6, cp.position.y - 5), "- - - tear here - - -", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, UIStyle.INK_FADED)
+		draw_string(Data.font_type_bold, cp.position + Vector2(14, 24), "CHARTER COMPANY  ·  WEEKLY REMITTANCE", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_TYPE)
+		draw_string(Data.font_type, cp.position + Vector2(14, 46), "Amount due", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_FADED)
+		draw_string(Data.font_type_bold, cp.position + Vector2(130, 46), "%s cr" % _num(Data.LOAN_WEEKLY), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_STAMP)
+		draw_string(Data.font_type, cp.position + Vector2(14, 66), "Due in", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_FADED)
+		draw_string(Data.font_type_bold, cp.position + Vector2(130, 66), "%.1f days" % due_in, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_TYPE)
+		draw_string(Data.font_type, cp.position + Vector2(14, 86), "Late payments accrue interest. The Charter thanks you.", HORIZONTAL_ALIGNMENT_LEFT, cp.size.x - 28, 9, UIStyle.INK_FADED)
+		for i in 7:
+			draw_rect(Rect2(cp.end + Vector2(-110 + i * 13, -66), Vector2(2 + (i * 7) % 4, 40)), UIStyle.INK_TYPE)
 
 
 func _wages() -> int:
@@ -477,10 +665,148 @@ func _wages() -> int:
 func _stamp(at: Vector2, text: String) -> void:
 	draw_set_transform(at, deg_to_rad(-8.0), Vector2.ONE)
 	var w := Data.font_stamp.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
-	var col := Color(UIStyle.INK_STAMP, 0.75)
-	draw_rect(Rect2(Vector2(-w * 0.5 - 10, -30), Vector2(w + 20, 40)), col, false, 3.0)
+	var col := Color(UIStyle.INK_STAMP, 0.72)
+	draw_rect(Rect2(Vector2(-w * 0.5 - 12, -32), Vector2(w + 24, 44)), col, false, 3.0)
+	draw_rect(Rect2(Vector2(-w * 0.5 - 8, -28), Vector2(w + 16, 36)), Color(col, 0.5), false, 1.0)
 	draw_string(Data.font_stamp, Vector2(-w * 0.5, 2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, col)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## A round entry stamp, like a port's visa.
+func _round_stamp(c: Vector2, ring: String, mid: String, sd: int) -> void:
+	var col := Color(0.2, 0.3, 0.55, 0.7)
+	var rot := deg_to_rad(float(sd % 30) - 15.0)
+	draw_set_transform(c, rot, Vector2.ONE)
+	draw_arc(Vector2.ZERO, 44.0, 0, TAU, 48, col, 2.4, true)
+	draw_arc(Vector2.ZERO, 31.0, 0, TAU, 40, col, 1.2, true)
+	var w := Data.font_stamp.get_string_size(mid, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	draw_string(Data.font_stamp, Vector2(-w * 0.5, 6), mid, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, col)
+	draw_line(Vector2(-24, -12), Vector2(24, -12), col, 1.0)
+	draw_line(Vector2(-24, 12), Vector2(24, 12), col, 1.0)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_ring_text(c, 37.0, "%s · HESPER MARCH · " % ring, 8, col, rot - PI * 0.5)
+
+
+func _ring_text(c: Vector2, rad: float, text: String, sz: int, col: Color, start: float) -> void:
+	var f: Font = Data.font_type_bold
+	var total := 0.0
+	for ch in text:
+		total += f.get_char_size(ch.unicode_at(0), sz).x
+	var spread := TAU / maxf(total, 1.0) * rad
+	var ang := start
+	for ch in text:
+		var w := f.get_char_size(ch.unicode_at(0), sz).x * spread
+		var a := ang + w * 0.5 / rad
+		draw_set_transform(c + Vector2(cos(a), sin(a)) * rad, a + PI * 0.5, Vector2(spread, 1.0))
+		draw_char(f, Vector2(-w * 0.5 / spread, sz * 0.35), ch, sz, col)
+		ang += w / rad
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Each power's mark, as printed on its paperwork.
+func _emblem(c: Vector2, id: String) -> void:
+	var ink := Color(UIStyle.INK_TYPE, 0.85)
+	draw_arc(c, 34.0, 0, TAU, 48, ink, 2.0, true)
+	draw_arc(c, 29.0, 0, TAU, 48, Color(ink, 0.5), 1.0, true)
+	match id:
+		"charter":
+			var w := Data.font_stamp.get_string_size("CC", HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
+			draw_string(Data.font_stamp, c + Vector2(-w * 0.5, 9), "CC", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UIStyle.INK_STAMP)
+		"federation":
+			for i in 3:
+				var y := c.y - 10 + i * 9
+				draw_polyline(PackedVector2Array([Vector2(c.x - 15, y), Vector2(c.x, y + 8), Vector2(c.x + 15, y)]), UIStyle.INK_PEN, 3.0, true)
+		"grind":
+			for i in 4:
+				draw_line(c + Vector2(-12 + i * 7, -13), c + Vector2(-11 + i * 7, 13), ink, 2.2)
+			draw_line(c + Vector2(-17, 9), c + Vector2(17, -8), ink, 2.2)
+		"dynasty":
+			draw_arc(c + Vector2(0, 6), 14.0, PI, TAU, 20, ink, 2.4, true)
+			draw_line(c + Vector2(-14, 6), c + Vector2(-14, 16), ink, 2.4)
+			draw_line(c + Vector2(14, 6), c + Vector2(14, 16), ink, 2.4)
+			for i in 8:
+				var a := TAU * i / 8.0
+				draw_line(c + Vector2(0, -2), c + Vector2(0, -2) + Vector2(cos(a), sin(a)) * 6.0, ink, 1.5)
+		"league":
+			draw_line(c + Vector2(0, -15), c + Vector2(0, 14), ink, 2.0)
+			draw_line(c + Vector2(-16, -9), c + Vector2(16, -9), ink, 2.0)
+			draw_arc(c + Vector2(-12, 0), 6.0, 0, PI, 12, ink, 1.8, true)
+			draw_arc(c + Vector2(12, 0), 6.0, 0, PI, 12, ink, 1.8, true)
+			draw_line(c + Vector2(-8, 14), c + Vector2(8, 14), ink, 2.0)
+		_:
+			draw_string(Data.font_type_bold, c + Vector2(-5, 7), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, ink)
+
+
+## A wire paperclip holding a photo to the page.
+func _paperclip(at: Vector2) -> void:
+	var col := Color(0.55, 0.58, 0.62)
+	# Straights and round ends, like bent wire.
+	var pts := PackedVector2Array([at + Vector2(4, 30), at + Vector2(4, 4)])
+	_arc_into(pts, at + Vector2(9, 4), 5.0, PI, TAU)
+	pts.append(at + Vector2(14, 44))
+	_arc_into(pts, at + Vector2(7, 44), 7.0, 0.0, PI)
+	pts.append(at + Vector2(0, 0))
+	_arc_into(pts, at + Vector2(9, 0), 9.0, PI, TAU)
+	pts.append(at + Vector2(18, 38))
+	draw_polyline(pts, Color(0, 0, 0, 0.25), 3.4, true)
+	draw_polyline(pts, col, 2.2, true)
+	draw_polyline(pts, Color(1, 1, 1, 0.35), 0.8, true)
+
+
+func _arc_into(pts: PackedVector2Array, c: Vector2, r: float, a0: float, a1: float) -> void:
+	for i in 9:
+		var a := lerpf(a0, a1, i / 8.0)
+		pts.append(c + Vector2(cos(a), sin(a)) * r)
+
+
+## A highlighter stroke behind a line of type.
+func _highlighter(at: Vector2, w: float, sd: int) -> void:
+	var pts := PackedVector2Array()
+	var h := 15.0
+	for i in 7:
+		pts.append(at + Vector2(w * i / 6.0, -h * 0.5 + sin(i * 2.1 + sd) * 1.2))
+	for i in range(6, -1, -1):
+		pts.append(at + Vector2(w * i / 6.0 + 2.0, h * 0.5 + sin(i * 1.3 + sd) * 1.2))
+	draw_colored_polygon(pts, HIGHLIGHT)
+
+
+func _pen_underline(at: Vector2, w: float, sd: int) -> void:
+	var pts := PackedVector2Array()
+	for i in 9:
+		var t := float(i) / 8.0
+		pts.append(at + Vector2(w * t, sin(t * 6.0 + sd) * 1.2 + t * 1.5))
+	draw_polyline(pts, UIStyle.INK_PEN, 1.6, true)
+
+
+## Dotted ledger leader from a label to its figure.
+func _leader(from: Vector2, to_x: float) -> void:
+	var x := from.x + 4.0
+	while x < to_x:
+		draw_rect(Rect2(Vector2(x, from.y - 2), Vector2(1.5, 1.5)), Color(UIStyle.INK_TYPE, 0.4))
+		x += 6.0
+
+
+func _dashed_rect(r: Rect2, col: Color) -> void:
+	for side in [[r.position, Vector2(r.end.x, r.position.y)], [Vector2(r.end.x, r.position.y), r.end], [r.end, Vector2(r.position.x, r.end.y)], [Vector2(r.position.x, r.end.y), r.position]]:
+		var a: Vector2 = side[0]
+		var d: Vector2 = side[1] - a
+		var n := maxi(2, int(d.length() / 7.0))
+		for i in n:
+			if i % 2 == 0:
+				draw_line(a + d * (float(i) / n), a + d * (float(i + 1) / n), col, 1.0)
+
+
+## The bookmark ribbon, tucked in and hanging out of the bottom.
+func _ribbon(top: Vector2, bottom: float) -> void:
+	var w := 16.0
+	var col := Color(0.55, 0.1, 0.12)
+	var sway := 6.0
+	var pts := PackedVector2Array([top + Vector2(-w * 0.5, 0), top + Vector2(w * 0.5, 0),
+			Vector2(top.x + w * 0.5 + sway, bottom), Vector2(top.x + sway, bottom - 9), Vector2(top.x - w * 0.5 + sway, bottom)])
+	draw_colored_polygon(pts, col)
+	draw_line(top + Vector2(-w * 0.5 + 3, 0), Vector2(top.x - w * 0.5 + 3 + sway, bottom - 4), Color(1, 1, 1, 0.12), 2.0)
+	draw_line(top + Vector2(w * 0.5 - 2, 0), Vector2(top.x + w * 0.5 - 2 + sway, bottom - 2), Color(0, 0, 0, 0.25), 1.5)
+	draw_rect(Rect2(top + Vector2(-w * 0.5, 0), Vector2(w, 6)), Color(0, 0, 0, 0.25))
 
 
 func _num(n: int) -> String:
