@@ -286,8 +286,11 @@ func _net() -> Array:
 	links.append([-1, f1, "trunk"])
 	# Back roads that skip the Crossroads, if you believe the stories.
 	links.append([rem[3], cap + 1, "local"])
-	links.append([f3, cap + 3, "rumor"])
-	links.append([fp[3], f1, "rumor"])
+	# The Dynasty's south and the Faithful are bound up together, and the
+	# Faithful's shrines open onto the Free Ports. (Vishnu's sketch, 2026-11-22.)
+	for l in [[cap + 8, f1], [f1, fp[3]], [f1, cap + 5], [f1, cap + 4], [cap + 5, cap + 4],
+			[cap + 4, cap + 3], [cap + 3, f3], [cap + 2, f3]]:
+		links.append([l[0], l[1], "local"])
 	_net_cache = [nodes, links]
 	return _net_cache
 
