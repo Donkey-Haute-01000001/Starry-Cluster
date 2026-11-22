@@ -23,7 +23,7 @@ const RUMORS := [
 	[Vector2(0.6, 0.075), "League lanes", "merchant houses. tolls on everything"],
 	[Vector2(0.82, 0.2), "Remnant holdout?", "old empire colors, they say"],
 	[Vector2(0.855, 0.405), "Dynasty heartland", "warlords. don't go."],
-	[Vector2(0.57, 0.86), "Free Ports", "pirate country"],
+	[Vector2(0.575, 0.795), "Free Ports", "pirate country"],
 	[Vector2(0.84, 0.84), "the Faithful", "camped at the dead rifts"],
 ]
 ## Where the Crossroads' lanes run off into the fog.
@@ -244,9 +244,8 @@ func _net() -> Array:
 		var i: int = add.call(Vector2(0.87, 0.62) + Vector2(cos(ang) * 0.075, sin(ang) * 0.13), 3)
 		links.append([cap, i, "spoke"])
 	links.append([-1, cap, "road"])
-	# Two Dynasty forts guarding the Crossroads.
-	for v in [Vector2(0.6, 0.37), Vector2(0.63, 0.66)]:
-		links.append([-1, add.call(v, 2), "spoke"])
+	# A Dynasty fort guarding the Crossroads.
+	links.append([-1, add.call(Vector2(0.6, 0.37), 2), "spoke"])
 	# League: one long line of lane stations.
 	var prev := -1
 	for k in 6:
@@ -279,7 +278,6 @@ func _net() -> Array:
 	var f1: int = add.call(Vector2(0.76, 0.75), 7, "shrine")
 	var f2: int = add.call(Vector2(0.95, 0.91), 7, "shrine")
 	var f3: int = add.call(Vector2(0.95, 0.76), 7, "shrine")
-	links.append([f1, f3, "local"])
 	links.append([f3, f2, "local"])
 	links.append([f2, Vector2(0.9, 0.96), "dead"])
 	links.append([f3, Vector2(0.985, 0.62), "dead"])
@@ -288,7 +286,7 @@ func _net() -> Array:
 	links.append([rem[3], cap + 1, "local"])
 	# The Dynasty's south and the Faithful are bound up together, and the
 	# Faithful's shrines open onto the Free Ports. (Vishnu's sketch, 2026-11-22.)
-	for l in [[cap + 8, f1], [f1, fp[3]], [f1, cap + 5], [f1, cap + 4], [cap + 5, cap + 4],
+	for l in [[fp[1], fp[3]], [cap + 6, cap + 1], [fp[2], f1], [f1, fp[3]], [f1, cap + 5], [f1, cap + 4], [cap + 5, cap + 4],
 			[cap + 4, cap + 3], [cap + 3, f3], [cap + 2, f3]]:
 		links.append([l[0], l[1], "local"])
 	_net_cache = [nodes, links]
