@@ -17,6 +17,12 @@ uniform float rule_top = 0.0;
 uniform float margin = 0.0;      // red margin line x (px), 0 = none
 uniform float fog_from = 0.0;    // pencil-rubbed fog right of this x (px), 0 = none
 uniform float fade = 1.0;
+// Territory washes: watercolor ellipses. reg = centre xy, radii zw (px);
+// regc = tint rgb, strength a. reg_hi = hovered region (-1 none).
+uniform int reg_n = 0;
+uniform vec4 reg[10];
+uniform vec4 regc[10];
+uniform int reg_hi = -1;
 
 varying vec2 lp;
 
@@ -100,6 +106,18 @@ vec3 paper(vec2 p, vec2 uv) {
 		float ringv = exp(-pow((d - ring.z) / 1.8, 2.0)) * br;
 		float pool = (1.0 - smoothstep(ring.z - 6.0, ring.z, d)) * 0.25 * fbm(p / 18.0);
 		col = mix(col, col * vec3(0.72, 0.55, 0.38), clamp(ringv * 0.6 + pool, 0.0, 1.0) * wear);
+	}
+	// Territory: a watercolor wash per power, pigment pooled at the rim.
+	for (int i = 0; i < 10; i++) {
+		if (i >= reg_n) break;
+		vec2 q = (p - reg[i].xy) / reg[i].zw;
+		float d = length(q) + (fbm(p / 45.0 + float(i) * 7.3) - 0.5) * 0.32;
+		float inside = 1.0 - smoothstep(0.9, 1.0, d);
+		float rim = exp(-pow((d - 0.96) / 0.035, 2.0));
+		float k = regc[i].a * (i == reg_hi ? 1.8 : 0.6);
+		float bloom = 0.85 + 0.3 * fbm(p / 22.0 + float(i));
+		vec3 tinted = col * mix(vec3(1.0), regc[i].rgb, clamp((inside * 0.55 * bloom + rim * 0.5) * k, 0.0, 1.0));
+		col = tinted;
 	}
 	col = creases(col, uv.x, folds.x, size.x);
 	col = creases(col, uv.y, folds.y, size.y);

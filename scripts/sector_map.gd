@@ -43,6 +43,19 @@ const PEN_NOTES := [
 	[Vector2(0.035, 0.955), "never been. not on this lien", 2.0, "", "fed"],
 ]
 
+## Who holds what, as best the Charter knows: [centre, radii (chart 0..1), tint,
+## strength, name, holder, note]. Faint washes; the hovered one deepens.
+const REGIONS := [
+	[Vector2(0.19, 0.5), Vector2(0.175, 0.46), Color(0.55, 0.7, 0.95), 0.5, "Federation pocket", "The Federation", "Hesper March and the interior, behind the Wall. Navy patrols, Charter routes."],
+	[Vector2(0.205, 0.27), Vector2(0.06, 0.12), Color(0.95, 0.55, 0.42), 0.55, "The Grind", "Contested  ·  pirate clans", "Marcellus belt. Federation on paper; the rocks belong to whoever's armed."],
+	[Vector2(0.52, 0.5), Vector2(0.075, 0.17), Color(0.92, 0.5, 0.48), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls."],
+	[Vector2(0.86, 0.5), Vector2(0.11, 0.18), Color(0.92, 0.5, 0.48), 0.4, "Dynasty heartland", "The Dynasty  ·  rumor", "Warlord country on the far side. Nobody you know has been."],
+	[Vector2(0.6, 0.15), Vector2(0.15, 0.12), Color(0.58, 0.85, 0.6), 0.4, "League lanes", "The Merchant League  ·  rumor", "Merchant houses on the lane stations. Tolls on everything, they say."],
+	[Vector2(0.82, 0.22), Vector2(0.1, 0.13), Color(0.75, 0.62, 0.9), 0.4, "Remnant holdout", "Imperial Remnant  ·  rumor", "Old empire colors, still flying. If it's true."],
+	[Vector2(0.58, 0.84), Vector2(0.14, 0.12), Color(0.95, 0.78, 0.45), 0.4, "Free Ports", "Nobody  ·  pirate country", "Free stations, free trade, free fire."],
+	[Vector2(0.86, 0.84), Vector2(0.1, 0.12), Color(0.72, 0.7, 0.68), 0.45, "The dead rifts", "The Faithful  ·  rumor", "Zealots camped where the outbound rifts went dark, waiting."],
+]
+
 var _sheet: PaperSheet
 var _dim: Control
 var _title_font: FontVariation
@@ -147,6 +160,15 @@ func _process(delta: float) -> void:
 	var c := _chart_rect()
 	_sheet.param("fog_from", c.position.x - pr.position.x + c.size.x * 0.4)
 	_sheet.param("ring", Vector3(pr.size.x * 0.035, pr.size.y * 0.965, 54.0))
+	var rg: Array = []
+	var rc: Array = []
+	for r in REGIONS:
+		rg.append(Vector4(c.position.x - pr.position.x + r[0].x * c.size.x, c.position.y - pr.position.y + r[0].y * c.size.y, r[1].x * c.size.x, r[1].y * c.size.y))
+		rc.append(Vector4(r[2].r, r[2].g, r[2].b, r[3]))
+	_sheet.param("reg_n", REGIONS.size())
+	_sheet.param("reg", rg)
+	_sheet.param("regc", rc)
+	_sheet.param("reg_hi", _region_of(_hover))
 	queue_redraw()
 
 
@@ -182,7 +204,28 @@ func _system_at(p: Vector2) -> String:
 	for i in RUMORS.size():
 		if _at(RUMORS[i][0]).distance_to(p) < 70.0:
 			return "rumor_%d" % i
-	return ""
+	# Smallest region under the cursor wins (the Grind sits inside the pocket).
+	var c := _chart_rect()
+	var best := -1
+	var best_a := INF
+	for i in REGIONS.size():
+		var q: Vector2 = (p - _at(REGIONS[i][0])) / (REGIONS[i][1] * c.size)
+		var a: float = REGIONS[i][1].x * REGIONS[i][1].y
+		if q.length() < 0.95 and a < best_a:
+			best = i
+			best_a = a
+	return "region_%d" % best if best >= 0 else ""
+
+
+## Which territory a hover target sits in, for the wash highlight.
+const _HOVER_REGION := {"marcellus": 1, "crossroads": 2, "aurelia": 0, "tiberine": 0, "porta_aquila": 0,
+		"rumor_0": 4, "rumor_1": 5, "rumor_2": 3, "rumor_3": 6, "rumor_4": 7}
+
+
+func _region_of(h: String) -> int:
+	if h.begins_with("region_"):
+		return int(h.substr(7))
+	return int(_HOVER_REGION.get(h, -1))
 
 
 func _all_systems() -> Dictionary:
@@ -431,13 +474,21 @@ func _draw() -> void:
 	var fy := c.end.y + 30.0
 	var fx := pr.position.x + 44.0
 	var fw := pr.size.x * 0.5
-	if _hover.begins_with("rumor_"):
-		var rm2: Array = RUMORS[int(_hover.substr(6))]
-		draw_string(tb, Vector2(fx, fy), str(rm2[1]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
-		draw_string(tr, Vector2(fx, fy + 18), "Rumor only. Nobody you know has flown it.", HORIZONTAL_ALIGNMENT_LEFT, fw, 12, faded)
+	var ri := _region_of(_hover)
+	if _hover.begins_with("region_") or _hover.begins_with("rumor_"):
+		var rgn: Array = REGIONS[ri]
+		draw_rect(Rect2(Vector2(fx, fy - 11), Vector2(12, 12)), Color(rgn[2], 0.85))
+		draw_string(tb, Vector2(fx + 20, fy), str(rgn[4]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
+		var nw2 := tb.get_string_size(str(rgn[4]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		draw_string(tr, Vector2(fx + 34 + nw2, fy), "held by  " + str(rgn[5]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_STAMP if "rumor" in str(rgn[5]) else UIStyle.INK_PEN)
+		draw_string(tr, Vector2(fx, fy + 18), str(rgn[6]), HORIZONTAL_ALIGNMENT_LEFT, fw, 12, faded)
 	elif _hover != "" and systems.has(_hover):
 		var sd2: Dictionary = systems[_hover]
 		draw_string(tb, Vector2(fx, fy), str(sd2.get("name", _hover)).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
+		if ri >= 0:
+			var sn := tb.get_string_size(str(sd2.get("name", _hover)).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+			draw_rect(Rect2(Vector2(fx + sn + 14, fy - 11), Vector2(12, 12)), Color(REGIONS[ri][2], 0.85))
+			draw_string(tr, Vector2(fx + sn + 32, fy), "held by  " + str(REGIONS[ri][5]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_PEN)
 		var desc: String = sd2.get("desc", "")
 		if _hover == "crossroads":
 			desc = "The cork in the bottle. Past the Wall, every lane in the cluster runs through it. Charter papers required."
