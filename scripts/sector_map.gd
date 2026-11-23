@@ -34,12 +34,14 @@ const GRAPHITE := Color(0.36, 0.35, 0.34)
 ## Pen notes you've made on the chart: [where, text, tilt (deg), flag or "", key].
 ## The chart is yours; it fills in as the story does. DRAFT lines.
 const PEN_NOTES := [
-	[Vector2(0.262, 0.695), "40,000 cr to get past the Wall", -1.5, "", "wall"],
-	[Vector2(0.455, 0.355), "papers. PAPERS.", -5.0, "", "papers"],
-	[Vector2(0.245, 0.215), "his count. jump exit.", 3.0, "tally_hailed", "tally"],
-	[Vector2(0.012, 0.3), "Mud Lark. 4,500 alive", -2.0, "bounty_taken", "lark"],
-	[Vector2(0.425, 0.952), "%s says his grandad flew one of these", -1.5, "friend", "rift"],
-	[Vector2(0.035, 0.955), "never been. not on this lien", 2.0, "", "fed"],
+	# [note at (chart 0..1), text, tilt, flag or "", key, anchor]. The anchor is
+	# what the note is about: a system id, "wall", or a chart point.
+	[Vector2(0.262, 0.695), "40,000 cr to get past the Wall", -1.5, "", "wall", "wall"],
+	[Vector2(0.44, 0.35), "papers. PAPERS.", -2.5, "", "papers", Vector2(0.415, 0.5)],
+	[Vector2(0.255, 0.2), "his count. jump exit.", 1.5, "tally_hailed", "tally", "marcellus"],
+	[Vector2(0.128, 0.515), "Mud Lark. 4,500 alive", -1.5, "bounty_taken", "lark", "ambers"],
+	[Vector2(0.44, 0.925), "%s says his grandad flew one of these", -1.5, "friend", "rift", Vector2(0.4, 0.97)],
+	[Vector2(0.035, 0.955), "never been. not on this lien", 1.5, "", "fed", Vector2(0.12, 0.88)],
 ]
 
 ## Who holds what, as best the Charter knows: [centre, radii (chart 0..1), tint,
@@ -534,7 +536,7 @@ func _draw() -> void:
 	var csw := tr.get_string_size(cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
 	draw_string(tr, cx + Vector2(-csw * 0.5, 74), cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
 
-	# --- Your own pen ----------------------------------------------------------------------
+	# --- Your own pen: callouts, each ringed and led to what it's about ---------------
 	for i in PEN_NOTES.size():
 		var pn: Array = PEN_NOTES[i]
 		var cond: String = pn[3]
@@ -552,16 +554,7 @@ func _draw() -> void:
 		var k3 := _ink(1.0 + i * 0.12)
 		if k3 <= 0.0:
 			continue
-		var at := _at(pn[0])
-		draw_set_transform(at, deg_to_rad(pn[2]), Vector2.ONE)
-		var nwid := hand.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
-		draw_string(hand, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, nwid * k3 + 1.0, 24, Color(UIStyle.INK_PEN, 0.92))
-		if pn[4] == "tally":
-			_tally(Vector2(nwid + 12, -16), 7, k3)
-		elif pn[4] == "papers":
-			_pen_underline(Vector2(68, 5), 72, k3, 5)
-			_pen_underline(Vector2(70, 9), 66, k3, 9)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		_callout(_at(pn[0]), text, pn[2], pn[5], k3, i, str(pn[4]))
 
 	# --- Footer: a typed slip, the legend, the fine print --------------------------------
 	var fy := c.end.y + 30.0
@@ -627,6 +620,65 @@ func _flag(k: String) -> bool:
 
 
 ## A system: a sun, its stations on a ring around it, a printed circle.
+## Where a note points, and how big a ring to draw round it.
+func _callout_target(anchor) -> Array:
+	if anchor is Vector2:
+		return [_at(anchor), Vector2(13, 13)]
+	match str(anchor):
+		"wall":
+			return [_sys_pos("porta_aquila") + Vector2(28, 0), Vector2(11, 26)]
+		"ambers":
+			# The Amber's line in Marcellus's station list.
+			return [_sys_pos("marcellus") + Vector2(0, 16.0 + 42.0 + 22.0), Vector2(34, 10)]
+	return [_sys_pos(str(anchor)), Vector2(27, 27)]
+
+
+## A pen callout: the note on a clean scrap of paper, a ring round its target,
+## and a bowed leader joining them. Everything draws in with `k`.
+func _callout(at: Vector2, text: String, tilt_deg: float, anchor, k: float, sd: int, key: String) -> void:
+	var hand: Font = Data.font_hand
+	var pen := UIStyle.INK_PEN
+	var sz := 24
+	var w := hand.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
+	var tf := Transform2D(deg_to_rad(tilt_deg), at)
+	var tgt: Array = _callout_target(anchor)
+	var t: Vector2 = tgt[0]
+	var rr: Vector2 = tgt[1]
+	# Leave from whichever side of the note faces the target.
+	var best := Vector2.ZERO
+	var bd := INF
+	for lp in [Vector2(-8, -7), Vector2(w + 8, -7), Vector2(w * 0.5, -24), Vector2(w * 0.5, 8),
+			Vector2(w * 0.15, -24), Vector2(w * 0.85, -24), Vector2(w * 0.15, 8), Vector2(w * 0.85, 8)]:
+		var q: Vector2 = tf * lp
+		if q.distance_to(t) < bd:
+			bd = q.distance_to(t)
+			best = q
+	var dir := (best - t).normalized()
+	var ring_edge := t + Vector2(dir.x * rr.x, dir.y * rr.y).normalized() * Vector2(dir.x * rr.x, dir.y * rr.y).length() * 1.05
+	# Ring first, then the leader, then the note on its scrap.
+	_scribble_ring(t, rr, Color(pen, 0.85), 1.6, clampf(k * 1.6, 0.0, 1.0), sd * 7 + 3)
+	if k > 0.35:
+		var lk := clampf((k - 0.35) / 0.65, 0.0, 1.0)
+		var mid := (best + ring_edge) * 0.5 + (ring_edge - best).orthogonal().normalized() * minf(14.0, best.distance_to(ring_edge) * 0.15)
+		var pts := PackedVector2Array()
+		for j in 13:
+			var u := float(j) / 12.0 * lk
+			pts.append(best.lerp(mid, u).lerp(mid.lerp(ring_edge, u), u))
+		draw_polyline(pts, Color(pen, 0.8), 1.4, true)
+		draw_circle(best, 2.0, Color(pen, 0.85))
+	draw_set_transform_matrix(tf)
+	draw_rect(Rect2(Vector2(-6, -22), Vector2(w + 12, 30)), Color(UIStyle.PAPER, 0.86 * k))
+	draw_string(hand, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, w * k + 1.0, sz, Color(pen, 0.95))
+	if key == "tally":
+		_tally(Vector2(w + 14, -18), 7, k)
+	elif key == "papers":
+		var pw := hand.get_string_size("papers. ", HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
+		var pw2 := hand.get_string_size("PAPERS.", HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
+		_pen_underline(Vector2(pw, 5), pw2, k, 5)
+		_pen_underline(Vector2(pw + 2, 9), pw2 - 4, k, 9)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
 ## A rumored system, drawn in the mark its power would use.
 func _net_glyph(q: Vector2, kind: String, hi: bool) -> void:
 	var col := Color(GRAPHITE, 1.0 if hi else 0.78)
