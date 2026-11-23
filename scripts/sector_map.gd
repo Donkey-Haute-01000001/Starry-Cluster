@@ -6,6 +6,8 @@ extends Control
 var main: Node
 var _was_paused := false
 var _hover := ""
+var _note_hover := -1
+var _note_t := 0.0
 var _t := 0.0
 
 ## Where each charted system sits (0..1 of the chart area).
@@ -31,17 +33,16 @@ const DEAD_RIFTS := [Vector2(0.97, 0.12), Vector2(0.985, 0.62), Vector2(0.9, 0.9
 const GRAPHITE := Color(0.36, 0.35, 0.34)
 
 
-## Pen notes you've made on the chart: [where, text, tilt (deg), flag or "", key].
-## The chart is yours; it fills in as the story does. DRAFT lines.
+## Pen notes you've made on the chart. Hidden until you hover the pen tick by
+## what they're about; the chart stays clean. DRAFT lines.
 const PEN_NOTES := [
 	# [note at (chart 0..1), text, tilt, flag or "", key, anchor]. The anchor is
 	# what the note is about: a system id, "wall", or a chart point.
-	[Vector2(0.262, 0.695), "40,000 cr to get past the Wall", -1.5, "", "wall", "wall"],
-	[Vector2(0.44, 0.35), "papers. PAPERS.", -2.5, "", "papers", Vector2(0.415, 0.5)],
-	[Vector2(0.255, 0.2), "his count. jump exit.", 1.5, "tally_hailed", "tally", "marcellus"],
-	[Vector2(0.128, 0.515), "Mud Lark. 4,500 alive", -1.5, "bounty_taken", "lark", "ambers"],
-	[Vector2(0.44, 0.925), "%s says his grandad flew one of these", -1.5, "friend", "rift", Vector2(0.4, 0.97)],
-	[Vector2(0.035, 0.955), "never been. not on this lien", 1.5, "", "fed", Vector2(0.12, 0.88)],
+	[Vector2(0.262, 0.695), "No papers till the 40,000 cr loan is paid", -1.5, "", "wall", "wall"],
+	[Vector2(0.44, 0.35), "Papers only past here. Navy turns back the rest.", -2.5, "", "papers", Vector2(0.455, 0.5)],
+	[Vector2(0.255, 0.2), "Tallyman hits Charter rigs at the jump exit", 1.5, "tally_hailed", "tally", "marcellus"],
+	[Vector2(0.128, 0.515), "Mud Lark, near Amber's. 3,000 dead, 4,500 alive", -1.5, "bounty_taken", "lark", "ambers"],
+	[Vector2(0.44, 0.925), "Dead rift. %s's grandad flew it before the Severance", -1.5, "friend", "rift", Vector2(0.4, 0.97)],
 ]
 
 ## Who holds what, as best the Charter knows: [centre, radii (chart 0..1), tint,
@@ -141,6 +142,10 @@ func _gui_input(event: InputEvent) -> void:
 		if h != _hover:
 			_hover = h
 			queue_redraw()
+		var nh := _note_at(event.position)
+		if nh != _note_hover:
+			_note_hover = nh
+			_note_t = 0.0
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		close()
 
@@ -149,6 +154,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_t += delta
+	_note_t += delta
 	# The sheet comes up off the desk and settles.
 	var k := 1.0 - pow(1.0 - clampf(_t / 0.38, 0.0, 1.0), 3.0)
 	pivot_offset = size * 0.5
@@ -536,25 +542,23 @@ func _draw() -> void:
 	var csw := tr.get_string_size(cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
 	draw_string(tr, cx + Vector2(-csw * 0.5, 74), cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
 
-	# --- Your own pen: callouts, each ringed and led to what it's about ---------------
-	for i in PEN_NOTES.size():
+	# --- Your own pen: a tick by each thing you've noted; hover it to read -------------
+	var ka := _ink(1.0)
+	for n in _notes():
+		var i: int = n[0]
 		var pn: Array = PEN_NOTES[i]
-		var cond: String = pn[3]
-		var text: String = pn[1]
-		if cond == "friend":
-			if not Career.friend.get("met", false):
-				continue
-			text = text % str(Career.friend.get("name", "Dez"))
-		elif cond != "" and not _flag(cond):
-			continue
-		if pn[4] == "lark" and _flag("bounty_paid"):
-			text = "Mud Lark. done."
-		if pn[4] == "wall" and Career.loan_balance <= 0:
-			text = "paid. PAID."
-		var k3 := _ink(1.0 + i * 0.12)
-		if k3 <= 0.0:
-			continue
-		_callout(_at(pn[0]), text, pn[2], pn[5], k3, i, str(pn[4]))
+		if i == _note_hover:
+			# The note opens beside its tick, like a scrap tucked under the chart's edge.
+			var tq := _note_tick(i)
+			var nw := Data.font_hand.get_string_size(n[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+			var at := tq + Vector2(18, -14)
+			if at.x + nw + 30.0 > c.end.x:
+				at.x = tq.x - 18.0 - nw
+			if at.y - 30.0 < c.position.y:
+				at.y = tq.y + 34.0
+			_callout(at, n[1], pn[2], pn[5], clampf(_note_t / 0.3, 0.0, 1.0), i, str(pn[4]))
+		elif ka > 0.0:
+			_pen_tick(_note_tick(i), ka)
 
 	# --- Footer: a typed slip, the legend, the fine print --------------------------------
 	var fy := c.end.y + 30.0
@@ -615,6 +619,56 @@ func _draw() -> void:
 	_tape(pr.end - Vector2(20, 12), -0.68)
 
 
+## The notes you've earned: [index, text].
+func _notes() -> Array:
+	var out: Array = []
+	for i in PEN_NOTES.size():
+		var pn: Array = PEN_NOTES[i]
+		var cond: String = pn[3]
+		var text: String = pn[1]
+		if cond == "friend":
+			if not Career.friend.get("met", false):
+				continue
+			text = text % str(Career.friend.get("name", "Dez"))
+		elif cond != "" and not _flag(cond):
+			continue
+		if pn[4] == "lark" and _flag("bounty_paid"):
+			text = "Mud Lark: bounty paid"
+		if pn[4] == "wall" and Career.loan_balance <= 0:
+			text = "Loan paid. Papers stamped."
+		out.append([i, text])
+	return out
+
+
+## Where a note's pen tick sits: just off the top right of its target.
+func _note_tick(i: int) -> Vector2:
+	var tgt: Array = _callout_target(PEN_NOTES[i][5])
+	if str(PEN_NOTES[i][5]) == "ambers":
+		return tgt[0] + Vector2(72, 0)
+	return tgt[0] + Vector2(tgt[1].x * 0.8 + 7.0, -tgt[1].y * 0.8 - 7.0)
+
+
+func _note_at(p: Vector2) -> int:
+	if not visible:
+		return -1
+	for n in _notes():
+		var i: int = n[0]
+		var tgt: Array = _callout_target(PEN_NOTES[i][5])
+		if p.distance_to(_note_tick(i)) < 16.0 or ((p - tgt[0]) / (tgt[1] + Vector2(6, 6))).length() < 1.0:
+			return i
+	return -1
+
+
+## A small pen asterisk: "I wrote something about this."
+func _pen_tick(q: Vector2, k: float) -> void:
+	var col := Color(UIStyle.INK_PEN, 0.85 * k)
+	draw_circle(q, 8.5, Color(UIStyle.PAPER, 0.7 * k))
+	for j in 3:
+		var a := 0.3 + j * PI / 3.0
+		var d := Vector2(cos(a), sin(a)) * 5.5
+		draw_line(q - d, q + d, col, 1.6, true)
+
+
 func _flag(k: String) -> bool:
 	return bool(Career.flags.get(k, false))
 
@@ -667,15 +721,11 @@ func _callout(at: Vector2, text: String, tilt_deg: float, anchor, k: float, sd: 
 		draw_polyline(pts, Color(pen, 0.8), 1.4, true)
 		draw_circle(best, 2.0, Color(pen, 0.85))
 	draw_set_transform_matrix(tf)
-	draw_rect(Rect2(Vector2(-6, -22), Vector2(w + 12, 30)), Color(UIStyle.PAPER, 0.86 * k))
+	draw_rect(Rect2(Vector2(-2, -18), Vector2(w + 12, 30)), Color(0, 0, 0, 0.18 * k))
+	draw_rect(Rect2(Vector2(-6, -22), Vector2(w + 12, 30)), Color(UIStyle.PAPER, 0.97 * k))
 	draw_string(hand, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, w * k + 1.0, sz, Color(pen, 0.95))
 	if key == "tally":
 		_tally(Vector2(w + 14, -18), 7, k)
-	elif key == "papers":
-		var pw := hand.get_string_size("papers. ", HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
-		var pw2 := hand.get_string_size("PAPERS.", HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
-		_pen_underline(Vector2(pw, 5), pw2, k, 5)
-		_pen_underline(Vector2(pw + 2, 9), pw2 - 4, k, 9)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
