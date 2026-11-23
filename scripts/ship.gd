@@ -43,11 +43,9 @@ var hull_floor := 0.0         ## story ships: hull never drops below this fracti
 var hold_fire := false        ## story: guns cold (ceasefire, hails)
 var damage_taken := 0.0       ## running total, for scenes that score a fight
 var assist := false           ## flight assist: thrusters damp drift you aren't asking for
-var cruise_on := false        ## cruise drive wanted: spools up, weapons offline
-var cruise_k := 0.0           ## 0..1 spool
-var cruise_cap := 1400.0      ## top cruise speed here, set by main from nearby mass
-const CRUISE_SPOOL := 2.0
-const CRUISE_DROP := 0.7
+var info := {}                ## traffic: group, owner, job, cargo
+var last_hit_team := -1       ## who fired the round that's landing now
+var player_damage := 0.0      ## damage taken from you and your fleet
 var disabled := false         ## dead in space below DISABLE_AT hull: drifts, can't fire, can be boarded
 const DISABLE_AT := 0.15
 
@@ -159,9 +157,6 @@ func _physics_process(delta: float) -> void:
 	_anim_t += delta
 	_fired_t += delta
 
-	if cruise_on and (disabled or ion_t > 0.0):
-		cruise_on = false
-	cruise_k = move_toward(cruise_k, 1.0 if cruise_on else 0.0, delta / (CRUISE_SPOOL if cruise_on else CRUISE_DROP))
 	energy = minf(max_energy, energy + energy_regen * delta)
 	var turn := turn_rate * (0.3 if ion_t > 0.0 else 1.0)
 	rotation = wrapf(rotation + clampf(in_turn, -1.0, 1.0) * turn * delta, -PI, PI)
@@ -214,7 +209,6 @@ func _apply_thrust(delta: float) -> void:
 		if cmd.x == 0.0:
 			cmd.x = clampf(lv.x / maxf(cx * delta, 0.001), -1.0, 1.0) * 0.45
 	var a := Vector2(cmd.x * (accel if cmd.x > 0.0 else reverse_accel), cmd.y * side_accel)
-	a *= 1.0 + 4.0 * cruise_k
 	# Thrusters draw on the reactor. On an empty bar they still fire at half power.
 	var draw := (absf(a.x) + absf(a.y)) / accel * THRUST_ENERGY * delta
 	var power := 1.0
@@ -226,7 +220,7 @@ func _apply_thrust(delta: float) -> void:
 			energy = 0.0
 	velocity += a.rotated(rotation) * power * delta
 	# Hard top speed: thrust past it only changes direction, never adds speed.
-	velocity = velocity.limit_length(lerpf(max_speed, maxf(cruise_cap, max_speed), cruise_k))
+	velocity = velocity.limit_length(max_speed)
 	thrust_out = thrust_out.lerp(cmd * power, clampf(12.0 * delta, 0.0, 1.0))
 
 
@@ -243,7 +237,7 @@ func _update_weapons(delta: float) -> void:
 			var g := deg_to_rad(w["gimbal"])
 			m["angle"] = rotate_toward(m["angle"], clampf(desired_local, -g, g), deg_to_rad(240.0) * delta)
 			firing = in_fire_fixed
-		if not firing or hold_fire or cruise_k > 0.0 or m["cooldown"] > 0.0:
+		if not firing or hold_fire or m["cooldown"] > 0.0:
 			continue
 		# The AI only fires a mount when it is actually lined up and in range.
 		if not is_player:
@@ -275,7 +269,7 @@ func _update_weapons(delta: float) -> void:
 func _update_secondary(delta: float) -> void:
 	for sec in secondaries:
 		sec["cooldown"] -= delta
-	if secondaries.is_empty() or not in_fire_secondary or hold_fire or cruise_k > 0.0:
+	if secondaries.is_empty() or not in_fire_secondary or hold_fire:
 		return
 	var sec: Dictionary = secondaries[sec_index]
 	var w: Dictionary = sec["weapon"]
@@ -309,6 +303,9 @@ func restock() -> void:
 
 
 func take_damage(amount: float, hit_pos: Vector2) -> void:
+	if last_hit_team == 0:
+		player_damage += amount
+	last_hit_team = -1
 	if not alive:
 		return
 	since_hit = 0.0
@@ -343,7 +340,7 @@ func _disable() -> void:
 	main.spawn_sparks(global_position, def["accent"], 14)
 	Sfx.play_at("disabled", global_position, -4.0)
 	# Cockpit readout: an enemy knocked out, distinct from the in-world thump.
-	if team != 0:
+	if team == 1:
 		Sfx.play("cue_disabled", -12.0)
 	disabled_now.emit(self)
 
@@ -362,9 +359,9 @@ func die() -> void:
 	main.spawn_explosion(global_position, radius, velocity)
 	Sfx.play_at("boom_big" if radius >= 26.0 else "boom_small", global_position, 0.0 if is_player else -2.0)
 	# Cockpit readout: confirm an enemy kill, warn when one of yours is lost.
-	if team != 0:
+	if team == 1:
 		Sfx.play("cue_kill", -10.0)
-	elif not is_player:
+	elif team == 0 and not is_player:
 		Sfx.play("cue_ally_lost", -6.0)
 	main._shake = maxf(main._shake, clampf(radius * 0.5, 4.0, 16.0))
 	# Void fleet ships break apart in their own frames.
@@ -439,7 +436,7 @@ func _draw_plume(k: float, accent: Color) -> void:
 		return
 	var tail_x := -radius * (1.05 if def.get("sprite", "") != "" or def.has("layered") else 0.0)
 	var flick := 0.85 + 0.3 * sin(_anim_t * 47.0) * sin(_anim_t * 13.0 + radius)
-	var boost := 1.0 + 0.8 * cruise_k
+	var boost := 1.0
 	for e in def["engines"]:
 		var ep: Vector2 = e
 		var o := Vector2(minf(ep.x, tail_x) if tail_x != 0.0 else ep.x, ep.y * (0.9 if tail_x != 0.0 else 1.0))

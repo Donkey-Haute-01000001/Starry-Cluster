@@ -17,6 +17,7 @@ const COL_SHIELD := Color(0.35, 0.7, 1.0)
 const COL_HULL := Color(0.95, 0.75, 0.3)
 const COL_ENEMY := Color(1.0, 0.4, 0.3)
 const COL_FRIEND := Color(0.4, 0.9, 1.0)
+const COL_NEUTRAL := Color(0.86, 0.84, 0.76)
 const COL_ENERGY := Color(0.75, 0.55, 1.0)
 
 
@@ -24,7 +25,7 @@ const COL_ENERGY := Color(0.75, 0.55, 1.0)
 ## Each shows once per career, when it's useful, and clears once you've done it.
 const TIPS := {
 	"fly": [["W", "thrust"], ["MOUSE", "steer"], ["X", "brake"]],
-	"travel": [["G", "autopilot to the job"], ["C", "cruise"], ["M", "chart"], ["J", "journal"]],
+	"travel": [["G", "autopilot to the job"], ["M", "chart"], ["J", "journal"]],
 	"guns": [["LMB", "turrets"], ["RMB", "ion / torpedo"], ["R", "swap"]],
 	"tactics": [["HOLD TAB", "fleet orders"]],
 }
@@ -75,7 +76,7 @@ func _tip_finished(p: Ship) -> bool:
 		"fly":
 			return _tip_moved > 900.0 or _tip_t > 25.0
 		"travel":
-			return main.autopilot_on() or p.cruise_on or _tip_t > 30.0
+			return main.autopilot_on() or _tip_t > 30.0
 		"guns":
 			return (_tip_t > 5.0 and (p.in_fire_aimed or p.in_fire_fixed)) or _tip_t > 16.0 or not main.in_combat
 		"tactics":
@@ -198,28 +199,6 @@ func _sp(s: String) -> String:
 	return " ".join(s.split(""))
 
 
-## Cruise streaks: thin lines sliding past along your heading.
-func _draw_streaks(vp: Vector2) -> void:
-	var p: Ship = main.player
-	if p == null or not is_instance_valid(p) or p.cruise_k <= 0.05:
-		return
-	var v := p.velocity
-	var spd := v.length()
-	if spd < 400.0:
-		return
-	var dir := -v / spd
-	var k := p.cruise_k * clampf((spd - 400.0) / 900.0, 0.0, 1.0)
-	var t := Time.get_ticks_msec() / 1000.0
-	for i in 46:
-		var h := float(i) * 12.9898
-		var bx := fposmod(sin(h) * 43758.5453, 1.0) * vp.x
-		var by := fposmod(sin(h + 1.7) * 24634.6345, 1.0) * vp.y
-		var travel := fposmod(t * spd * 0.9 + i * 137.0, vp.length())
-		var pt := Vector2(fposmod(bx + dir.x * travel, vp.x), fposmod(by + dir.y * travel, vp.y))
-		var ln := 40.0 + 120.0 * k
-		draw_line(pt, pt - dir * ln, Color(0.75, 0.88, 1.0, 0.22 * k), 1.5)
-
-
 ## Space dust: specks fixed in the world, so they slide past at your true speed
 ## (the starfield is far away and barely moves). Streaks stretch with speed.
 const DUST_CELL := 300.0
@@ -240,7 +219,7 @@ func _draw_dust(vp: Vector2) -> void:
 	if tail.length() > 70.0:
 		tail = tail.normalized() * 70.0
 	# Only shows when you move: at rest space is empty and still.
-	var fade := clampf((spd - 40.0) / 220.0, 0.0, 1.0) * (1.0 - 0.7 * p.cruise_k)
+	var fade := clampf((spd - 40.0) / 220.0, 0.0, 1.0)
 	if fade <= 0.01:
 		return
 	for cx in range(floori(a0.x / DUST_CELL) - 1, ceili(a1.x / DUST_CELL) + 1):
@@ -284,7 +263,6 @@ func _draw() -> void:
 	var vp := size
 	var t := Time.get_ticks_msec() / 1000.0
 	_draw_dust(vp)
-	_draw_streaks(vp)
 	_draw_vel_marker()
 
 	# During a hail the guns are cold: say so instead of the combat banner.
@@ -314,21 +292,26 @@ func _draw() -> void:
 		if ship == null or not ship.alive or ship == main.player:
 			continue
 		var sp := _to_screen(ship.global_position)
-		var col := COL_FRIEND if ship.team == 0 else COL_ENEMY
+		var col := COL_FRIEND if ship.team == 0 else (COL_NEUTRAL if ship.team == 2 else COL_ENEMY)
 		if ship.disabled:
 			col = Color(0.75, 0.75, 0.7)
+		var hov: bool = ship == main.ship_under_mouse() if main.merchant else false
 		var onscreen := Rect2(Vector2.ZERO, vp).grow(-10).has_point(sp)
 		if onscreen:
 			var r: float = ship.radius * main.camera.zoom.x + 8.0
-			_brackets(sp, r, Color(col.r, col.g, col.b, 0.55))
+			_brackets(sp, r, Color(col.r, col.g, col.b, 0.9 if hov else (0.3 if ship.team == 2 else 0.55)))
+			if hov or (ship.team == 2 and ship.controller is Traffic.Pilot and ship.controller.flee):
+				_ship_tag(sp + Vector2(r * 1.5 + 14, -r * 0.6), ship, hov)
 			var hw := roundf(r)
+			if ship.team == 2 and not hov and ship.hull_hp >= ship.max_hull:
+				continue
 			if ship.max_shields > 0:
 				_pips((sp + Vector2(-hw, r + 6)).round(), hw * 2.0, ship.shields / ship.max_shields, COL_SHIELD)
 			_pips((sp + Vector2(-hw, r + 11)).round(), hw * 2.0, ship.hull_hp / ship.max_hull, COL_HULL)
 			if ship.disabled:
 				var blink := 0.6 + 0.4 * sin(t * 6.0)
 				draw_string(Data.font_type_bold, (sp + Vector2(-hw, -r - 6)).round(), "DISABLED", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.95, 0.85, 0.5, blink))
-		elif ship.team != 0 and not ship.disabled:
+		elif ship.team == 1 and not ship.disabled:
 			var center := vp * 0.5
 			var dir := (sp - center).normalized()
 			var edge := center + dir * minf(absf((vp.x * 0.5 - 30) / dir.x) if dir.x != 0 else 1e9, absf((vp.y * 0.5 - 30) / dir.y) if dir.y != 0 else 1e9)
@@ -355,16 +338,17 @@ func _draw() -> void:
 		var sr := Rect2(base + Vector2(330, 11), Vector2(94, 22))
 		draw_rect(sr, Color(0.03, 0.02, 0.01))
 		draw_string(Data.font_type_bold, sr.position + Vector2(8, 16), spd, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1.0, 0.6, 0.2))
-		if p.cruise_k > 0.0 or p.cruise_on:
-			# Cruise: spool bar under the readout, and the drive state.
-			var full := p.cruise_k >= 1.0
-			var tag := "CRUISE" if full else ("SPOOL" if p.cruise_on else "DROP")
-			_text(base + Vector2(286, 27), tag, 12, Color(0.45, 0.85, 1.0) if full else UIStyle.GOLD, true, true)
-			draw_rect(Rect2(sr.position + Vector2(0, 24), Vector2(94 * p.cruise_k, 3)), Color(0.45, 0.85, 1.0))
+		if main.merchant and main.edge and (main.edge.outside or main.edge.reserve < 1.0):
+			# Reserve tank: only out past the beacons does it matter.
+			var ek: float = main.edge.reserve
+			var ec := UIStyle.GREEN if ek > 0.5 else (UIStyle.GOLD if ek > 0.25 else UIStyle.RED)
+			if ek <= 0.0:
+				ec = Color(UIStyle.RED, 0.5 + 0.5 * sin(t * 8.0))
+			draw_rect(Rect2(sr.position + Vector2(0, 25), Vector2(94, 4)), Color(0.05, 0.05, 0.05))
+			draw_rect(Rect2(sr.position + Vector2(0, 25), Vector2(94 * ek, 4)), ec)
+			_text(base + Vector2(286, 27), "DRY" if ek <= 0.0 else "RESERVE", 11, ec, true, true)
 		elif p.in_brake:
 			_text(base + Vector2(290, 27), "BRAKE", 12, UIStyle.GOLD, true, true)
-		elif main.merchant and not main.in_combat:
-			_text(base + Vector2(286, 27), "[C] CRUISE", 10, Color(UIStyle.TEXT_DIM.r, UIStyle.TEXT_DIM.g, UIStyle.TEXT_DIM.b, 0.8), true)
 		if not p.secondaries.is_empty():
 			# Secondary tab on top of the plate: what right click fires.
 			var sec: Dictionary = p.secondaries[p.sec_index]
@@ -438,7 +422,7 @@ func _draw() -> void:
 	if show_help:
 		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
 			"Mouse   aim turrets", "Left click   fire turrets", "Space / Enter   next comms line", "Right click   fire secondary", "R   swap secondary",
-			"C   cruise drive", "G   autopilot to the job", "Tab (hold)   tactics wheel", "T   attack target under cursor", "M   sector chart", "J   journal", "Wheel   zoom", "Esc   pause", "H   hide controls"]
+			"G   autopilot to the job", "Y   hail the ship under the cursor", "Tab (hold)   tactics wheel", "T   attack target under cursor", "M   sector chart", "J   journal", "Wheel   zoom", "Esc   pause", "H   hide controls"]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
 		UIStyle.draw_glass(self, hr, 1.0, 10.0)
 		_text(hr.position + Vector2(14, 24), _sp("CONTROLS"), 11, UIStyle.KICKER)
@@ -496,6 +480,17 @@ func _draw_radar(center: Vector2, r: float) -> void:
 		draw_line(center, center + Vector2.RIGHT.rotated(sweep - k * 0.04) * r, Color(PH.r, PH.g, PH.b, 0.3 - k * 0.035), 2.0)
 	var origin: Vector2 = main.camera.global_position
 	var scale := r / 2400.0
+	if main.merchant and main.edge:
+		# Beacon range: the dashed edge, where it crosses the scope.
+		var er: float = main.edge.radius
+		for i in 180:
+			if i % 2:
+				continue
+			var a0 := TAU * i / 180.0
+			var q0 := (Vector2(cos(a0), sin(a0)) * er - origin) * scale
+			var q1 := (Vector2(cos(a0 + TAU / 180.0), sin(a0 + TAU / 180.0)) * er - origin) * scale
+			if q0.length() < r - 2 and q1.length() < r - 2:
+				draw_line(center + q0, center + q1, Color(0.55, 0.8, 1.0, 0.55), 1.5)
 	for s in get_tree().get_nodes_in_group("ships"):
 		var ship := s as Ship
 		if ship == null or not ship.alive:
@@ -503,7 +498,7 @@ func _draw_radar(center: Vector2, r: float) -> void:
 		var rp := (ship.global_position - origin) * scale
 		if rp.length() > r - 3:
 			rp = rp.normalized() * (r - 3)
-		var col := Color(0.55, 1.0, 0.65) if ship.team == 0 else Color(1.0, 0.45, 0.3)
+		var col := Color(0.55, 1.0, 0.65) if ship.team == 0 else (Color(0.75, 0.78, 0.72, 0.8) if ship.team == 2 else Color(1.0, 0.45, 0.3))
 		if ship == main.player:
 			col = Color(0.9, 1.0, 0.9)
 		var d := 4.0 if ship.radius > 20 else 3.0
@@ -583,6 +578,58 @@ func _draw_dispatch_slip(vp: Vector2, text: String) -> void:
 	draw_string(f, r.position + Vector2(roundf((r.size.x - tw) * 0.5), 37), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, UIStyle.INK_TYPE)
 
 
+## Who a ship is: name, owner, what it's doing. Hovered ships say how to hail.
+func _ship_tag(at: Vector2, ship: Ship, hov: bool) -> void:
+	var name := ship.display_name if ship.display_name != "" else str(ship.def["name"])
+	var owner: String = ship.info.get("owner", "")
+	var job: String = ship.info.get("job", "")
+	if ship.team == 2 and ship.controller is Traffic.Pilot and ship.controller.flee:
+		job = "MAYDAY"
+	var f: Font = Data.font_type_bold
+	var fr: Font = Data.font_type
+	var tw := maxf(f.get_string_size(name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x, maxf(fr.get_string_size(owner, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, fr.get_string_size(job, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x))
+	draw_rect(Rect2(at + Vector2(-6, -14), Vector2(tw + 12, 22 + (13 if owner != "" else 0) + (13 if job != "" else 0) + (13 if hov and ship.team != 0 else 0))), Color(0.02, 0.03, 0.04, 0.72))
+	draw_string(f, at.round(), name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.95))
+	var y := 14.0
+	if owner != "":
+		draw_string(fr, (at + Vector2(0, y)).round(), owner, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(COL_NEUTRAL, 0.85))
+		y += 13.0
+	if job != "":
+		draw_string(fr, (at + Vector2(0, y)).round(), job, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, COL_ENEMY if job == "MAYDAY" else Color(COL_NEUTRAL, 0.7))
+		y += 13.0
+	if hov and ship.team != 0 and main.merchant:
+		draw_string(fr, (at + Vector2(0, y)).round(), "[Y] hail", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.GOLD)
+
+
+## The tow slip: a Charter recovery chit, fee stamped onto the lien.
+func _draw_tow_slip(vp: Vector2, slip: Dictionary) -> void:
+	var k := clampf(float(slip["t"]) / 0.4, 0.0, 1.0)
+	var r := Rect2(Vector2(roundf(vp.x * 0.5 - 190), lerpf(-200.0, 150.0, 1.0 - pow(1.0 - k, 3.0))), Vector2(380, 196))
+	draw_rect(Rect2(r.position + Vector2(5, 7), r.size), Color(0, 0, 0, 0.45))
+	draw_rect(r, Color(0.93, 0.91, 0.85))
+	var f: Font = Data.font_type
+	var fb: Font = Data.font_type_bold
+	draw_string(fb, r.position + Vector2(18, 26), "THE CHARTER COMPANY  ·  RECOVERY", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+	draw_string(fb, r.position + Vector2(18, 54), "TOW SLIP  No. %03d" % (40 + int(slip["n"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.INK_TYPE)
+	var rig := str(Career.pilot.get("rig", "your rig"))
+	draw_string(f, r.position + Vector2(18, 82), "Recovery of rig \"%s\" from past beacon range." % rig, HORIZONTAL_ALIGNMENT_LEFT, 344, 12, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 102), "Towed to nearest berth. Reserve refuelled.", HORIZONTAL_ALIGNMENT_LEFT, 344, 12, UIStyle.INK_TYPE)
+	draw_line(r.position + Vector2(18, 116), r.position + Vector2(362, 116), Color(UIStyle.INK_FADED, 0.5), 1.0)
+	draw_string(fb, r.position + Vector2(18, 138), "FEE", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_TYPE)
+	draw_string(fb, r.position + Vector2(90, 138), "%s cr" % Career.fmt(int(slip["fee"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_TYPE)
+	if float(slip["t"]) > 0.9:
+		var sk := clampf((float(slip["t"]) - 0.9) / 0.15, 0.0, 1.0)
+		var sc := 1.6 - 0.6 * sk
+		draw_set_transform(r.position + Vector2(260, 150), -0.18, Vector2(sc, sc))
+		var stamp := "ADDED TO LIEN"
+		var sw := Data.font_stamp.get_string_size(stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+		draw_rect(Rect2(Vector2(-sw * 0.5 - 8, -24), Vector2(sw + 16, 32)), Color(UIStyle.INK_STAMP, 0.85 * sk), false, 2.5)
+		draw_string(Data.font_stamp, Vector2(-sw * 0.5, 0), stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(UIStyle.INK_STAMP, 0.85 * sk))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if int(slip["n"]) >= 3 and float(slip["t"]) > 1.6 and Data.font_hand:
+		draw_string(Data.font_hand, r.position + Vector2(18, 182), "3rd tow. see me.  - R. Pruitt, Supv.", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.INK_PEN)
+
+
 func _draw_merchant(vp: Vector2, t: float) -> void:
 	var sys: Dictionary = Data.systems.get(main.system_id, Data.crossroads)
 	# The rig's nav plate: security tag, stencilled system name, and the
@@ -613,6 +660,8 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	if not Career.objective.is_empty():
 		var ot: String = Career.objective["text"]
 		_draw_dispatch_slip(vp, ot)
+	if main.edge and not main.edge.slip.is_empty():
+		_draw_tow_slip(vp, main.edge.slip)
 		var target: Node2D = main.objective_target()
 		if target and is_instance_valid(main.player):
 			var sp := _to_screen(target.global_position)
@@ -644,7 +693,7 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 		_text(Vector2(vp.x * 0.5, vp.y * 0.62), prompt, 17, Color(1.0, 0.92, 0.7), true, true)
 	if is_instance_valid(main.player) and main.player.ion_t > 0.0:
 		var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.008)
-		_text(Vector2(vp.x * 0.5, vp.y * 0.7), "ENGINES DOWN  ·  ION DAMAGE", 18, Color(0.78, 0.62, 1.0, pulse), true, true)
+		_text(Vector2(vp.x * 0.5, vp.y * 0.7), "RESERVE DRY  ·  ENGINES STARVED" if main.merchant and main.edge and main.edge.reserve <= 0.0 else "ENGINES DOWN  ·  ION DAMAGE", 18, Color(0.78, 0.62, 1.0, pulse), true, true)
 	if main.jump_charge >= 0.0:
 		var frac: float = main.jump_charge / main.JUMP_CHARGE
 		_text(Vector2(vp.x * 0.5, vp.y * 0.66), "JUMP DRIVE CHARGING", 16, Color(0.75, 0.6, 1.0), true)

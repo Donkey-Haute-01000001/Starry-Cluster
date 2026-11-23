@@ -361,6 +361,19 @@ var hull_variants := {
 	"mud_lark": ["raider", {"name": "Mud Lark", "sprite": "switchblade", "sprite_alts": [], "layered": {"dir": "nautolan/scout"}, "layered_alts": [], "hull": 380.0, "shields": 160.0, "radius": 15.0}],
 	"fay_skiff": ["wasp", {"name": "Fay's Skiff", "sprite": "areisu",
 		"layered": {"dir": "void", "engine": "burst", "weapon": "cannon"}, "role": "fighter", "hull": 220.0, "shields": 140.0, "radius": 15.0}],
+	# Traffic: the March going about its business.
+	"liened_rig": ["light_freighter", {"name": "Charter Rig", "livery": "charter", "sprite_alts": ["cargo", "transtellar", "diverger"], "secondaries": []}],
+	"charter_hauler": ["salvage_freighter", {"name": "Charter Hauler", "livery": "charter", "layered": {"dir": "klaed/support_ship"}, "sprite_scale": 4.4,
+		"hull": 1400.0, "shields": 500.0, "accel": 150.0, "max_speed": 230.0, "turn": 70.0, "radius": 36.0}],
+	"ore_barge": ["light_freighter", {"name": "Ore Barge", "livery": "charter", "sprite": "bison", "sprite_alts": [], "secondaries": [], "mounts": [],
+		"accel": 170.0, "max_speed": 240.0, "turn": 90.0}],
+	"compact_miner": ["light_freighter", {"name": "Claim Miner", "livery": "nomad", "sprite": "micro_recon", "sprite_alts": [], "secondaries": [], "mounts": [], "radius": 20.0}],
+	"navy_patrol": ["kestrel", {"name": "Navy Cutter", "sprite": "warship", "livery": "navy", "layered": {"dir": "klaed/frigate"}, "hull": 900.0, "shields": 600.0, "radius": 27.0}],
+	"league_trader": ["light_freighter", {"name": "League Trader", "livery": "league", "sprite": "transtellar", "sprite_alts": [], "secondaries": []}],
+	"dynasty_trader": ["light_freighter", {"name": "Dynasty Trader", "livery": "dynasty", "layered": {"dir": "nairan/support_ship"}, "sprite_alts": [], "secondaries": [], "radius": 26.0}],
+	"backed_raider": ["raider", {"name": "Raider", "hull": 460.0, "shields": 220.0,
+		"mounts": [{"pos": Vector2(6, -3), "weapon": "pulse_cannon"}, {"pos": Vector2(6, 3), "weapon": "pulse_cannon"}]}],
+	"dynasty_corsair": ["marauder", {"name": "Corsair", "livery": "dynasty", "layered": {"dir": "nairan/frigate"}, "layered_alts": [], "hull": 1100.0, "shields": 600.0, "radius": 28.0}],
 	"karabey_fighter": ["wasp", {"name": "Karabey Lancer", "sprite": "endra", "livery": "karabey", "layered": {"dir": "nairan/fighter"}, "hull": 320.0, "shields": 240.0, "accel": 600.0, "max_speed": 490.0, "radius": 17.0,
 		"mounts": [{"pos": Vector2(8, -5), "weapon": "pulse_cannon"}, {"pos": Vector2(8, 5), "weapon": "pulse_cannon"}, {"pos": Vector2(10, 0), "weapon": "pulse_cannon"}]}],
 }
@@ -382,7 +395,7 @@ var stations := {
 		"makes": ["ore"], "wants": ["rations", "water", "parts"],
 		"desc": "Mining hub and the navy's patrol base in the belt. Everything is coated in grey dust."},
 	"saltgate": {"art": "rim", "art_size": 220.0, "name": "Sal Gatum Transit Depot", "nick": "Saltgate", "system": "marcellus", "pos": Vector2(-1500, 950),
-		"makes": ["alloy"], "wants": ["water", "rations", "medicine"],
+		"makes": ["alloy"], "wants": ["ore", "water", "rations", "medicine"],
 		"desc": "Docks, a smelter and a bar. Ore in, alloy out."},
 	"ambers": {"art": "rim", "art_size": 200.0, "name": "Santa Ambrosia Station", "nick": "Amber's", "system": "marcellus", "pos": Vector2(3900, 2500),
 		"makes": ["electronics", "parts"], "wants": ["medicine", "luxuries"],
@@ -391,6 +404,85 @@ var stations := {
 		"makes": ["luxuries"], "wants": ["rations", "water", "medicine"],
 		"desc": "Customs, garrison and the checkpoint where they ask for your Writ of Passage. Everybody calls it your papers."},
 }
+
+## The March's own traffic, derived from what each station makes and wants
+## (each buys what it can't make). Routes: [from, to, hull, owner, cargo,
+## seconds between departures]; "@sys" is the jump toward sys. Patrols loop
+## their waypoints; "hold" ships keep station at a point (chart units).
+var traffic := {
+	"aurelia": {"cap": 16, "routes": [
+		["drip", "@tiberine", "liened_rig", "charter", "water", 40],
+		["bones", "@tiberine", "liened_rig", "charter", "parts", 60],
+		["counter", "@tiberine", "charter_hauler", "charter", "electronics", 75],
+		["@tiberine", "counter", "charter_hauler", "charter", "medicine", 75],
+		["@tiberine", "drip", "liened_rig", "charter", "rations", 45],
+		["drip", "@marcellus", "liened_rig", "charter", "water", 70],
+		["bones", "@marcellus", "liened_rig", "charter", "parts", 90],
+		["@marcellus", "bones", "liened_rig", "charter", "alloy", 60],
+		["@tiberine", "counter", "liened_rig", "charter", "luxuries", 120],
+	], "patrols": [[["counter", "@tiberine", "drip", "bones"], ["navy_patrol", "navy_wing"]]], "holds": []},
+	"tiberine": {"cap": 11, "routes": [
+		["@aurelia", "greenhouse", "liened_rig", "charter", "water", 45],
+		["@aurelia", "greenhouse", "liened_rig", "charter", "parts", 75],
+		["greenhouse", "@aurelia", "liened_rig", "charter", "rations", 45],
+		["greenhouse", "@aurelia", "charter_hauler", "charter", "medicine", 90],
+		["greenhouse", "@porta_aquila", "liened_rig", "charter", "rations", 70],
+		["@porta_aquila", "@aurelia", "liened_rig", "charter", "luxuries", 110],
+		["@aurelia", "@porta_aquila", "navy_patrol", "navy", "", 160],
+	], "patrols": [], "holds": []},
+	"marcellus": {"cap": 9, "routes": [
+		["four", "saltgate", "ore_barge", "charter", "ore", 35],
+		["saltgate", "four", "ore_barge", "charter", "", 50],
+		["@aurelia", "four", "liened_rig", "charter", "water", 90],
+		["@aurelia", "saltgate", "liened_rig", "charter", "rations", 100],
+		["saltgate", "@aurelia", "liened_rig", "charter", "alloy", 80],
+		["@porta_aquila", "ambers", "liened_rig", "charter", "luxuries", 150],
+	], "patrols": [[["four", "@aurelia", "saltgate"], ["navy_patrol"]]],
+		"holds": [[Vector2(-1900, -1700), "compact_miner", "compact"], [Vector2(2300, 1250), "compact_miner", "compact"]]},
+	"porta_aquila": {"cap": 12, "routes": [
+		["@tiberine", "gatehouse", "liened_rig", "charter", "rations", 55],
+		["@tiberine", "gatehouse", "liened_rig", "charter", "water", 70],
+		["gatehouse", "@tiberine", "liened_rig", "charter", "luxuries", 70],
+		["gatehouse", "@marcellus", "liened_rig", "charter", "luxuries", 140],
+		["@crossroads", "gatehouse", "league_trader", "league", "luxuries", 80],
+		["@crossroads", "gatehouse", "dynasty_trader", "dynasty", "luxuries", 110],
+		["gatehouse", "@crossroads", "league_trader", "league", "medicine", 120],
+	], "patrols": [],
+		"holds": [[Vector2(2200, -260), "navy_patrol", "navy"], [Vector2(2250, 260), "navy_patrol", "navy"], [Vector2(2050, 0), "navy_wing", "navy"]]},
+}
+
+## Traffic names and voices. DRAFT lines.
+var traffic_names := {
+	"charter": ["Cold Coffee", "Paid Monday", "Second Mortgage", "Little Margin", "Mother's Ring", "Overdue", "Interest Only", "Seven Years", "Late Fee", "Small Comfort", "Good Enough", "Lucky Thursday", "Patience", "Rent Day", "Owed Nothing", "Hope Floats"],
+	"charter_hauler": ["CCS Dividend", "CCS Quarterly", "CCS Prospectus", "CCS Shareholder", "CCS Fiscal Year"],
+	"ore_barge": ["Barge 4-07", "Barge 4-11", "Barge 4-12", "Barge 4-19", "Barge 4-23"],
+	"navy": ["FNS Pike", "FNS Sabre", "FNS Glaive", "FNS Partisan", "FNS Bardiche", "FNS Ranseur"],
+	"league": ["Ca' Dorata", "Ca' Venier", "Serenissima Rosa", "Ca' Morosini"],
+	"dynasty": ["Kara Yel", "Ak Dogan", "Sultana's Patience", "Gul Bahar"],
+	"compact": ["Okonjo claim", "Varga claim", "Lindqvist claim", "Mensah claim"],
+}
+var traffic_owner := {"charter": "Charter lien rig", "charter_hauler": "Charter Company", "ore_barge": "Charter mining crew",
+	"navy": "Federation Navy", "league": "Merchant League", "dynasty": "Dynasty trader", "compact": "Miners' Compact claim"}
+var hails := {
+	"charter": ["Can't talk, captain. Clock's running and so's the interest.", "If you're Charter collections, I already paid. Check again.", "Three more weeks and she's mine. Three more weeks.", "Watch the belt. Lost a cousin out there."],
+	"charter_hauler": ["Company vessel. Keep clear of the lane.", "This channel is for Charter business."],
+	"ore_barge": ["Four to Saltgate, Saltgate to Four. Pays the same either way.", "Rock in, rock out. Wake me at shift change."],
+	"navy": ["Federation Navy. Keep your transponder on and your guns cold.", "Patrol's stretched thin, captain. Don't make me come back here.", "Most of the fleet's at the Wall. The rest of us are this."],
+	"league": ["The League thanks you for your interest. Gatehouse is as far as they let us.", "Everything has a price, captain. Even the hail."],
+	"dynasty": ["Peace on your road, captain.", "We are only traders. Please tell your customs officers."],
+	"compact": ["This claim's not for sale. Tell whoever sent you.", "Compact rock. Charter can buy the ore. Not the hole."],
+	"mayday": "Mayday, mayday. %s, near %s. Raiders on me. Anyone!",
+	"thanks": "You came. Most don't. Here, it's what I can spare.",
+	"thanks_navy": "Navy got here. Late, but here.",
+	"robbed": "They took the whole hold and left me drifting. I'm alive. That's something.",
+}
+## Things Dez says about what you did. DRAFT lines.
+var traffic_dez := {
+	"helped": "That's one rig that makes its payment this week. Good.",
+	"ignored": "Could've been us. Next time it might be.",
+	"looted": "We're picking their bones now? ...Fine. Just don't tell me what you get for it.",
+}
+
 
 ## Each station's wall when you're docked: bulkhead paint, the stripe they
 ## painted round it, and how worn it is. The boards hang on this.

@@ -13,10 +13,7 @@ const StoryScript := preload("res://scripts/story.gd")
 const JUMP_CHARGE := 3.0
 
 const COMBAT_RANGE := 1500.0
-const CRUISE_MAX := 1500.0       ## open space
-const CRUISE_MIN := 420.0        ## hugging a station, planet, rift or inside a belt
-const CRUISE_CLEAR := 1300.0     ## distance from mass where cruise reaches full speed
-const CRUISE_CONTACT := 2400.0   ## hostiles this close pull you out
+const CONTACT_RANGE := 2400.0   ## hostiles this close switch the autopilot off
 const WHEEL_TIME_SCALE := 0.2
 
 var world: Node2D
@@ -49,6 +46,8 @@ var system_id := ""
 var bodies: Array = []
 var station_ui: Control
 var story: Node
+var traffic: Traffic
+var edge: Edge
 var docked_at := ""
 var jump_charge := -1.0      ## seconds charged, or -1 when not charging
 var jump_target: Node2D = null
@@ -143,6 +142,10 @@ func _ready() -> void:
 		story = StoryScript.new()
 		story.main = self
 		add_child(story)
+		traffic = Traffic.new(self)
+		add_child(traffic)
+		edge = Edge.new(self)
+		world.add_child(edge)
 		player = spawn_ship("light_freighter", 0, Vector2.ZERO)
 		player.is_player = true
 		player.controller = PlayerController.new(player, self)
@@ -223,7 +226,10 @@ func load_system(id: String, from_system: String) -> void:
 					k += 1
 					e.position = player.position + Vector2(-90.0 * k, 60.0 * (1 if k % 2 else -1)).rotated(player.rotation)
 					e.velocity = player.velocity
-	_pirate_t = randf_range(25.0, 45.0)
+	_pirate_t = randf_range(60.0, 100.0)
+	if traffic:
+		traffic.on_load()
+		edge.on_load()
 	Career.on_enter_system(id)
 	show_message("%s  ·  %s  ·  %s" % [sys["name"], sys["nick"], sys["security"]], 4.0)
 	if story:
@@ -232,6 +238,8 @@ func load_system(id: String, from_system: String) -> void:
 
 ## Remove the current system's bodies, strangers and shots. Your fleet stays.
 func clear_system() -> void:
+	if traffic:
+		traffic.clear()
 	for b in bodies:
 		if is_instance_valid(b):
 			b.queue_free()
@@ -269,6 +277,10 @@ func nearby_interactable() -> Node2D:
 
 
 func _try_interact() -> void:
+	var w := traffic.wreck_near(player.global_position)
+	if w:
+		traffic.loot(w)
+		return
 	var b := nearby_interactable()
 	if b == null:
 		show_message("Nothing in range. Fly to a station or jump point.", 2.0)
@@ -390,12 +402,15 @@ func _merchant_step(delta: float) -> void:
 		for s in [player] + escorts:
 			if is_instance_valid(s) and s.alive:
 				s.hull_hp = minf(s.max_hull, s.hull_hp + s.max_hull * 0.02 * delta)
-	# Pirates hide in the rough systems' rocks.
+	traffic.step(delta)
+	edge.step(delta)
+	# Pirates hide in the rough systems' rocks. Mostly they hunt the lanes
+	# (Traffic raids); now and then they come for you.
 	var danger: float = Data.systems.get(system_id, Data.crossroads)["danger"]
 	if danger > 0.0 and hostile_count() == 0 and not story.busy():
 		_pirate_t -= delta
 		if _pirate_t <= 0.0:
-			_pirate_t = randf_range(70.0, 120.0) / danger
+			_pirate_t = randf_range(150.0, 240.0) / danger
 			var from_angle := randf() * TAU
 			var c := player.global_position + Vector2.RIGHT.rotated(from_angle) * 1500.0
 			for i in 2:
@@ -555,6 +570,10 @@ func spawn_explosion(pos: Vector2, radius: float, vel: Vector2) -> void:
 
 
 func _on_ship_destroyed(s: Ship) -> void:
+	if s.team == 2:
+		if traffic:
+			traffic.on_ship_destroyed(s)
+		return
 	if s == player:
 		player = null
 		jump_charge = -1.0
@@ -593,6 +612,22 @@ func hostile_count() -> int:
 	return n
 
 
+## Raiders (team 1) are everyone's enemy; you (0) and the March's own
+## traffic (2) leave each other alone.
+func hostile(a: int, b: int) -> bool:
+	return a != b and (a == 1 or b == 1)
+
+
+## The ship under the mouse cursor, if any (not yours).
+func ship_under_mouse() -> Ship:
+	var m := mouse_world()
+	for s in get_tree().get_nodes_in_group("ships"):
+		var ship := s as Ship
+		if ship and ship.alive and ship != player and m.distance_to(ship.global_position) < ship.radius + 26.0:
+			return ship
+	return null
+
+
 ## Nearest live enemy of `team` to `from`, limited to `max_dist` from `center` (default: from).
 func nearest_enemy(team: int, from: Vector2, max_dist: float, center = null) -> Ship:
 	var c: Vector2 = from if center == null else center
@@ -600,7 +635,7 @@ func nearest_enemy(team: int, from: Vector2, max_dist: float, center = null) -> 
 	var best_d := INF
 	for s in get_tree().get_nodes_in_group("ships"):
 		var ship := s as Ship
-		if ship == null or not ship.alive or ship.team == team or ship.disabled:
+		if ship == null or not ship.alive or not hostile(team, ship.team) or ship.disabled:
 			continue
 		if c.distance_to(ship.global_position) > max_dist:
 			continue
@@ -699,8 +734,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif not merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
 		PlayerController.toggle("mouse_steer")
 		show_message("Mouse steering %s" % ("ON: ship faces the cursor" if PlayerController.mouse_steer else "OFF: Q/E to turn"), 2.0)
-	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C and is_instance_valid(player):
-		toggle_cruise()
+	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Y and is_instance_valid(player):
+		var hs := ship_under_mouse()
+		if hs and hs.team != 0 and hs.global_position.distance_to(player.global_position) < 3000.0:
+			traffic.hail(hs)
+		else:
+			show_message("Hover a ship to hail it.", 1.5)
 	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G and is_instance_valid(player):
 		toggle_autopilot()
 	elif merchant and event.is_action_pressed("interact") and is_instance_valid(player):
@@ -740,7 +779,6 @@ func _physics_process(delta: float) -> void:
 		fleet_order = "engage"
 
 	if merchant:
-		_cruise_step(delta)
 		_travel_step()
 		_merchant_step(delta)
 		if _merchant_test:
@@ -789,102 +827,26 @@ func toggle_autopilot() -> void:
 func autopilot_off(why: String) -> void:
 	if is_instance_valid(player) and player.controller is PlayerController:
 		player.controller.autopilot = null
-	drop_cruise("")
 	if why != "":
 		show_message(why, 2.0)
 
 
-## Runs every physics frame in merchant mode: autopilot cruise and arrival.
+## Runs every physics frame in merchant mode: autopilot arrival.
 func _travel_step() -> void:
 	if not is_instance_valid(player):
 		return
-	var contact := nearest_enemy(0, player.global_position, CRUISE_CONTACT) != null
+	var contact := nearest_enemy(0, player.global_position, CONTACT_RANGE) != null
 	if autopilot_on():
 		var t: Node2D = player.controller.autopilot
 		var d := player.global_position.distance_to(t.global_position)
 		if contact or story.busy():
 			autopilot_off("Contact! Autopilot off." if contact else "")
-		elif d > CRUISE_CLEAR + 400.0 and not player.cruise_on and player.ion_t <= 0.0 and player.cruise_k <= 0.0:
-			player.cruise_on = true
-			Sfx.play("cruise_spool", -6.0)
-		elif d < CRUISE_CLEAR and player.cruise_on:
-			player.cruise_on = false
 		elif d < t.interact_range() * 0.6 and player.velocity.length() < 60.0:
 			player.controller.autopilot = null
 			if t.kind == "station":
 				dock(t.id)
 			else:
 				show_message("At the jump point.  [F] to jump", 2.5)
-
-
-# --- Cruise drive ----------------------------------------------------------------
-
-## Top cruise speed at a point: mass drags the drive down, so it's fastest in
-## open space and crawls near stations, planets, rifts and inside belts. Those
-## slow spots are where ambushes happen.
-func cruise_cap(pos: Vector2) -> float:
-	var d := INF
-	for b in bodies:
-		if not is_instance_valid(b):
-			continue
-		var c: float = pos.distance_to(b.global_position)
-		var edge: float
-		match b.kind:
-			"belt":
-				# Loose rock, not a gravity well: slower, but you can still run it.
-				edge = maxf(absf(c - b.radius) - b.width * 0.5, 0.0) + 300.0
-			"jump":
-				edge = c - 150.0
-			_:
-				edge = c - b.radius
-		d = minf(d, maxf(edge, 0.0))
-	return lerpf(CRUISE_MIN, CRUISE_MAX, smoothstep(200.0, CRUISE_CLEAR, d))
-
-
-func toggle_cruise() -> void:
-	if player.cruise_on:
-		drop_cruise("")
-		return
-	if story.busy() or story.boarding != null:
-		return
-	var foe := nearest_enemy(0, player.global_position, CRUISE_CONTACT)
-	if foe:
-		show_message("Hostiles on sensors. Cruise won't spool.", 2.0)
-		return
-	if player.ion_t > 0.0:
-		show_message("Engines are dead. No cruise.", 2.0)
-		return
-	player.cruise_on = true
-	Sfx.play("cruise_spool", -6.0)
-	show_message("Cruise spooling. Weapons offline.  [C] to drop out", 2.5)
-
-
-func drop_cruise(why: String) -> void:
-	if not player.cruise_on:
-		return
-	player.cruise_on = false
-	Sfx.play("cruise_drop", -6.0)
-	_shake = maxf(_shake, 6.0)
-	if why != "":
-		show_message(why, 2.5)
-
-
-func _cruise_step(_delta: float) -> void:
-	if not is_instance_valid(player):
-		return
-	player.cruise_cap = cruise_cap(player.global_position)
-	if player.cruise_on:
-		if player.since_hit < 0.1:
-			drop_cruise("Taking fire! Dropped out of cruise.")
-		elif nearest_enemy(0, player.global_position, CRUISE_CONTACT) != null:
-			drop_cruise("Contact on sensors. Dropped out of cruise.")
-		elif story.busy():
-			drop_cruise("")
-	# The escorts' drives slave to yours, with headroom to catch up.
-	for e in escorts:
-		if is_instance_valid(e):
-			e.cruise_on = player.cruise_on
-			e.cruise_cap = player.cruise_cap * 1.15
 
 
 ## Soft collisions: ships that overlap gently push apart instead of stacking.
@@ -935,7 +897,6 @@ func _process(delta: float) -> void:
 		camera.global_position = camera.global_position.lerp(target, clampf(8.0 * delta, 0.0, 1.0))
 	var want := _zoom
 	if is_instance_valid(player):
-		want *= 1.0 - 0.3 * player.cruise_k
 		# Pull back a little as you pick up speed.
 		var sk := clampf(player.velocity.length() / maxf(player.max_speed, 1.0), 0.0, 1.0)
 		want *= 1.0 - 0.06 * sk
@@ -963,9 +924,9 @@ func _engine_sound(delta: float) -> void:
 	if not player.alive or docked_at != "" or player.ion_t > 0.0:
 		k = 0.0
 	var spd := clampf(player.velocity.length() / 600.0, 0.0, 1.0)
-	var want_db := lerpf(-38.0, -17.0, k) + 3.0 * player.cruise_k
+	var want_db := lerpf(-38.0, -17.0, k)
 	_rumble.volume_db = lerpf(_rumble.volume_db, want_db, clampf(6.0 * delta, 0.0, 1.0))
-	_rumble.pitch_scale = lerpf(_rumble.pitch_scale, 0.75 + 0.35 * k + 0.2 * spd + 0.25 * player.cruise_k, clampf(4.0 * delta, 0.0, 1.0))
+	_rumble.pitch_scale = lerpf(_rumble.pitch_scale, 0.75 + 0.35 * k + 0.2 * spd, clampf(4.0 * delta, 0.0, 1.0))
 
 
 func _autotest_step(delta: float) -> void:
@@ -1179,37 +1140,85 @@ func _run_merchant_test() -> void:
 						await _wait(1.0)
 						el += 1.0
 						if int(el) % 5 == 0:
-							print("[auto] t=%d dist=%d speed=%d cruise=%s on=%s" % [el, int(player.global_position.distance_to(t.global_position)), int(player.velocity.length()), player.cruise_on, autopilot_on()])
+							print("[auto] t=%d dist=%d speed=%d on=%s" % [el, int(player.global_position.distance_to(t.global_position)), int(player.velocity.length()), autopilot_on()])
 						if int(el) == 6:
 							_shot("look_autopilot")
 					print("[auto] docked=%s at=%s after %ds" % [docked_at != "", docked_at, el])
-				elif what == "cruise":
-					# Open space between the belt and the rifts, then toward Four.
+				elif what in ["traffic", "lanes", "wall"]:
+					# The March at work: a busy lane in Aurelia, the queue at the Wall.
 					if station_ui.visible:
 						undock()
 					Career.flags["tally_done"] = true
-					load_system("marcellus", "aurelia")
-					player.global_position = Vector2(-3600, -1900) + Vector2(500, 300)
-					player.rotation = (Vector2.ZERO - player.global_position).angle()
+					var sys_id := "aurelia" if what != "wall" else "porta_aquila"
+					load_system(sys_id, "")
+					var at: Vector2 = Vector2(2000, -1100) if what == "traffic" else (Vector2(1800, -1300) if what == "lanes" else Vector2(1500, 0))
+					player.global_position = at
 					player.velocity = Vector2.ZERO
-					await _wait(0.3)
-					print("[cruise] cap at start=%d" % int(cruise_cap(player.global_position)))
-					toggle_cruise()
-					Input.action_press("thrust_forward")
-					for i in 8:
-						await _wait(0.5)
-						print("[cruise] t=%.1f k=%.2f speed=%d cap=%d" % [i * 0.5 + 0.5, player.cruise_k, int(player.velocity.length()), int(player.cruise_cap)])
-					_shot("look_cruise")
-					await _wait(2.5)
-					print("[cruise] near belt: speed=%d cap=%d" % [int(player.velocity.length()), int(player.cruise_cap)])
-					_shot("look_cruise_belt")
-					var foe: Ship = spawn_ship("raider", 1, player.global_position + player.velocity.normalized() * 2000.0, 0.0)
-					await _wait(0.3)
-					print("[cruise] contact: on=%s" % player.cruise_on)
+					camera.global_position = at
+					await _wait(3.0)
+					print("[traffic] %s ships=%d" % [sys_id, traffic.ships().size()])
+					for s2 in traffic.ships():
+						print("[traffic]   %s  %s  %s  %s" % [s2.display_name, s2.info.get("owner", ""), s2.info.get("job", ""), s2.global_position.round()])
+					if what == "traffic":
+						# Hover the nearest ship to show its tag.
+						var hv: Ship = null
+						for s3 in traffic.ships():
+							if hv == null or s3.global_position.distance_to(camera.global_position) < hv.global_position.distance_to(camera.global_position):
+								hv = s3
+						if hv:
+							hv.controller = null
+							hv.velocity = Vector2.ZERO
+							hv.in_move = Vector2.ZERO
+							camera.global_position = hv.global_position + Vector2(-250, 120)
+							player.global_position = camera.global_position + Vector2(-100, 100)
+							await _wait(0.3)
+							get_viewport().warp_mouse(get_viewport().get_visible_rect().size * 0.5 + (hv.global_position - camera.global_position) * camera.zoom)
+							await _wait(0.3)
+					_shot("look_" + what)
+				elif what == "raid":
+					if station_ui.visible:
+						undock()
+					Career.flags["tally_done"] = true
+					Career.flags["tally_hailed"] = true
+					load_system("marcellus", "aurelia")
 					await _wait(1.0)
-					print("[cruise] after drop: speed=%d k=%.2f" % [int(player.velocity.length()), player.cruise_k])
+					traffic._incident_t = 0.0
+					await _wait(0.3)
+					var v = traffic.incident.get("victim")
+					print("[raid] kind=%s victim=%s" % [traffic.incident.get("kind", "none"), v.display_name if v else "-"])
+					if v:
+						player.global_position = v.global_position + Vector2(-700, 300)
+						camera.global_position = player.global_position
+						player.velocity = Vector2.ZERO
+					await _wait(2.5)
+					if is_instance_valid(v):
+						player.global_position = v.global_position + Vector2(-450, 260)
+						camera.global_position = v.global_position + Vector2(-200, 100)
+						get_viewport().warp_mouse(get_viewport().get_visible_rect().size * 0.5 + (v.global_position - camera.global_position) * camera.zoom)
+					await _wait(0.2)
+					_shot("look_raid")
+					for i in 40:
+						await _wait(1.0)
+						if traffic.incident.is_empty():
+							break
+					print("[raid] over after %ds; wrecks=%s; credits=%d" % [int(traffic.incident.get("t", 0.0)), traffic._wrecks, Career.credits])
+				elif what == "tow":
+					if station_ui.visible:
+						undock()
+					load_system("tiberine", "aurelia")
+					player.global_position = Vector2(edge.radius + 300.0, 0)
+					camera.global_position = player.global_position
+					edge.reserve = 0.03
+					player.rotation = 0.0
+					Input.action_press("thrust_forward")
+					await _wait(2.0)
+					_shot("look_reserve")
 					Input.action_release("thrust_forward")
-					foe.die()
+					await _wait(7.5)
+					print("[tow] slip=%s loan=%d" % [edge.slip, Career.loan_balance])
+					_shot("look_tow")
+					await _wait(4.0)
+					print("[tow] docked=%s tows=%s" % [docked_at, Career.flags.get("tows")])
 				elif what == "board":
 					if station_ui.visible:
 						undock()

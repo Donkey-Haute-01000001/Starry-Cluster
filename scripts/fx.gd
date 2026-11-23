@@ -49,6 +49,7 @@ func _torp_blast(p: Dictionary, at: Vector2, ships: Array, direct: Ship) -> void
 		if ship == null or ship == direct or not ship.alive or ship.team == p["team"]:
 			continue
 		if ship.global_position.distance_to(at) < p["blast"] + ship.radius:
+			ship.last_hit_team = p["team"]
 			ship.take_damage(p["damage"] * 0.4, at)
 
 
@@ -62,6 +63,7 @@ func _flak_burst(p: Dictionary, ships: Array) -> void:
 		if ship == null or not ship.alive or ship.team == p["team"]:
 			continue
 		if ship.global_position.distance_to(at) < r + ship.radius:
+			ship.last_hit_team = p["team"]
 			ship.take_damage(p["damage"] * 0.7, at)
 	# Flak also kills torpedoes flying through the burst.
 	for q in projectiles:
@@ -153,6 +155,7 @@ func _physics_process(delta: float) -> void:
 			# Segment-vs-circle test so fast shots can't tunnel through small ships.
 			var closest := Geometry2D.get_closest_point_to_segment(ship.global_position, prev, p["pos"])
 			if closest.distance_squared_to(ship.global_position) < ship.radius * ship.radius:
+				ship.last_hit_team = p["team"]
 				ship.take_damage(p["damage"], closest)
 				if p["torp"]:
 					_torp_blast(p, closest, ships, ship)
