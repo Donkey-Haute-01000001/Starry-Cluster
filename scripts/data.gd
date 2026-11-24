@@ -808,7 +808,7 @@ var captains := {
 		"note": "Clan Karabey ace. Expensive. Flies point."},
 	# Fork wingmen: they come with a side you picked, not from the bar. Drafts.
 	"navy_wing": {"name": "Mbeki", "full": "Petty Officer Mbeki, FNS Ulysses", "hull": "navy_wing", "ship": "FNS Ulysses", "wage": 0, "temper": "steady",
-		"pitch": "", "hired": "Petty Officer Mbeki, on loan from the Marcellus patrol. Lieutenant says keep you alive. I intend to.", "note": "Navy interceptor on loan. Goes where you go, reports to Kessler."},
+		"pitch": "", "hired": "Petty Officer Mbeki, FNS Ulysses, reporting. [slow]...Sir, the channel was open. Everyone heard the part about my mother.[/slow] Formation on your port side, sir.", "note": "Navy interceptor on loan. Goes where you go, reports to Kessler."},
 	"tally_wing": {"name": "Notch", "full": "\"Notch\", Tally's crew", "hull": "tally_escort", "ship": "raider", "wage": 0, "temper": "presses",
 		"pitch": "", "hired": "Tally says you're on the list now. The good list. Don't make him cross you off.", "note": "One of the Tallyman's raiders. Flies with you because Tally said so."},
 }
