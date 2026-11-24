@@ -201,7 +201,7 @@ func _ahead_step(delta: float) -> void:
 		"lane":
 			if _t > 3.0 and not Career.flags.has("ahead_hello"):
 				Career.flags["ahead_hello"] = true
-				Career.say(Data.ahead["rig"], Data.ahead["hello"], true)
+				Career.say(Data.ahead["rig"], Data.ahead["hello"] % str(Career.pilot.get("rig", "new rig")), true)
 			# They hit it once you're close enough to see, or soon regardless.
 			var near: bool = rig_ok and p.global_position.distance_to(_rig.global_position) < 2400.0
 			if rig_ok and _t > 8.0 and (near or _t > 30.0):
