@@ -565,7 +565,7 @@ var ahead := {
 	"owner": "Alejandra",
 	"owner_tag": "Alejandra Vargas, owner-operator",
 	"hello": "Sweet Margaret hailing %s. Grye, hauler. Welcome, family. Let's mint.",  ## %s = your rig's name (Vishnu)
-	"robbed": "They took it. All forty. ...That was my payment, Charter. You hear me? That was this week's payment.",
+	"robbed": "Oh, sure, everybody just [wave]watches[/wave]. Great. Love that. ...Forty tons. That's my week. [slow]Somebody tell the Greenhouse I'm gonna be late. Real late.[/slow]",  ## Hollis (Vishnu)
 	"charlie_after": "...Greenhouse says the water's in. Board's open from here, captain. Pick your own runs.",
 	"bar": "You're the one who was behind me on the Greenhouse lane. Don't be sorry. Charter took the Margaret back a week later. One missed payment, that's all it took. I load ore here now. Just don't miss one, captain.",
 	"bar_saved": "There's my guardian angel. Charter still owns the Margaret, but she's still mine to fly. Drinks are on me. Which means water.",
