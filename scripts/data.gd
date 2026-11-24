@@ -611,7 +611,7 @@ var default_red := "Charter paints defaults red so no dock will touch them. Qasi
 
 ## Charter Recovery and navy customs. Drafts: the script doc wins.
 var recovery := {
-	"hail": "Rig CC-40817-M, cut your engines and prepare for recovery. This is a lawful repossession.",
+	"hail": "Owner-operator [red]CC-40817-M[/red], you are in default. Cut engines and stand by for boarding. [slow]Thank you for choosing the Charter.[/slow]",
 	"driven_off": "Interference noted. Obstruction fee assessed. We'll be back.",
 }
 var customs := {
