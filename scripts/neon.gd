@@ -177,6 +177,8 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 					a *= 0.3
 				col.a *= a
 				var at := Vector2(pos.x + x, y)
+				var rf := _run_font(kd, font, paper)
+				var rs := _run_size(kd, size, paper)
 				if f & (SHAKE | WAVE):
 					var cx := at.x
 					for ci2 in seg.length():
@@ -187,15 +189,17 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 							off += Vector2(sin(s * 12.9898) , cos(s * 78.233)) * 1.4
 						if f & WAVE:
 							off.y += sin(now * 5.0 + (k + ci2) * 0.6) * 2.5
-						_glyph(ci, font, Vector2(cx, at.y) + off, ch, size, col, kd != "" and not paper)
-						cx += font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+						_glyph(ci, rf, Vector2(cx, at.y) + off, ch, rs, col, kd != "" and not paper)
+						cx += rf.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, rs).x
 				else:
-					if kd == "credits" and not paper:
+					if kd in ["credits", "dynasty"] and not paper:
 						# Money hums: a fat slow-breathing halo.
 						var hum := 0.75 + 0.25 * sin(now * 2.4)
+						if kd == "dynasty":
+							hum = 1.0
 						ci.draw_string_outline(font, at, seg, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 12, Color(col, col.a * 0.07 * hum))
-					_glyph(ci, font, at, seg, size, col, kd != "" and not paper)
-				x += font.get_string_size(seg, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+					_glyph(ci, rf, at, seg, rs, col, kd != "" and not paper)
+				x += rf.get_string_size(seg, HORIZONTAL_ALIGNMENT_LEFT, -1, rs).x
 				k = e
 	var n := lay.size() if max_lines <= 0 else mini(lay.size(), max_lines)
 	return n * lh
@@ -224,7 +228,7 @@ static func _layout(font: Font, p: Dictionary, width: float, size: int) -> Array
 	var prev_end := 0
 	for wi in p["words"].size():
 		var w: Array = p["words"][wi]
-		var ww := font.get_string_size(text.substr(w[0], w[1] - w[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var ww := _word_w(font, p, w, size)
 		var newline := text.substr(prev_end, w[0] - prev_end).contains("\n")
 		if newline or (x > 0.0 and x + ww > width):
 			lines.append({})
@@ -234,6 +238,29 @@ static func _layout(font: Font, p: Dictionary, width: float, size: int) -> Array
 		prev_end = w[1]
 	p[key] = lines
 	return lines
+
+
+## Tally's crew is written in his own hand.
+static func _run_font(kd: String, font: Font, paper: bool) -> Font:
+	return Data.font_hand if kd == "tally" and not paper and Data.font_hand else font
+
+
+static func _run_size(kd: String, size: int, paper: bool) -> int:
+	return int(round(size * 1.45)) if kd == "tally" and not paper and Data.font_hand else size
+
+
+static func _word_w(font: Font, p: Dictionary, w: Array, size: int) -> float:
+	var text: String = p["text"]
+	var x := 0.0
+	var k: int = w[0]
+	while k < w[1]:
+		var kd: String = p["kind"][k]
+		var e := k
+		while e < w[1] and p["kind"][e] == kd:
+			e += 1
+		x += _run_font(kd, font, false).get_string_size(text.substr(k, e - k), HORIZONTAL_ALIGNMENT_LEFT, -1, _run_size(kd, size, false)).x
+		k = e
+	return x
 
 
 static func _fill(kind: Array, a: int, b: int, k: String) -> void:

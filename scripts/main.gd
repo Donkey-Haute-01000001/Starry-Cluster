@@ -1329,7 +1329,7 @@ func _run_merchant_test() -> void:
 					load_system("marcellus", "")
 					await _wait(1.0)
 					Career.say("Charlie", "Franz Kessler says the Navy can't spare a cutter for Four this week. You're two days overdue, and Charter Recovery has your file. [shake]Pay the 2,500 cr[/shake] or they send the repo cutter.")
-					Career.say("Dez", "Saltgate's got a bar. The Dynasty boys drink there.", true)
+					Career.say("Dez", "Saltgate's got a bar. The Dynasty boys drink there. Tally's crew too.", true)
 					await _wait(1.6)
 					_shot("look_neon_typing")
 					await _wait(4.0)
