@@ -1,4 +1,6 @@
 extends Control
+
+const Neon = preload("res://scripts/neon.gd")
 ## Heads-up display: flagship status, fleet roster, combat indicator, target
 ## brackets, off-screen enemy arrows, radar, and messages.
 
@@ -9,6 +11,7 @@ var _comms_text := ""
 var _comms_t := 0.0
 var _comms_queue: Array = []
 var _comms_age := 0.0
+var _comms_words := 0      ## words typed in so far (one key tick each)
 var comms_top := 0.0      ## top edge of the comms panel this frame (cards stack above it)
 var comms_rect := Rect2()  ## the comms panel on screen, for clicks
 var _plate_k := 1.0        ## nav plate: 1 full, 0 tucked away
@@ -129,6 +132,7 @@ func _process(delta: float) -> void:
 	if not (_comms_hold and _comms_t > 0.0):
 		_comms_t = maxf(0.0, _comms_t - delta)
 	_comms_age += delta
+	_type_sounds()
 	if _comms_t <= 0.0 and not _comms_queue.is_empty() and not _quiet():
 		var next: Array = _comms_queue.pop_front()
 		_show_comms(next[0], next[1])
@@ -204,6 +208,7 @@ func _show_comms(speaker: String, text: String) -> void:
 	_comms_hold = hold_enabled()
 	_comms_t = 6.0 + text.length() * 0.04
 	_comms_age = 0.0
+	_comms_words = 0
 
 
 ## A line is up, or waiting its turn.
@@ -217,8 +222,10 @@ func comms_showing() -> bool:
 
 ## Space / Enter / click: finish the line if it's still typing, else the next one.
 func advance_comms() -> void:
-	if _comms_age * 55.0 < _comms_text.length():
-		_comms_age = _comms_text.length() / 55.0 + 0.01
+	var dur := Neon.duration(Neon.parse(_comms_text))
+	if _comms_age < dur:
+		_comms_age = dur + 0.01
+		_comms_words = 1 << 20
 		return
 	Sfx.play("tick", -12.0)
 	if not _comms_queue.is_empty():
@@ -227,6 +234,23 @@ func advance_comms() -> void:
 	else:
 		_comms_hold = false
 		_comms_t = minf(_comms_t, 0.35)
+
+
+## Story lines type in with a soft key tick per word; a threat word lands
+## with a neon buzz. The ticker stays silent.
+func _type_sounds() -> void:
+	if _comms_t <= 0.0 or not _comms_hold or main.docked_at != "":
+		return
+	var np := Neon.parse(_comms_text)
+	var n := Neon.words_at(np, _comms_age)
+	if n <= _comms_words:
+		return
+	var pitch := 0.92 + float(absi(_comms_speaker.hash()) % 5) * 0.04
+	for i in range(_comms_words, mini(n, np["words"].size())):
+		if Neon.word_kind(np, i) == "threats":
+			Sfx.play("neon", -14.0, randf_range(0.95, 1.05))
+	Sfx.play("key", -20.0, pitch * randf_range(0.96, 1.04))
+	_comms_words = n
 
 
 func _to_screen(world_pos: Vector2) -> Vector2:
@@ -629,6 +653,8 @@ func _label_tape(at: Vector2, text: String, seed: int, base := Vector2.ZERO) -> 
 func _draw_dispatch_slip(vp: Vector2, text: String) -> void:
 	var f: Font = Data.font_type
 	var fb: Font = Data.font_type_bold
+	var np := Neon.parse(text)
+	text = str(np["text"])
 	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	var w := maxf(tw + 44.0, 300.0)
 	var r := Rect2(Vector2(roundf(vp.x * 0.5 - w * 0.5), 74), Vector2(roundf(w), 50))
@@ -649,7 +675,7 @@ func _draw_dispatch_slip(vp: Vector2, text: String) -> void:
 	draw_colored_polygon(poly, paper)
 	draw_string(fb, r.position + Vector2(14, 16), "DISPATCH  ·  CHARTER CH 03", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
 	draw_string(fb, r.position + Vector2(r.size.x - 14 - fb.get_string_size("JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x, 16), "JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_STAMP)
-	draw_string(f, r.position + Vector2(roundf((r.size.x - tw) * 0.5), 37), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, UIStyle.INK_TYPE)
+	Neon.draw(self, f, r.position + Vector2(roundf((r.size.x - tw) * 0.5), 37 - f.get_ascent(15)), np, tw + 4.0, 15, UIStyle.INK_TYPE, 1.0, 1e9, true)
 
 
 ## Who a ship is: name, owner, what it's doing. Hovered ships say how to hail.
@@ -866,6 +892,8 @@ func _draw_ticker(vp: Vector2) -> void:
 	var text := str(_tick[1])
 	# Stay clear of the ship panel in the middle; long lines wrap to two.
 	var cap := minf(620.0, vp.x * 0.5 - 250.0 - 40.0 - ww)
+	var np := Neon.parse(text)
+	text = str(np["text"])
 	var full := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 	var tw := minf(full, cap)
 	var lines := 1 if full <= cap else 2
@@ -874,7 +902,7 @@ func _draw_ticker(vp: Vector2) -> void:
 	draw_rect(Rect2(Vector2(16, y - 17), Vector2(ww + tw + 36, h)), Color(0.02, 0.035, 0.045, 0.78 * a))
 	draw_rect(Rect2(Vector2(16, y - 17), Vector2(3, h)), Color(col, a))
 	draw_string(fb, Vector2(28, y), who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col, a))
-	draw_multiline_string(f, Vector2(28 + ww + 12, y), text, HORIZONTAL_ALIGNMENT_LEFT, tw + 2.0, 13, 2, Color(0.9, 0.92, 0.95, a))
+	Neon.draw(self, f, Vector2(28 + ww + 12, y - f.get_ascent(13)), np, tw + 12.0, 13, Color(0.9, 0.92, 0.95), a, 1e9, false, 2)
 
 
 func _draw_comms(vp: Vector2) -> void:
@@ -883,7 +911,8 @@ func _draw_comms(vp: Vector2) -> void:
 	var col: Color = info["color"]
 	# The panel grows upward to fit the whole line.
 	var body_w := 560.0 - 110.0 - 16.0
-	var text_h := ThemeDB.fallback_font.get_multiline_string_size(_comms_text, HORIZONTAL_ALIGNMENT_LEFT, body_w, 17).y
+	var np := Neon.parse(_comms_text)
+	var text_h := Neon.height(ThemeDB.fallback_font, np, body_w, 17)
 	var h := maxf(152.0, 70.0 + text_h + 18.0)
 	var r := Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
 	comms_top = r.position.y
@@ -895,7 +924,7 @@ func _draw_comms(vp: Vector2) -> void:
 	var tf: Font = Data.font_type_bold if Data.font_type_bold else ThemeDB.fallback_font
 	draw_string(tf, r.position + Vector2(10, 15), info["channel"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, a))
 	# Signal meter: bars that flicker while the line is still coming in.
-	var typing := _comms_age * 55.0 < _comms_text.length()
+	var typing := _comms_age < Neon.duration(np)
 	for k in 5:
 		var on := k < (5 if not typing else 2 + int(_comms_age * 20.0) % 4)
 		draw_rect(Rect2(r.end.x - 60 + k * 9, r.position.y + 14 - k * 2, 5, 3 + k * 2), Color(col.r, col.g, col.b, (0.9 if on else 0.2) * a))
@@ -928,11 +957,11 @@ func _draw_comms(vp: Vector2) -> void:
 	if _comms_hold:
 		var more := _comms_queue.size()
 		var hint := ("SPACE  ▸  next (%d more)" % more) if more > 0 else "SPACE  ▸  close"
-		if _comms_age * 55.0 < _comms_text.length():
+		if typing:
 			hint = "SPACE  ▸  skip"
 		var hf: Font = Data.font_type_bold if Data.font_type_bold else ThemeDB.fallback_font
 		var hw := hf.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 		var blink := 0.55 + 0.45 * absf(sin(_comms_age * 3.0))
 		draw_string(hf, Vector2(r.end.x - hw - 12, r.end.y - 10), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, blink * a))
-	var shown := _comms_text.substr(0, int(_comms_age * 55.0))
-	draw_multiline_string(ThemeDB.fallback_font, Vector2(x, r.position.y + 70), shown, HORIZONTAL_ALIGNMENT_LEFT, body_w, 17, -1, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b, a))
+	var f17: Font = ThemeDB.fallback_font
+	Neon.draw(self, f17, Vector2(x, r.position.y + 70 - f17.get_ascent(17)), np, body_w, 17, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b), a, _comms_age)

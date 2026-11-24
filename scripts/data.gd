@@ -835,6 +835,31 @@ var speakers := {
 	"You": {"channel": "OUTBOUND", "role": "", "serial": "CC-40817-M", "color": Color(0.85, 0.92, 0.98)},
 }
 
+# --- Neon text: Katana Zero-style highlighted words in every line you read -------
+## Colors per kind. Vishnu 2026-11-24: people white, Navy cobalt, credits greedy gold,
+## Dynasty Ottoman green (pick pending), Tally (pick pending), rest column A.
+## Lines can also carry tags: [shake]..[/shake], [wave]..[/wave], [red]..[/red],
+## [slow]..[/slow]. Matching is case-sensitive except "threats".
+var neon := {
+	"colors": {
+		"people": Color("#FFFFFF"), "places": Color("#FF4FD8"), "threats": Color("#FF2E4D"),
+		"charter": Color("#FFB23A"), "navy": Color("#4D6BFF"), "dynasty": Color("#0FB866"),
+		"tally": Color("#EDEDE4"), "credits": Color("#FFE27A"),
+	},
+	"people": ["Charlotte Hansen", "Charlie", "Desmond Okafor", "Dez", "Phaedra Andreou", "Fay",
+		"Mersham Ali", "Mersham", "Lt. Franz Kessler", "Franz Kessler", "Lt. Kessler", "Kessler", "Franz",
+		"Alejandra Vargas", "Alejandra", "Jack Tallyn", "Tallyman", "Tally", "Qasim", "Petty Officer Mbeki", "Mbeki",
+		"Notch", "Trojan", "Uncle Reeves", "Reeves", "Ines Kovac", "R. Pruitt", "Pruitt"],
+	"places": ["Hesper March", "the Long Haul", "the Crossroads", "the Wall", "Saltgate", "Amber's", "Four",
+		"the Drip", "the Bones", "the Counter", "the Grind", "the Gatehouse", "Wreckyard Nine", "Marcellus belt"],
+	"charter": ["Charter Company", "the Charter", "Charter"],
+	"navy": ["Federation Navy", "the Federation", "Federation", "the Navy", "Navy", "FNS Ulysses", "Ulysses"],
+	"dynasty": ["the Dynasty", "Dynasty", "Clan Karabey", "Karabey"],
+	"tally": ["Tally's crew", "Tally crew"],
+	"threats": ["Charter Recovery", "Recovery", "repossession", "repossessed", "repossess", "repo", "strikes", "strike",
+		"overdue", "default", "seized", "impound", "raiders", "pirates", "mayday"],
+}
+
 
 func speaker_info(who: String) -> Dictionary:
 	if speakers.has(who):

@@ -1,4 +1,6 @@
 extends Control
+
+const Neon = preload("res://scripts/neon.gd")
 ## The docked screen. Time is paused while it's open, like landing in Endless Sky.
 ## Market for every good, captain status, the job board, Charlie's dispatch desk
 ## at the Counter, and the comms log. Each station is its own wall of physical
@@ -22,7 +24,7 @@ var _dispatch: VBoxContainer
 var _comms_box: PanelContainer
 var _comms_face: Control
 var _comms_who: Label
-var _comms_text: Label
+var _comms_text: RichTextLabel
 var _log: Array = []
 var _wall: Control
 
@@ -149,9 +151,15 @@ func _ready() -> void:
 	crow.add_child(cv)
 	_comms_who = _label(cv, "", 13, UIStyle.GOLD)
 	_comms_who.add_theme_font_override("font", Data.font_type_bold)
-	_comms_text = _label(cv, "", 15, UIStyle.TEXT)
+	_comms_text = RichTextLabel.new()
+	_comms_text.bbcode_enabled = true
+	_comms_text.fit_content = true
+	_comms_text.scroll_active = false
 	_comms_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_comms_text.custom_minimum_size.x = 1100
+	_comms_text.add_theme_font_size_override("normal_font_size", 15)
+	_comms_text.add_theme_color_override("default_color", UIStyle.TEXT)
+	cv.add_child(_comms_text)
 
 	var foot := HBoxContainer.new()
 	foot.alignment = BoxContainer.ALIGNMENT_END
@@ -364,8 +372,8 @@ func _on_comms(speaker: String, text: String) -> void:
 	_comms_who.text = last[0].to_upper()
 	var lines := []
 	for i in _log.size() - 1:
-		lines.append("%s:  %s" % [_log[i][0], _log[i][1]])
-	lines.append(last[1])
+		lines.append("%s:  %s" % [_log[i][0], Neon.bbcode(_log[i][1])])
+	lines.append(Neon.bbcode(last[1]))
 	_comms_text.text = "\n\n".join(lines)
 	_comms_box.visible = true
 	_comms_face.queue_redraw()

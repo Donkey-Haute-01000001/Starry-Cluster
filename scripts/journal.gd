@@ -1,4 +1,6 @@
 extends Control
+
+const Neon = preload("res://scripts/neon.gd")
 ## J: your logbook, laid out like an encyclopedia. Tabs across the top (Jobs,
 ## People, Places, Powers, Accounts); the left page lists entries, the right
 ## page shows the one you picked. Stops the clock while it's open.
@@ -523,7 +525,7 @@ func _person_page(r: Rect2, who: String) -> void:
 	var shown: Array = []
 	var h := 0.0
 	for i in range(lines.size() - 1, -1, -1):
-		var t := "\"%s\"" % lines[i][2]
+		var t := "\"%s\"" % Neon.plain(lines[i][2])
 		var lh := Data.font_type.get_multiline_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 64, 12).y + 10.0
 		if y + h + lh > r.end.y:
 			break
@@ -534,8 +536,8 @@ func _person_page(r: Rect2, who: String) -> void:
 	for s in shown:
 		draw_string(Data.font_type_bold, Vector2(r.position.x, y), "D%02d" % (int(s[0]) + 1), HORIZONTAL_ALIGNMENT_LEFT, 56, 10, UIStyle.INK_FADED)
 		draw_line(Vector2(r.position.x + 52, y - 10), Vector2(r.position.x + 52, y + 2), Color(UIStyle.INK_STAMP, 0.4), 1.0)
-		draw_multiline_string(Data.font_type, Vector2(r.position.x + 64, y), s[1], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 64, 12, -1, UIStyle.INK_TYPE)
-		y += Data.font_type.get_multiline_string_size(s[1], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 64, 12).y + 10.0
+		var np := Neon.parse(s[1])
+		y += Neon.draw(self, Data.font_type, Vector2(r.position.x + 64, y - Data.font_type.get_ascent(12)), np, r.size.x - 64, 12, UIStyle.INK_TYPE, 1.0, 1e9, true) + 10.0
 
 
 func _place_page(r: Rect2, st_id: String) -> void:
