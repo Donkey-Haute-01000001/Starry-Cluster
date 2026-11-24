@@ -31,6 +31,8 @@ var escorts: Array = []
 var fleet_order := "engage"
 var formation := "wedge"
 var focus_target: Ship = null
+var bait_ship: Ship = null     ## the escort drawing fire on a Bait order
+var bait_t := 0.0
 var fleet_heading := 0.0
 var in_combat := false
 
@@ -656,8 +658,11 @@ func formation_slot(i: int) -> Vector2:
 			offset = Vector2(-75.0 * row, 75.0 * row * side)
 		"line":
 			offset = Vector2(-15.0, 85.0 * row * side)
-		"screen":
+		"ring":
 			offset = Vector2.RIGHT.rotated(TAU * float(i) / n + PI / n) * 150.0
+	# Screening and breaking off pull the wing in tight around you.
+	if fleet_order in ["screen", "break"]:
+		offset *= 0.7
 	var base := player.global_position if is_instance_valid(player) else Vector2.ZERO
 	return base + offset.rotated(fleet_heading)
 
@@ -677,7 +682,7 @@ func show_message(text: String, duration: float) -> void:
 
 func apply_tactic(id: String) -> void:
 	match id:
-		"wedge", "line", "screen":
+		"wedge", "line", "ring":
 			formation = id
 			show_message("Formation: %s" % id.capitalize(), 1.5)
 		"engage":
@@ -686,8 +691,61 @@ func apply_tactic(id: String) -> void:
 		"hold":
 			fleet_order = "hold"
 			show_message("Wingmen: hold formation", 1.5)
+		"screen":
+			fleet_order = "screen"
+			show_message("Wingmen: screen me", 1.5)
+		"break":
+			fleet_order = "break"
+			show_message("Wingmen: break off, form on me", 1.5)
+		"bait":
+			_order_bait()
 		"focus":
 			_order_focus(_wheel_mouse_world)
+
+
+## One wingman, the fastest steady hand, runs at the enemy and drags them off.
+## The rest fall on whatever turns to chase.
+func _order_bait() -> void:
+	var best: Ship = null
+	var best_score := -INF
+	for e in escorts:
+		if not is_instance_valid(e) or not e.alive:
+			continue
+		var score: float = e.max_speed + (0.0 if e.controller.temper() == "hesitant" else 1000.0) + 300.0 * e.hull_hp / e.max_hull
+		if score > best_score:
+			best_score = score
+			best = e
+	if best == null:
+		show_message("No wingmen to send", 1.5)
+		return
+	if nearest_enemy(0, player.global_position, COMBAT_RANGE) == null:
+		show_message("Nothing to bait", 1.5)
+		return
+	bait_ship = best
+	bait_t = 14.0
+	best.controller.start_bait()
+	fleet_order = "bait"
+	var nm: String = best.display_name.get_slice(" (", 0) if best.display_name != "" else str(best.def["name"])
+	show_message("%s: baiting" % nm, 1.5)
+
+
+## The nearest hostile coming for you: inside `within`, or anything locked on you a bit further out.
+func threat_to_player(within := 700.0) -> Ship:
+	if not is_instance_valid(player):
+		return null
+	var best: Ship = null
+	var best_d := INF
+	for s in get_tree().get_nodes_in_group("ships"):
+		var ship := s as Ship
+		if ship == null or not ship.alive or not hostile(0, ship.team):
+			continue
+		var d := ship.global_position.distance_to(player.global_position)
+		var locked: bool = ship.controller is AIController and ship.controller.target == player
+		if d < within or (locked and d < within * 1.8):
+			if d < best_d:
+				best_d = d
+				best = ship
+	return best
 
 
 func _order_focus(at: Vector2) -> void:
@@ -777,6 +835,17 @@ func _physics_process(delta: float) -> void:
 		focus_target = null
 	if fleet_order == "focus" and focus_target == null:
 		fleet_order = "engage"
+	if fleet_order == "bait":
+		bait_t -= delta
+		var done := bait_t <= 0.0 or not is_instance_valid(bait_ship) or not bait_ship.alive \
+			or bait_ship.hull_hp < bait_ship.max_hull * 0.35 or nearest_enemy(0, bait_ship.global_position, 2600.0) == null
+		if done:
+			if is_instance_valid(bait_ship) and bait_ship.alive:
+				show_message("%s is back on your wing" % bait_ship.display_name.get_slice(" (", 0), 1.5)
+			bait_ship = null
+			fleet_order = "engage"
+	elif bait_ship != null:
+		bait_ship = null
 
 	if merchant:
 		_travel_step()
@@ -934,12 +1003,14 @@ func _autotest_step(delta: float) -> void:
 	var frame := int(_autotest_t * 60.0)
 	# Exercise every order and formation so the AI paths all get run.
 	if frame % 1200 == 600:
-		var orders := ["engage", "hold", "focus"]
-		var forms := ["wedge", "line", "screen"]
-		var k := (frame / 1200) % 3
-		formation = forms[k]
+		var orders := ["bait", "screen", "break", "focus", "engage", "hold"]
+		var forms := ["wedge", "line", "ring"]
+		var k := (frame / 1200) % orders.size()
+		formation = forms[k % 3]
 		if orders[k] == "focus":
 			_order_focus(player.global_position if is_instance_valid(player) else Vector2.ZERO)
+		elif orders[k] == "bait":
+			_order_bait()
 		else:
 			fleet_order = orders[k]
 	var shots_dir := ""
@@ -959,6 +1030,11 @@ func _autotest_step(delta: float) -> void:
 			hp = "%d/%d e=%d" % [int(player.shields), int(player.hull_hp), int(player.energy)]
 		print("[autotest] t=%.0fs wave=%d kills=%d escort_losses=%d hostiles=%d escorts=%d player=%s projectiles=%d" % [
 			_autotest_t, wave, kills, _losses, hostile_count(), escorts.size(), hp, fx.projectiles.size()])
+		var st := []
+		for e in escorts:
+			if is_instance_valid(e) and e.controller is AIController:
+				st.append("%s%s" % [e.controller.obeyed, "*" if e == bait_ship else ""])
+		print("[autotest] order=%s escorts=%s" % [fleet_order, st])
 	if _autotest_t >= 120.0 or not is_instance_valid(player):
 		print("[autotest] done: wave=%d kills=%d escort_losses=%d player_alive=%s" % [wave, kills, _losses, is_instance_valid(player)])
 		get_tree().quit()
@@ -1202,6 +1278,31 @@ func _run_merchant_test() -> void:
 						if traffic.incident.is_empty():
 							break
 					print("[raid] over after %ds; wrecks=%s; credits=%d" % [int(traffic.incident.get("t", 0.0)), traffic._wrecks, Career.credits])
+				elif what == "orders":
+					if station_ui.visible:
+						undock()
+					spawn_captain("fay")
+					spawn_captain("mersham")
+					spawn_friend()
+					var foe: Ship = null
+					for k in 3:
+						foe = spawn_ship("raider", 1, player.global_position + Vector2(1500, -200 + 150 * k))
+						foe.controller = AIController.new(foe, self)
+					await _wait(1.5)
+					_wheel_mouse_world = foe.global_position
+					wheel.visible = true
+					get_viewport().warp_mouse(get_viewport().get_visible_rect().size * 0.5 + Vector2(40, 150))
+					await _wait(0.4)
+					_shot("look_wheel")
+					wheel.visible = false
+					apply_tactic("bait")
+					for k in 2:
+						await _wait(0.6 if k == 0 else 3.0)
+						var st := []
+						for e in escorts:
+							st.append("%s=%s" % [e.display_name.get_slice(" (", 0), hud._escort_state(e)[0]])
+						print("[orders] %s %s" % [fleet_order, st])
+						_shot("look_orders%d" % k)
 				elif what == "tow":
 					if station_ui.visible:
 						undock()

@@ -685,11 +685,11 @@ var marine_lines := {
 
 ## Bar captains at Saltgate, hired on weekly contracts (script doc: Phaedra, Mersham).
 var captains := {
-	"fay": {"name": "Fay", "full": "Phaedra \"Fay\" Andreou", "hull": "fay_skiff", "ship": "skiff", "wage": 150,
+	"fay": {"name": "Fay", "full": "Phaedra \"Fay\" Andreou", "hull": "fay_skiff", "ship": "skiff", "wage": 150, "temper": "hesitant",
 		"pitch": "You're the one with the freighter? Hire me. I've loaded, fixed, flown and fueled every ship that's ever docked at Saltgate. I'm cheap, I learn fast, and I really, really want to see the gate.",
 		"hired": "You won't regret this! ...Probably!",
 		"note": "Cheap, eager, green. Flies a patched-up skiff."},
-	"mersham": {"name": "Mersham", "full": "Mersham Ali of Clan Karabey", "hull": "karabey_fighter", "ship": "lancer", "wage": 600, "ace": true,
+	"mersham": {"name": "Mersham", "full": "Mersham Ali of Clan Karabey", "hull": "karabey_fighter", "ship": "lancer", "wage": 600, "ace": true, "temper": "presses",
 		"pitch": "You fly a hauler, and your escorts fly like cargo. I flew for Clan Karabey, until the court decided my clan backed the wrong prince. My price is high. My aim is better.",
 		"hired": "Point me at whoever's bothering you.",
 		"note": "Clan Karabey ace. Expensive. Flies point."},

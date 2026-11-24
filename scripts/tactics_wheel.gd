@@ -5,15 +5,17 @@ extends Control
 var main: Node
 var options := [
 	{"id": "engage", "label": "Engage at will", "group": "Order"},
-	{"id": "focus", "label": "Attack my target", "group": "Order"},
-	{"id": "hold", "label": "Hold formation", "group": "Order"},
+	{"id": "focus", "label": "Focus my target", "group": "Order"},
+	{"id": "screen", "label": "Screen me", "group": "Order"},
+	{"id": "bait", "label": "Bait", "group": "Order"},
+	{"id": "break", "label": "Break off", "group": "Order"},
 	{"id": "wedge", "label": "Wedge", "group": "Formation"},
 	{"id": "line", "label": "Line abreast", "group": "Formation"},
-	{"id": "screen", "label": "Screen", "group": "Formation"},
+	{"id": "ring", "label": "Ring", "group": "Formation"},
 ]
 var selected := -1
-const RADIUS := 170.0
-const INNER := 55.0
+const RADIUS := 205.0
+const INNER := 60.0
 
 
 func _process(_delta: float) -> void:

@@ -31,33 +31,119 @@ func update(delta: float) -> void:
 
 
 # --- Escorts -------------------------------------------------------------
+# Orders land through each pilot's temper: steady hands obey at once, Fay
+# second-guesses for a beat, Mersham finishes the kill before he lets go.
+
+var obeyed := "engage"   ## the order this pilot is actually flying
+var _heard := "engage"
+var _obey_t := 0.0
+var _bait_phase := ""
+var _bait_dir := Vector2.RIGHT
+
+
+func temper() -> String:
+	if ship.captain_id != "":
+		return str(Data.captains.get(ship.captain_id, {}).get("temper", "steady"))
+	return "steady"
+
+
+## True while the pilot has the new order but hasn't acted on it yet.
+func pending() -> bool:
+	return obeyed != _heard
+
+
+func _hear(delta: float) -> void:
+	var o: String = main.fleet_order
+	if o != _heard:
+		_heard = o
+		match temper():
+			"hesitant":
+				_obey_t = randf_range(1.2, 2.0)
+			"presses":
+				# Won't break off a target that's nearly dead.
+				var pulling_back: bool = o in ["break", "hold", "screen"]
+				_obey_t = 2.5 if pulling_back and _valid(target) and target.hull_hp < target.max_hull * 0.45 else 0.0
+			_:
+				_obey_t = 0.3
+	if obeyed != _heard:
+		_obey_t -= delta
+		if _obey_t <= 0.0:
+			obeyed = _heard
+
+
+func start_bait() -> void:
+	_bait_phase = "go"
+
 
 func _update_escort(delta: float) -> void:
+	_hear(delta)
 	var leader: Ship = main.player
-	var order: String = main.fleet_order
+	var order := obeyed
 	if leader == null or not is_instance_valid(leader):
 		order = "engage"
+	if order == "bait" and ship != main.bait_ship:
+		order = "engage"
 
-	if order == "focus" and is_instance_valid(main.focus_target):
-		target = main.focus_target
-	elif order == "engage":
+	match order:
+		"bait":
+			_bait(delta, leader)
+			return
+		"focus":
+			if is_instance_valid(main.focus_target) and main.focus_target.alive:
+				target = main.focus_target
+			else:
+				order = "engage"
+		"screen":
+			# Anything coming at you gets met; nothing else is our business.
+			if _retarget_t <= 0.0 or not _valid(target):
+				target = main.threat_to_player(700.0)
+				_retarget_t = 0.5
+			if _valid(target) and _valid(leader) and ship.global_position.distance_to(leader.global_position) > 900.0:
+				target = null
+		"hold", "break":
+			target = null
+	if order == "engage":
+		var reach := 2000.0 if temper() == "presses" else 1600.0
 		if _retarget_t <= 0.0 or not _valid(target):
 			var center := leader.global_position if _valid(leader) else ship.global_position
-			target = main.nearest_enemy(ship.team, ship.global_position, 1600.0, center)
+			target = main.nearest_enemy(ship.team, ship.global_position, reach, center)
 			_retarget_t = 1.0
-	else:
-		target = null
 
-	if order != "hold" and _valid(target):
+	if _valid(target):
 		_attack(delta, target)
 		return
 
-	# Hold formation (or nothing to fight): fly to our slot, shoot what comes in range.
+	# Formation (or nothing to fight): fly to our slot, shoot what comes in range.
 	if _valid(leader):
 		var slot: Vector2 = main.formation_slot(slot_index)
 		_fly_to(slot, leader.velocity, main.fleet_heading)
 	var opportunistic = main.nearest_enemy(ship.team, ship.global_position, ship.max_range())
 	_shoot_at(opportunistic)
+
+
+## Run in, get their attention, then drag them away from the captain.
+func _bait(delta: float, leader: Ship) -> void:
+	var foe = main.nearest_enemy(ship.team, ship.global_position, 2600.0, leader.global_position if _valid(leader) else ship.global_position)
+	if not _valid(foe):
+		_bait_phase = ""
+		if _valid(leader):
+			_fly_to(main.formation_slot(slot_index), leader.velocity, main.fleet_heading)
+		return
+	if _bait_phase == "":
+		_bait_phase = "go"
+	if _bait_phase == "go":
+		_fly_to(foe.global_position, foe.velocity, (foe.global_position - ship.global_position).angle())
+		_shoot_at(foe)
+		if ship.global_position.distance_to(foe.global_position) < 520.0:
+			_bait_phase = "drag"
+			var away: Vector2 = (foe.global_position - leader.global_position).normalized() if _valid(leader) else Vector2.RIGHT
+			_bait_dir = away.rotated((0.8 if randf() < 0.5 else -0.8))
+		return
+	# Drag: burn away, jinking, guns on whoever follows.
+	var run_to := ship.global_position + _bait_dir * 900.0
+	_fly_to(run_to, _bait_dir * ship.max_speed, _bait_dir.angle())
+	ship.in_move.y = clampf(ship.in_move.y + sin(Time.get_ticks_msec() * 0.005) * 0.7, -1.0, 1.0)
+	_shoot_at(main.nearest_enemy(ship.team, ship.global_position, ship.max_range()))
 
 
 # --- Hostiles ------------------------------------------------------------
@@ -66,6 +152,10 @@ func _update_hostile(delta: float) -> void:
 	if _retarget_t <= 0.0 or not _valid(target):
 		target = main.nearest_enemy(ship.team, ship.global_position, 2600.0)
 		_retarget_t = 1.5
+		# A wingman flying bait under your nose is hard to ignore.
+		var bait = main.get("bait_ship")
+		if ship.team == 1 and _valid(bait) and main.fleet_order == "bait" and ship.global_position.distance_to(bait.global_position) < 1500.0:
+			target = bait
 	if _valid(target):
 		_attack(delta, target)
 	else:

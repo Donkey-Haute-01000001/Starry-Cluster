@@ -439,15 +439,18 @@ func _draw() -> void:
 	var live: Array = main.escorts.filter(func(e): return is_instance_valid(e) and e.alive)
 	if not live.is_empty() and (not main.merchant or main.in_combat or main.wheel_open()):
 		var ry := 16.0 if main.merchant else 128.0
-		var rr := Rect2(Vector2(16, ry), Vector2(330, 48 + live.size() * 26))
+		var rr := Rect2(Vector2(16, ry), Vector2(410, 48 + live.size() * 26))
 		UIStyle.draw_glass(self, rr, 1.0, 10.0)
 		_text(rr.position + Vector2(14, 22), _sp("FLEET") + "   ·   %s  ·  %s" % [_order_name(main.fleet_order), main.formation.capitalize()], 11, UIStyle.KICKER)
 		var y := rr.position.y + 50
 		for e in live:
 			var nm: String = e.display_name if e.display_name != "" else e.def["name"]
 			_text(Vector2(rr.position.x + 14, y), nm, 14, UIStyle.GOLD if e.is_friend else UIStyle.TEXT)
-			_bar(Rect2(Vector2(rr.position.x + 220, y - 11), Vector2(94, 4)), e.shields / e.max_shields, COL_SHIELD)
-			_bar(Rect2(Vector2(rr.position.x + 220, y - 5), Vector2(94, 4)), e.hull_hp / e.max_hull, COL_HULL)
+			# What this pilot is actually doing, and whether they've caught up with your order.
+			var st := _escort_state(e)
+			_text(Vector2(rr.position.x + 196, y), st[0], 11, st[1])
+			_bar(Rect2(Vector2(rr.position.x + 300, y - 11), Vector2(94, 4)), e.shields / e.max_shields, COL_SHIELD)
+			_bar(Rect2(Vector2(rr.position.x + 300, y - 5), Vector2(94, 4)), e.hull_hp / e.max_hull, COL_HULL)
 			y += 26
 
 	if main.merchant:
@@ -556,11 +559,31 @@ func _draw_radar(center: Vector2, r: float) -> void:
 		draw_rect(Rect2((center + rp - Vector2(d, d) * 0.5).round(), Vector2(d, d)), col)
 
 
+func _escort_state(e: Ship) -> Array:
+	var c = e.controller
+	if not (c is AIController):
+		return ["", UIStyle.TEXT_DIM]
+	if c.pending():
+		match c.temper():
+			"hesitant": return ["hesitating...", UIStyle.GOLD]
+			"presses": return ["finishing it", UIStyle.RED]
+		return ["...", UIStyle.TEXT_DIM]
+	var verb := {"engage": "engaging", "focus": "on target", "screen": "screening", "bait": "engaging",
+		"break": "forming on you", "hold": "holding"}
+	var o: String = c.obeyed
+	if o == "bait" and e == main.bait_ship:
+		return ["BAITING", COL_ENEMY]
+	return [verb.get(o, o), UIStyle.TEXT_DIM]
+
+
 func _order_name(id: String) -> String:
 	match id:
 		"engage": return "Engage at will"
-		"focus": return "Attack my target"
+		"focus": return "Focus my target"
 		"hold": return "Hold formation"
+		"screen": return "Screen me"
+		"bait": return "Bait"
+		"break": return "Break off"
 	return id
 
 
