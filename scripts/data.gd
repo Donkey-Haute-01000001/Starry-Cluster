@@ -591,7 +591,7 @@ var lanes := {
 }
 var forks := {
 	# Navy or Tallyman.
-	"navy_offer": "Navy Commission, Marcellus patrol. Sign, and you fly under my orders when I need you. You'll get a wingman and papers that open doors at the Wall. Your rig stays yours.",
+	"navy_offer": "They gave me one cutter for the whole belt. One. [slow]So I'm asking you.[/slow] Sign this and you fly when I call. You get a wingman, you get papers that open the Wall. The rig stays yours. ...I can't promise it's safe. I can promise it matters.",
 	"navy_signed": "Welcome aboard, captain. Mbeki will fly with you. Don't get him killed, his mother writes me.",
 	"navy_after_tally": "I heard about the Charter hauler. I can't prove it. I don't have to. We're done, captain.",
 	"tally_offer": "Amber's back room. You know who I am. One Charter hauler, out of Four. You knock her engines out, my crew takes her, the crew walks. Do that and I scratch your rig off my list. Forever.",
