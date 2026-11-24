@@ -563,7 +563,8 @@ func _place_page(r: Rect2, st_id: String) -> void:
 	var known: bool = Career.visited.has(st["system"])
 	var y := _title(Rect2(r.position, Vector2(r.size.x - 110, r.size.y)), st["name"], "\"%s\"  ·  %s, %s  ·  %s" % [st["nick"], sys["name"], sys["nick"], sys["security"]])
 	if known:
-		_round_stamp(Vector2(r.end.x - 52, r.position.y + 36), sys["name"].to_upper(), "VISITED", st_id.hash())
+		# Up in the page corner, clear of the title and the description.
+		_round_stamp(Vector2(r.end.x - 30, r.position.y + 4), sys["name"].to_upper(), "VISITED", st_id.hash(), 0.8)
 	else:
 		_margin_note(Vector2(r.end.x - 118, r.position.y + 40), "haven't been", 6.0, 24)
 	y = _para(r, y, st.get("desc", ""))
@@ -720,10 +721,10 @@ func _stamp(at: Vector2, text: String) -> void:
 
 
 ## A round entry stamp, like a port's visa.
-func _round_stamp(c: Vector2, ring: String, mid: String, sd: int) -> void:
+func _round_stamp(c: Vector2, ring: String, mid: String, sd: int, k := 1.0) -> void:
 	var col := Color(0.2, 0.3, 0.55, 0.7)
 	var rot := deg_to_rad(float(sd % 30) - 15.0)
-	draw_set_transform(c, rot, Vector2.ONE)
+	draw_set_transform(c, rot, Vector2.ONE * k)
 	draw_arc(Vector2.ZERO, 44.0, 0, TAU, 48, col, 2.4, true)
 	draw_arc(Vector2.ZERO, 31.0, 0, TAU, 40, col, 1.2, true)
 	var w := Data.font_stamp.get_string_size(mid, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
@@ -731,7 +732,7 @@ func _round_stamp(c: Vector2, ring: String, mid: String, sd: int) -> void:
 	draw_line(Vector2(-24, -12), Vector2(24, -12), col, 1.0)
 	draw_line(Vector2(-24, 12), Vector2(24, 12), col, 1.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	_ring_text(c, 37.0, "%s · HESPER MARCH · " % ring, 8, col, rot - PI * 0.5)
+	_ring_text(c, 37.0 * k, "%s · HESPER MARCH · " % ring, maxi(7, int(round(8 * k))), col, rot - PI * 0.5)
 
 
 func _ring_text(c: Vector2, rad: float, text: String, sz: int, col: Color, start: float) -> void:
