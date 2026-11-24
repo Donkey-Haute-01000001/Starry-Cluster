@@ -323,7 +323,7 @@ func take_bounty() -> void:
 	flags["bounty_taken"] = true
 	flags["marines"] = Data.bounty["marines"]
 	say("Franz", Data.franz["marines"])
-	set_objective("Hunt the Mud Lark near Amber's, in the outer belt.", Data.bounty["station"])
+	set_objective("Hunt the Red Stork near Amber's, in the outer belt.", Data.bounty["station"])
 	changed.emit()
 
 
@@ -622,7 +622,7 @@ func fmt(n: int) -> String:
 	return _fmt(n)
 
 
-## Your prize-court cut of the Mud Lark's hold, at base prices.
+## Your prize-court cut of the Red Stork's hold, at base prices.
 func prize_share(keep: float) -> int:
 	var total := 0
 	for row in Data.bounty["hold"]:

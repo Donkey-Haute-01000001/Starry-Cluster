@@ -1,6 +1,6 @@
 extends Node
 ## Scripted scenes in the Merchant opening, played out in real time in space:
-## the Tallyman's ambush and Kessler's patrol, the Mud Lark bounty, and the
+## the Tallyman's ambush and Kessler's patrol, the Red Stork bounty, and the
 ## ending at the gate. Lines live in Data (the script doc wins).
 
 const TALLY_FIGHT_TIME := 35.0
@@ -131,7 +131,7 @@ func _hunter_step(delta: float) -> void:
 		if not _hunter.alive or _hunter.disabled:
 			f["hunter_done"] = true
 			if _hunter.alive:
-				Career.say("The Knife", Data.forks["hunter_gone"], true)
+				Career.say("Trojan", Data.forks["hunter_gone"], true)
 				_hunter.controller = Traffic.Leaving.new(_hunter, main)
 			_hunter = null
 		return
@@ -146,11 +146,11 @@ func _hunter_step(delta: float) -> void:
 	var p: Ship = main.player
 	var at := p.global_position + Vector2(1700, 0).rotated(randf() * TAU)
 	_hunter = main.spawn_ship("dynasty_corsair", 1, at, (p.global_position - at).angle())
-	_hunter.display_name = "The Knife"
+	_hunter.display_name = "Trojan"
 	_hunter.info = {"group": "raider", "owner": "the paymaster at Amber's", "job": "hunting you"}
 	_hunter.controller = AIController.new(_hunter, main)
 	_hunter.controller.target = p
-	Career.say("The Knife", Data.forks["hunter_crates"] if int(f.get("shady_done", 0)) > 0 else Data.forks["hunter"], true)
+	Career.say("Trojan", Data.forks["hunter_crates"] if int(f.get("shady_done", 0)) > 0 else Data.forks["hunter"], true)
 
 
 # --- The rig ahead of you ------------------------------------------------------------
@@ -644,23 +644,23 @@ func _bounty_step() -> void:
 		return
 	var at := near + Vector2(500, -400)
 	_bounty_ship = main.spawn_ship(b["hull"], 1, at, PI)
-	_bounty_ship.display_name = "Mud Lark"
+	_bounty_ship.display_name = "Red Stork"
 	_bounty_ship.controller = AIController.new(_bounty_ship, main)
 	_bounty_ship.destroyed.connect(func(_s):
 		Career.flags["bounty_killed"] = true
-		Career.set_objective("Collect the Mud Lark bounty from Kessler at Four.", "four")
-		main.show_message("Mud Lark destroyed. Collect the bounty at Four.", 3.5))
+		Career.set_objective("Collect the Red Stork bounty from Kessler at Four.", "four")
+		main.show_message("Red Stork destroyed. Collect the bounty at Four.", 3.5))
 	_bounty_ship.disabled_now.connect(func(_s):
 		if Career.flags.get("marines", 0) > 0:
-			main.show_message("Mud Lark disabled! Get alongside and press [B] to board.", 4.0)
+			main.show_message("Red Stork disabled! Get alongside and press [B] to board.", 4.0)
 		else:
-			main.show_message("Mud Lark disabled.", 2.5))
+			main.show_message("Red Stork disabled.", 2.5))
 	var wing: Ship = main.spawn_ship("raider", 1, at + Vector2(60, 90), PI)
 	wing.controller = AIController.new(wing, main)
-	main.show_message("Mud Lark spotted near Amber's!", 3.0)
+	main.show_message("Red Stork spotted near Amber's!", 3.0)
 
 
-## Alongside a disabled Mud Lark with marines aboard: [B] to board.
+## Alongside a disabled Red Stork with marines aboard: [B] to board.
 func can_board() -> bool:
 	var lark := _bounty_ship
 	if boarding != null or not is_instance_valid(lark) or not lark.disabled or lark.team == 0:
@@ -675,7 +675,7 @@ func _board_check() -> void:
 	_board_hint -= get_physics_process_delta_time()
 	if can_board() and _board_hint <= 0.0:
 		_board_hint = 0.5
-		main.show_message("[B] Board the Mud Lark  ·  %d marines" % Career.flags.get("marines", 0), 0.6)
+		main.show_message("[B] Board the Red Stork  ·  %d marines" % Career.flags.get("marines", 0), 0.6)
 
 
 ## Opens the plan card. Also used by the scripted test.
@@ -715,7 +715,7 @@ func _boarded(won: bool, plan: Dictionary, left: int) -> void:
 	lines.append("BOUNTY (ALIVE)  %s cr" % _num(Data.bounty["pay_alive"]))
 	lines.append("YOUR PRIZE SHARE  +%s cr" % _num(share))
 	boarding.set_loot(lines)
-	Career.set_objective("Collect the Mud Lark bounty and prize share from Kessler at Four.", "four")
+	Career.set_objective("Collect the Red Stork bounty and prize share from Kessler at Four.", "four")
 	# The navy prize crew patches her up and flies her in.
 	var lark := _bounty_ship
 	get_tree().create_timer(3.0).timeout.connect(func():
@@ -724,7 +724,7 @@ func _boarded(won: bool, plan: Dictionary, left: int) -> void:
 		lark.team = 0
 		lark.disabled = false
 		lark.hold_fire = true
-		lark.display_name = "Mud Lark (prize)"
+		lark.display_name = "Red Stork (prize)"
 		var pilot := ScriptedPilot.new(lark, main)
 		pilot.goal = Data.stations["four"]["pos"]
 		pilot.face = (pilot.goal - lark.global_position).angle()
@@ -810,11 +810,11 @@ func _crossroads_lines() -> Array:
 	if Career.crew.has("mersham"):
 		out.append(["mersham", "Mersham", Data.ending["mersham"]])
 	if Career.crew.has("navy_wing"):
-		out.append(["wing", "Halloran", Data.forks["halloran_gate"]])
+		out.append(["wing", "Mbeki", Data.forks["halloran_gate"]])
 	elif Career.crew.has("tally_wing"):
-		out.append(["wing", "Scratch", Data.forks["scratch_gate"]])
+		out.append(["wing", "Notch", Data.forks["scratch_gate"]])
 	if f.get("bounty_alive", false):
-		out.append(["lark", "Imre", Data.forks["lark_alive"]])
+		out.append(["lark", "Qasim", Data.forks["lark_alive"]])
 	if int(f.get("shady_done", 0)) >= 2 and not Career.paymaster_angry():
 		out.append(["letter", "Dynasty courier", Data.forks["letter"]])
 	out.append(["end", "", Data.ending["line"]])

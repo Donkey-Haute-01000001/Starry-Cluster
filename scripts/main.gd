@@ -1332,7 +1332,7 @@ func _run_merchant_test() -> void:
 					Career.friend["met"] = true
 					spawn_friend()
 					var w := add_escort("navy_wing", Vector2(-200, 120))
-					w.display_name = "Halloran"
+					w.display_name = "Mbeki"
 					formation = "wedge"
 					player.controller = null
 					player.global_position = Vector2(-820, 760)
@@ -1577,7 +1577,7 @@ func _run_merchant_test() -> void:
 			_shot("m_franz")
 	print("[tally] done after %.0fs: tally_done=%s franz_met=%s engines=%s escorts=%d cargo=%s job_cargo=%s" % [waited, Career.flags.get("tally_done"), Career.flags.get("franz_met"), player.ion_t <= 0.0, escorts.size(), Career.cargo, Career.job_cargo])
 
-	# Kessler's board at Four, then the Mud Lark near Amber's.
+	# Kessler's board at Four, then the Red Stork near Amber's.
 	_go("four")
 	Career.take_bounty()
 	await _wait(0.05)

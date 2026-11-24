@@ -366,7 +366,7 @@ var hull_variants := {
 		"mounts": [{"pos": Vector2(6, -3), "weapon": "pulse_cannon"}, {"pos": Vector2(6, 3), "weapon": "pulse_cannon"}]}],
 	"navy_cutter": ["kestrel", {"name": "FNS Halberd", "sprite": "warship", "livery": "navy", "layered": {"dir": "klaed/frigate"}, "hull": 900.0, "shields": 600.0, "radius": 27.0}],
 	"navy_wing": ["wasp", {"name": "Navy Interceptor", "sprite": "interstellar_runner", "livery": "navy", "layered": {"dir": "klaed/fighter"}, "radius": 15.0}],
-	"mud_lark": ["raider", {"name": "Mud Lark", "sprite": "switchblade", "sprite_alts": [], "layered": {"dir": "nautolan/scout"}, "layered_alts": [], "hull": 380.0, "shields": 160.0, "radius": 15.0}],
+	"mud_lark": ["raider", {"name": "Red Stork", "sprite": "switchblade", "sprite_alts": [], "layered": {"dir": "nautolan/scout"}, "layered_alts": [], "hull": 380.0, "shields": 160.0, "radius": 15.0}],
 	"fay_skiff": ["wasp", {"name": "Fay's Skiff", "sprite": "areisu",
 		"layered": {"dir": "void", "engine": "burst", "weapon": "cannon"}, "role": "fighter", "hull": 220.0, "shields": 140.0, "radius": 15.0}],
 	# Traffic: the March going about its business.
@@ -571,18 +571,18 @@ var lanes := {
 var forks := {
 	# Navy or Tallyman.
 	"navy_offer": "Navy Commission, Marcellus patrol. Sign, and you fly under my orders when I need you. You'll get a wingman and papers that open doors at the Wall. Your rig stays yours.",
-	"navy_signed": "Welcome aboard, captain. Halloran will fly with you. Don't get him killed, his mother writes me.",
+	"navy_signed": "Welcome aboard, captain. Mbeki will fly with you. Don't get him killed, his mother writes me.",
 	"navy_after_tally": "I heard about the Charter hauler. I can't prove it. I don't have to. We're done, captain.",
 	"tally_offer": "Amber's back room. You know who I am. One Charter hauler, out of Four. You knock her engines out, my crew takes her, the crew walks. Do that and I scratch your rig off my list. Forever.",
-	"tally_done": "There she goes. Charter's poorer by one hauler and nobody bled. You're on the good list now, captain. Scratch'll fly with you.",
+	"tally_done": "There she goes. Charter's poorer by one hauler and nobody bled. You're on the good list now, captain. Notch'll fly with you.",
 	"tally_hauler": "CCS Ledger Line",
 	"tally_hauler_hail": "Unidentified rig, you are interfering with Charter property. Break off.",
 	"charter_heat": "Captain, Recovery just put a security surcharge on your account. Fifteen hundred. They wouldn't say why. ...I think I know why.",
-	# The Mud Lark.
-	"lark_alive": "You took me in instead of out. Kessler's cells are cold, but I'm breathing. When you're past the gate, ask the Karabey docks for Imre. I owe you.",
-	"hunter": "For the Mud Lark. The paymaster sends his regards.",
+	# The Red Stork.
+	"lark_alive": "You took me in instead of out. Kessler's cells are cold, but I'm breathing. When you're past the gate, ask the Karabey docks for Qasim. I owe you.",
+	"hunter": "For the Red Stork. The paymaster sends his regards.",
 	"hunter_crates": "You carried his crates and then you killed his dog. The paymaster sends his regards.",
-	"hunter_gone": "...Tell the paymaster his knife came back dull.",
+	"hunter_gone": "...Tell the paymaster his horse came back lame.",
 	# The crates.
 	"letter": "Captain. A letter for you, from a friend at Amber's. Any house on the Dynasty side will honor it. He says you deliver.",
 	"charlie_vouch": "One more thing on your file, from Charter dispatch. Handwritten. 'Honest. Mostly.' ...Cleared.",
@@ -737,15 +737,15 @@ var franz := {
 	"patched": "Engines are back. My crew can't fix the paint job. Finish your run, captain. We'll keep the belt quiet for an hour.",
 	"at_four": "Five now. Another Charter rig this morning. He never takes the cargo. He just counts.",
 	"pitch": "We're stretched thin, and honest pilots are rare out here. If you ever get tired of hauling for the Charter, the navy's hiring.",
-	"paid": "Mud Lark's done. Good work, captain. Bounty's yours.",
+	"paid": "Red Stork's done. Good work, captain. Bounty's yours.",
 	"marines": "Take four of my marines. Knock her dead in the water, get alongside, and they'll do the rest. Alive pays better.",
-	"paid_alive": "Prize crew brought the Mud Lark in an hour ago. Clean work, captain. Alive rate, plus your share of her hold.",
+	"paid_alive": "Prize crew brought the Red Stork in an hour ago. Clean work, captain. Alive rate, plus your share of her hold.",
 }
 
 ## Kessler's board at Four. "alive" waits for boarding.
 var bounty := {
 	"id": "mud_lark", "hull": "mud_lark", "station": "ambers",
-	"title": "BOUNTY: pirate skiff Mud Lark",
+	"title": "BOUNTY: pirate skiff Red Stork",
 	"text": "Last seen near Amber's. 3,000 credits; alive pays 4,500.",
 	"sign": "Lt. F. Kessler",
 	"pay": 3000, "pay_alive": 4500,
@@ -782,9 +782,9 @@ var captains := {
 		"hired": "Point me at whoever's bothering you.",
 		"note": "Clan Karabey ace. Expensive. Flies point."},
 	# Fork wingmen: they come with a side you picked, not from the bar. Drafts.
-	"navy_wing": {"name": "Halloran", "full": "Ensign Tomas Halloran, FNS", "hull": "navy_wing", "ship": "interceptor", "wage": 0, "temper": "steady",
-		"pitch": "", "hired": "Ensign Halloran, on loan from the Marcellus patrol. Lieutenant says keep you alive. I intend to.", "note": "Navy interceptor on loan. Goes where you go, reports to Kessler."},
-	"tally_wing": {"name": "Scratch", "full": "\"Scratch\", Tally's crew", "hull": "tally_escort", "ship": "raider", "wage": 0, "temper": "presses",
+	"navy_wing": {"name": "Mbeki", "full": "Petty Officer Ulysses Mbeki, FNS", "hull": "navy_wing", "ship": "interceptor", "wage": 0, "temper": "steady",
+		"pitch": "", "hired": "Petty Officer Mbeki, on loan from the Marcellus patrol. Lieutenant says keep you alive. I intend to.", "note": "Navy interceptor on loan. Goes where you go, reports to Kessler."},
+	"tally_wing": {"name": "Notch", "full": "\"Notch\", Tally's crew", "hull": "tally_escort", "ship": "raider", "wage": 0, "temper": "presses",
 		"pitch": "", "hired": "Tally says you're on the list now. The good list. Don't make him cross you off.", "note": "One of the Tallyman's raiders. Flies with you because Tally said so."},
 }
 var captain_order := ["fay", "mersham"]
@@ -839,8 +839,8 @@ func speaker_info(who: String) -> Dictionary:
 # --- The journal: who people are, and the powers you deal with ---------------------
 ## One line per person, as you'd write it in your logbook. Drafts.
 var bios := {
-	"Halloran": "Ensign Tomas Halloran, Federation Navy. On loan from Kessler's patrol. Young, by the book, and trying very hard.",
-	"Scratch": "One of the Tallyman's raiders. Flies with you because Tally said so. Talks less than Tally, counts more.",
+	"Mbeki": "Petty Officer Ulysses Mbeki, Federation Navy. On loan from Kessler's patrol. Young, by the book, and trying very hard.",
+	"Notch": "One of the Tallyman's raiders. Flies with you because Tally said so. Talks less than Tally, counts more.",
 	"Alejandra": "Alejandra Vargas, owner-operator of the Sweet Margaret, one number ahead of you in the Charter block. Was.",
 	"Charlie": "Charlotte Hansen, Charter dispatch, third ring. Roots for you while working for the people who own your rig. Loses paperwork on purpose, sometimes.",
 	"Dock crew": "Loading crews on every station. They'll load anything that's paid for, and remember who tips.",
@@ -868,7 +868,7 @@ var margin_notes := {
 	"Starter run: water": "\"easy money.\" Charlie isn't flying it",
 	"An old friend": "won't take a credit. stubborn",
 	"The Tallyman": "he didn't take the cargo. why?",
-	"Bounty: the Mud Lark": "alive pays better. alive is harder",
+	"Bounty: the Red Stork": "alive pays better. alive is harder",
 	"Saltgate bar": "can I even afford one of them?",
 	"st_counter": "Charlie's on the third ring. bring coffee",
 	"st_bones": "they'll fit anything. for a price",

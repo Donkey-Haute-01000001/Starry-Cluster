@@ -200,9 +200,9 @@ func _job_entries() -> Array:
 		var taken := _flag("bounty_taken")
 		var killed := _flag("bounty_killed")
 		var paid := _flag("bounty_paid")
-		out.append(["Bounty: the Mud Lark", "pirate skiff near Amber's" if not paid else "paid", paid, {
-			"desc": "Lt. Kessler's board at Four: the Mud Lark, last seen near Amber's. 3,000 dead, 4,500 alive. He lends you four marines.",
-			"steps": [["Take the bounty at Four", taken], ["Disable or destroy the Mud Lark", killed], ["Collect at Four", paid]]}])
+		out.append(["Bounty: the Red Stork", "pirate skiff near Amber's" if not paid else "paid", paid, {
+			"desc": "Lt. Kessler's board at Four: the Red Stork, last seen near Amber's. 3,000 dead, 4,500 alive. He lends you four marines.",
+			"steps": [["Take the bounty at Four", taken], ["Disable or destroy the Red Stork", killed], ["Collect at Four", paid]]}])
 	if _flag("bar_pitch"):
 		out.append(["Saltgate bar", "two captains looking for work", Career.crew.size() >= 2, {
 			"desc": "Fay (150 a week) and Mersham (600 a week) pitched you at the Saltgate bar. Weekly contracts.",
@@ -259,7 +259,7 @@ func _standing(id: String) -> String:
 			return "citizen, unremarkable"
 		"grind":
 			if _flag("bounty_killed"):
-				return "you took the Mud Lark"
+				return "you took the Red Stork"
 			return "the Tallyman let you go" if _flag("tally_done") else "never met"
 		"dynasty":
 			return "one exile flies with you" if Career.crew.has("mersham") else "never met"

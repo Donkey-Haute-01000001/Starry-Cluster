@@ -41,7 +41,7 @@ const PEN_NOTES := [
 	[Vector2(0.262, 0.695), "No papers till the 40,000 cr loan is paid", -1.5, "", "wall", "wall"],
 	[Vector2(0.44, 0.35), "Papers only past here. Navy turns back the rest.", -2.5, "", "papers", Vector2(0.455, 0.5)],
 	[Vector2(0.255, 0.2), "Tallyman hits Charter rigs at the jump exit", 1.5, "tally_hailed", "tally", "marcellus"],
-	[Vector2(0.128, 0.515), "Mud Lark, near Amber's. 3,000 dead, 4,500 alive", -1.5, "bounty_taken", "lark", "ambers"],
+	[Vector2(0.128, 0.515), "Red Stork, near Amber's. 3,000 dead, 4,500 alive", -1.5, "bounty_taken", "lark", "ambers"],
 	[Vector2(0.44, 0.925), "Dead rift. %s's grandad flew it before the Severance", -1.5, "friend", "rift", Vector2(0.4, 0.97)],
 ]
 
@@ -633,7 +633,7 @@ func _notes() -> Array:
 		elif cond != "" and not _flag(cond):
 			continue
 		if pn[4] == "lark" and _flag("bounty_paid"):
-			text = "Mud Lark: bounty paid"
+			text = "Red Stork: bounty paid"
 		if pn[4] == "wall" and Career.loan_balance <= 0:
 			text = "Loan paid. Papers stamped."
 		out.append([i, text])
