@@ -287,6 +287,9 @@ func _end_ahead() -> void:
 
 ## First arrival in Marcellus: he's waiting at the jump exit.
 func on_enter_system(id: String, from_system: String) -> void:
+	# Left Tiberine mid-scene: the rig ahead is behind you now.
+	if scene == "ahead" and id != "tiberine":
+		_end_ahead()
 	_bounty_ship = null
 	_hauler = null
 	_hunter = null
@@ -392,14 +395,14 @@ func _ambush_step() -> void:
 				_next("hail")
 		"hail":
 			# The hail pings until you answer (C) or it times out.
-			if _t > 1.0 and _answered_at < 0.0 and not ringing and not Career.flags.has("tally_hailed"):
+			if _t > 3.5 and _answered_at < 0.0 and not ringing and not Career.flags.has("tally_hailed"):
 				Career.flags["tally_hailed"] = true
 				ringing = true
 				_ring_ping = 0.0
 			if ringing:
 				if _t >= _ring_ping:
 					_ring_ping = _t + 1.6
-				if _t > 1.0 + HAIL_RING_TIME:
+				if _t > 3.5 + HAIL_RING_TIME:
 					ringing = false
 					Career.flags["tally_ignored"] = true
 					_reply(SILENCE)
@@ -478,11 +481,19 @@ func _ceasefire() -> void:
 	for s in _tally:
 		if is_instance_valid(s):
 			s.hold_fire = true
+			# Turrets cold, and they open the range: the fight is over.
+			var away: Vector2 = (s.global_position - main.player.global_position).normalized()
 			var pilot := ScriptedPilot.new(s, main)
-			pilot.goal = s.global_position
-			pilot.face = (main.player.global_position - s.global_position).angle()
+			pilot.goal = main.player.global_position + away * maxf(900.0, s.global_position.distance_to(main.player.global_position) + 500.0)
+			pilot.face = (-away).angle()
 			s.controller = pilot
-	main.show_message("They've stopped shooting. Incoming hail.", 3.0)
+	# A white flare off the gunboat: the old spacer's sign for hold fire.
+	var g: Ship = _tally[0] if not _tally.is_empty() and is_instance_valid(_tally[0]) else null
+	if g:
+		main.spawn_sparks(g.global_position, Color(1.0, 1.0, 0.96), 60)
+		main.spawn_sparks(g.global_position + g.forward() * 40.0, Color(0.95, 0.97, 1.0), 40)
+	Sfx.play("ion", -10.0, 1.6)
+	main.show_message("White flare. They've stopped shooting.", 3.0)
 
 
 ## Answer the ringing hail: his line comes in and time drops to half speed

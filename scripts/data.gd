@@ -471,7 +471,7 @@ var traffic_names := {
 	"navy": ["FNS Pike", "FNS Sabre", "FNS Glaive", "FNS Partisan", "FNS Bardiche", "FNS Ranseur"],
 	"league": ["Ca' Dorata", "Ca' Venier", "Serenissima Rosa", "Ca' Morosini"],
 	"dynasty": ["Kara Yel", "Ak Dogan", "Sultana's Patience", "Gul Bahar"],
-	"compact": ["Okonjo claim", "Varga claim", "Lindqvist claim", "Mensah claim"],
+	"compact": ["Okonjo claim", "Kovac claim", "Lindqvist claim", "Mensah claim"],
 }
 var traffic_owner := {"charter": "Charter lien rig", "charter_hauler": "Charter Company", "ore_barge": "Charter mining crew",
 	"navy": "Federation Navy", "league": "Merchant League", "dynasty": "Dynasty trader", "compact": "Miners' Compact claim"}
@@ -524,7 +524,7 @@ var starts := [
 ## ID photos you can pick on the financing agreement (art/portraits/pilot_N.png).
 const PILOT_PHOTOS := 12
 ## Name ideas for the blank on the form; you can type your own.
-var pilot_names := ["Ines Varga", "Tobias Reyes", "Mara Quill", "Sol Benedek", "Yara Mensah", "Pell Okonkwo", "Rosa Lindqvist", "Arun Desai", "Hollis Graye", "Nadia Ferro"]
+var pilot_names := ["Ines Kovac", "Tobias Reyes", "Mara Quill", "Sol Benedek", "Yara Mensah", "Pell Okonkwo", "Rosa Lindqvist", "Arun Desai", "Hollis Graye", "Nadia Ferro"]
 var rig_names := ["Second Wind", "Paid in Full", "Long Haul", "Small Mercy", "Old Faithful", "Debt Collector", "Fair Weather", "Last Light"]
 
 ## Charlie Hansen, Charter Company dispatch. Lines from the script doc.

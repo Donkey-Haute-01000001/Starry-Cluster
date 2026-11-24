@@ -836,7 +836,8 @@ func _physics_process(delta: float) -> void:
 	if is_instance_valid(player):
 		if player.velocity.length() > 60.0:
 			fleet_heading = lerp_angle(fleet_heading, player.velocity.angle(), 2.5 * delta)
-		in_combat = nearest_enemy(0, player.global_position, COMBAT_RANGE) != null
+		# A called ceasefire ends the fight, even with their guns still in sight.
+		in_combat = nearest_enemy(0, player.global_position, COMBAT_RANGE) != null and not (story and story.ceasefire())
 	else:
 		in_combat = false
 
