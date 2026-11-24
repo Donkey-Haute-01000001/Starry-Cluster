@@ -782,7 +782,7 @@ var captains := {
 		"hired": "Point me at whoever's bothering you.",
 		"note": "Clan Karabey ace. Expensive. Flies point."},
 	# Fork wingmen: they come with a side you picked, not from the bar. Drafts.
-	"navy_wing": {"name": "Mbeki", "full": "Petty Officer Ulysses Mbeki, FNS", "hull": "navy_wing", "ship": "interceptor", "wage": 0, "temper": "steady",
+	"navy_wing": {"name": "Mbeki", "full": "Petty Officer Mbeki, FNS Ulysses", "hull": "navy_wing", "ship": "FNS Ulysses", "wage": 0, "temper": "steady",
 		"pitch": "", "hired": "Petty Officer Mbeki, on loan from the Marcellus patrol. Lieutenant says keep you alive. I intend to.", "note": "Navy interceptor on loan. Goes where you go, reports to Kessler."},
 	"tally_wing": {"name": "Notch", "full": "\"Notch\", Tally's crew", "hull": "tally_escort", "ship": "raider", "wage": 0, "temper": "presses",
 		"pitch": "", "hired": "Tally says you're on the list now. The good list. Don't make him cross you off.", "note": "One of the Tallyman's raiders. Flies with you because Tally said so."},
@@ -839,7 +839,7 @@ func speaker_info(who: String) -> Dictionary:
 # --- The journal: who people are, and the powers you deal with ---------------------
 ## One line per person, as you'd write it in your logbook. Drafts.
 var bios := {
-	"Mbeki": "Petty Officer Ulysses Mbeki, Federation Navy. On loan from Kessler's patrol. Young, by the book, and trying very hard.",
+	"Mbeki": "Petty Officer Mbeki, Federation Navy, flying the interceptor FNS Ulysses. On loan from Kessler's patrol. Young, by the book, and trying very hard.",
 	"Notch": "One of the Tallyman's raiders. Flies with you because Tally said so. Talks less than Tally, counts more.",
 	"Alejandra": "Alejandra Vargas, owner-operator of the Sweet Margaret, one number ahead of you in the Charter block. Was.",
 	"Charlie": "Charlotte Hansen, Charter dispatch, third ring. Roots for you while working for the people who own your rig. Loses paperwork on purpose, sometimes.",
