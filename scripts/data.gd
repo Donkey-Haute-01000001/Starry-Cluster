@@ -544,7 +544,7 @@ var charlie := {
 	"paid": "Payment's through. %s down, %s to go. You're doing great, captain.",
 	"missed": "Payment bounced, hon. They added interest. Get me something by next week, okay? I can only lose the paperwork so many times.",
 	"paid_off": "...That's it. That's the last one. Paid in full. I'm stamping it myself. And your papers came through. Go see the gate, captain. Send me a postcard.",
-	"strike1": "Payment bounced, hon. That's a strike on your file. One more and Recovery sends a cutter for the rig. Please don't make me watch that.",
+	"strike1": "Payment bounced, hon. That's [red]one strike[/red] on your file. One more and Recovery sends a cutter for the rig. [slow]Please don't make me watch that.[/slow]",
 	"strike2": "Second strike. I'm sorry, captain, it's out of my hands. Recovery's sending a repo cutter. Pay the overdue at the Counter and I can call it off.",
 	"called_off": "Overdue's paid. I called Recovery off. Breathe, captain.",
 	"cutter_inbound": "Heads up, captain. The repo cutter just logged a jump into your system. Run, or come pay.",
