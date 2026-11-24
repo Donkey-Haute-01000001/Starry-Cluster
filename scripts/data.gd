@@ -546,7 +546,7 @@ var charlie := {
 	"paid_off": "...That's it. That's the last one. Paid in full. I'm stamping it myself. And your papers came through. Go see the gate, captain. Send me a postcard.",
 	"strike1": "Payment bounced, hon. That's [red]one strike[/red] on your file. One more and Recovery sends a cutter for the rig. [slow]Please don't make me watch that.[/slow]",
 	"strike2": "Second strike. Recovery's sending a [shake]repo cutter[/shake]. [slow]Officially, I can't help you.[/slow] Unofficially? Pay the overdue at the Counter and they let me call it off. I'll have the form ready.",
-	"called_off": "Overdue's paid. I called Recovery off. Breathe, captain.",
+	"called_off": "Overdue's paid and the cutter's turning around. [slow]Officially[/slow], your account is in good standing. Unofficially, I owe the filing clerk a coffee.",
 	"cutter_inbound": "Heads up, captain. The repo cutter just logged a jump into your system. Run, or come pay.",
 	"repossessed": "They took the cargo, and the fee's on the lien. ...I'm so sorry, captain.",
 	"job_done": "Greenhouse says the water's in. Nice flying, captain. The board's open: pick your own runs from here. Watch the belt, though. Marcellus pays well for a reason.",
