@@ -570,6 +570,12 @@ var ahead := {
 	"bar": "You're the one who was behind me on the Greenhouse lane. Don't be sorry. Charter took the Margaret back a week later. One missed payment, that's all it took. I load ore here now. Just don't miss one, captain.",
 	"bar_saved": "There's my guardian angel. Charter still owns the Margaret, but she's still mine to fly. Drinks are on me. Which means water.",
 	"hail": "Go on, deliver yours. Somebody should get paid today.",
+	## Restage (Vishnu 2026-11-24): Alejandra flies with you; a stranger, Hollis Gray
+	## in Hollis' Girl, is the one raided. Alejandra coaches in two beats.
+	"victim_rig": "Hollis' Girl",
+	"victim": "Hollis Gray",
+	"coach_1": "That's Hollis. Named his rig after himself. [slow]Still family.[/slow] Three on one, over a tank of water? Somebody's got a beef with who he hauls for.",
+	"coach_2": "[shake]Back off![/shake] You go in, they strip you too. They'll take his water and let him limp home. [slow]That's how it goes.[/slow]",
 }
 
 ## The forks: what the March remembers of you, and how it pays off at the gate.
