@@ -389,6 +389,9 @@ func hail(s: Ship) -> void:
 		Career.say(s.display_name if s.display_name != "" else "Raider", "Cut your engines and we'll take the cargo, not the rig." if incident.get("kind", "") == "petty" else "...", true)
 		return
 	var lines: Array = Data.hails.get(g, ["..."])
+	if s.display_name == Data.ahead["rig"] and Career.flags.get("ahead_robbed", false):
+		Career.say(s.display_name, Data.ahead["hail"], true)
+		return
 	if s.controller is Pilot and s.controller.flee:
 		Career.say(s.display_name, "Not now! Not now!", true)
 		return

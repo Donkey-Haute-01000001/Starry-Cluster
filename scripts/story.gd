@@ -51,6 +51,136 @@ func ceasefire() -> bool:
 	return scene == "ambush" and _phase in ["hail", "talk", "gone"]
 
 
+# --- The rig ahead of you ------------------------------------------------------------
+# The first water run. Another liened rig is on the same lane a little ahead,
+# same Charter number block, same forty tons. Backed raiders take it, and one
+# freighter can't stop them. You watch it robbed. Charlie goes quiet. Its
+# owner turns up later at the Saltgate bar.
+
+var _rig: Ship = null
+var _raiders: Array = []
+
+
+func _start_ahead() -> void:
+	scene = "ahead"
+	_phase = "lane"
+	_t = 0.0
+	_raiders.clear()
+	var p: Ship = main.player
+	var gh: Vector2 = Data.stations["greenhouse"]["pos"]
+	var pts: Array = main.traffic.path(p.global_position, gh)
+	var dir: Vector2 = (pts[1] - p.global_position).normalized()
+	var at: Vector2 = p.global_position + dir * 1500.0 + dir.orthogonal() * 120.0
+	_rig = main.traffic._spawn("liened_rig", "charter", at)
+	_rig.display_name = Data.ahead["rig"]
+	_rig.info["owner"] = Data.ahead["owner_tag"]
+	_rig.info["job"] = "water to the Greenhouse"
+	_rig.info["good"] = "water"
+	_rig.info["tons"] = 40
+	var pilot := Traffic.Pilot.new(_rig, main, main.traffic)
+	pilot.route = main.traffic.path(at, gh).slice(1)
+	pilot.end_kind = "dock"
+	pilot.end_at = gh
+	_rig.controller = pilot
+	_rig.rotation = dir.angle()
+	_rig.velocity = dir * _rig.max_speed * 0.5
+	# Nobody on your side dies on the first run, however it looks.
+	for s in _fleet():
+		s.hull_floor = 0.12
+
+
+func _ahead_step(delta: float) -> void:
+	var p: Ship = main.player
+	if not is_instance_valid(p) or main.system_id != "tiberine":
+		_end_ahead()
+		return
+	var rig_ok := is_instance_valid(_rig) and _rig.alive
+	match _phase:
+		"lane":
+			if _t > 3.0 and not Career.flags.has("ahead_hello"):
+				Career.flags["ahead_hello"] = true
+				Career.say(Data.ahead["rig"], Data.ahead["hello"], true)
+			# They hit it once you're close enough to see, or soon regardless.
+			var near: bool = rig_ok and p.global_position.distance_to(_rig.global_position) < 2400.0
+			if rig_ok and _t > 8.0 and (near or _t > 30.0):
+				_raid_rig()
+		"raid":
+			if not rig_ok:
+				_phase = "after"
+				_t = 0.0
+				return
+			# Close in on them and one turns to warn you off. It's enough.
+			for r in _raiders:
+				if is_instance_valid(r) and r.alive and r.controller is AIController:
+					var c: AIController = r.controller
+					var to_p: float = r.global_position.distance_to(p.global_position)
+					if r == _raiders[0] and to_p < 900.0:
+						c.target = p
+					elif c.target == p and to_p > 1400.0:
+						c.target = _rig
+			if _rig.disabled:
+				_phase = "strip"
+				_t = 0.0
+				_rig.hull_floor = 0.1
+				for r in _raiders:
+					if is_instance_valid(r) and r.alive:
+						var hold := ScriptedPilot.new(r, main)
+						hold.goal = _rig.global_position + (r.global_position - _rig.global_position).normalized() * 140.0
+						hold.face = (_rig.global_position - r.global_position).angle()
+						r.controller = hold
+		"strip":
+			# Stripping the hold. The tanks come off one by one.
+			if rig_ok and int(_t * 2.0) != int((_t - delta) * 2.0) and _t < 9.0:
+				main.spawn_sparks(_rig.global_position + Vector2(randf_range(-30, 30), randf_range(-30, 30)), Color(0.9, 0.8, 0.5), 6)
+			if _t > 9.0:
+				for r in _raiders:
+					if is_instance_valid(r) and r.alive:
+						r.controller = Traffic.Leaving.new(r, main)
+				if rig_ok:
+					_rig.info["tons"] = 0
+					_rig.info["job"] = "drifting, hold empty"
+				_phase = "after"
+				_t = 0.0
+		"after":
+			if _t > 3.0 and not Career.flags.has("ahead_robbed_line"):
+				Career.flags["ahead_robbed_line"] = true
+				Career.flags["ahead_robbed"] = true
+				Career.say(Data.ahead["rig"], Data.ahead["robbed"], true)
+			if _t > 6.0:
+				_end_ahead()
+
+
+func _raid_rig() -> void:
+	_phase = "raid"
+	_t = 0.0
+	var side := 1.0 if randf() < 0.5 else -1.0
+	var from: Vector2 = _rig.global_position + (_rig.velocity.normalized() if _rig.velocity.length() > 10.0 else Vector2.RIGHT).rotated(side * 1.2) * 1400.0
+	for k in 3:
+		var r: Ship = main.spawn_ship("backed_raider", 1, from + Vector2(randf_range(-150, 150), randf_range(-150, 150)), (from - _rig.global_position).angle() + PI)
+		# Better guns than a freighter's, and paid not to quit.
+		r.hull_floor = 0.4
+		r.controller = AIController.new(r, main)
+		r.controller.target = _rig
+		r.info = {"group": "raider", "owner": "Pirate", "job": "hunting"}
+		_raiders.append(r)
+	_rig.controller.flee = true
+	Career.say(Data.ahead["rig"], Data.hails["mayday"] % [Data.ahead["rig"], "the Greenhouse lane"], true)
+
+
+func _end_ahead() -> void:
+	Career.flags["ahead_done"] = true
+	for s in _fleet():
+		s.hull_floor = 0.0
+	for r in _raiders:
+		if is_instance_valid(r) and r.alive and not (r.controller is Traffic.Leaving):
+			r.controller = Traffic.Leaving.new(r, main)
+	_raiders.clear()
+	if is_instance_valid(_rig) and _rig.alive and _rig.controller is Traffic.Pilot:
+		_rig.controller.flee = false
+	scene = ""
+	_phase = ""
+
+
 # --- The Tallyman's ambush ---------------------------------------------------------
 
 ## First arrival in Marcellus: he's waiting at the jump exit.
@@ -58,6 +188,9 @@ func on_enter_system(id: String, from_system: String) -> void:
 	_bounty_ship = null
 	if id == "marcellus" and from_system != "" and not Career.flags.get("tally_done", false) and scene == "":
 		_start_ambush()
+	elif id == "tiberine" and from_system != "" and scene == "" and not Career.flags.get("ahead_done", false) \
+			and Career.jobs.any(func(j): return j["id"] == "starter_water" and j["loaded"]):
+		_start_ahead()
 
 
 func _start_ambush() -> void:
@@ -110,6 +243,8 @@ func _physics_process(delta: float) -> void:
 			_ambush_step()
 		"ending":
 			_ending_step()
+		"ahead":
+			_ahead_step(delta)
 	_bounty_step()
 
 

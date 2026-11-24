@@ -388,7 +388,8 @@ func on_dock(station: String) -> void:
 					_set_objective("", "")
 			if j["id"] == "starter_water":
 				flags["starter_done"] = true
-				say("Charlie", Data.charlie["job_done"])
+				# After the Margaret, Charlie keeps it short.
+				say("Charlie", Data.ahead["charlie_after"] if flags.get("ahead_robbed", false) else Data.charlie["job_done"])
 				_set_objective("", "")
 	# The old friend is waiting at the Greenhouse bar after your first delivery.
 	if station == "greenhouse" and flags.get("starter_done", false) and not friend.is_empty() and not friend["met"]:
@@ -403,6 +404,10 @@ func on_dock(station: String) -> void:
 		if crew[id]["down"]:
 			crew[id]["down"] = false
 			crew_joined.emit(id)
+	# Nell, from the rig ahead of you, working the Saltgate docks now.
+	if station == "saltgate" and flags.get("ahead_done", false) and not flags.get("nell_met", false):
+		flags["nell_met"] = true
+		say(Data.ahead["owner"], Data.ahead["bar"] if flags.get("ahead_robbed", false) else Data.ahead["bar_saved"])
 	# Saltgate's bar: two captains looking for work.
 	if station == "saltgate" and not flags.get("bar_pitch", false):
 		flags["bar_pitch"] = true

@@ -1287,6 +1287,35 @@ func _run_merchant_test() -> void:
 						if traffic.incident.is_empty():
 							break
 					print("[raid] over after %ds; wrecks=%s; credits=%d" % [int(traffic.incident.get("t", 0.0)), traffic._wrecks, Career.credits])
+				elif what == "ahead":
+					if station_ui.visible:
+						undock()
+					Career.first_job()
+					Career.jobs[0]["loaded"] = true
+					Career.job_cargo["water"] = 20
+					load_system("tiberine", "aurelia")
+					var shot := 0
+					for i in 70:
+						await _wait(1.0)
+						if is_instance_valid(story._rig) and is_instance_valid(player):
+							# Fly along behind it, the way a player on the run would.
+							player.global_position = player.global_position.move_toward(story._rig.global_position + Vector2(-900, 300), 200.0)
+							player.velocity = Vector2.ZERO
+							camera.global_position = player.global_position.lerp(story._rig.global_position, 0.5)
+						if i % 10 == 0 or (story._phase == "strip" and shot == 0):
+							print("[ahead] t=%d phase=%s rig=%s raiders=%d" % [i, story._phase, (story._rig.display_name + (" disabled" if story._rig.disabled else "")) if is_instance_valid(story._rig) else "-", story._raiders.size()])
+						if story._phase == "raid" and shot == 0 and i > 2:
+							shot = 1
+							_shot("look_ahead_raid")
+						if story._phase == "strip" and shot == 1:
+							shot = 2
+							_shot("look_ahead_strip")
+						if story.scene == "":
+							break
+					print("[ahead] done flags robbed=%s done=%s" % [Career.flags.get("ahead_robbed"), Career.flags.get("ahead_done")])
+					_go("greenhouse")
+					await _wait(0.5)
+					print("[ahead] objective=%s" % Career.objective)
 				elif what == "repo":
 					if station_ui.visible:
 						undock()
