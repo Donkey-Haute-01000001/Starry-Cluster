@@ -575,6 +575,8 @@ var ahead := {
 	"victim_rig": "Hollis' Girl",
 	"victim": "Hollis Gray",
 	"coach_1": "That's Hollis. Named his rig after himself. [slow]Still family.[/slow] Three on one, over a tank of water? Somebody's got a beef with who he hauls for.",
+	"hollis_bar": "Hey. Lane-watcher. [slow]Relax, I'm not mad.[/slow] I'm a little mad. Charter fined me for the late delivery, can you believe that? Robbed, then billed. Buy me a water and we're square.",
+	"hollis_bar_saved": "You came in. Nobody comes in. [slow]I don't know what to do with that.[/slow] ...Here. Hollis' Girl's channel. You ever need anything hauled, I owe you one. Just the one, though.",
 	"coach_2": "[shake]Back off![/shake] You go in, they strip you too. They'll take his water and let him limp home. [slow]That's how it goes.[/slow]",
 }
 
