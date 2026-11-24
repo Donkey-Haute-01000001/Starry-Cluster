@@ -51,7 +51,7 @@ func step(delta: float) -> void:
 	if outside and not was:
 		if not Career.flags.get("beacon_told", false):
 			Career.flags["beacon_told"] = true
-			Career.say("Charlie", "You're off the beacons, captain. Every burn out there comes out of your own tank.")
+			Career.say("Charlie", "You're off the beacons, captain. Every burn out there comes out of your own tank.", true)
 		else:
 			main.show_message("Off the beacons. Burning reserve.", 2.5)
 	elif was and not outside:
@@ -62,7 +62,7 @@ func step(delta: float) -> void:
 		for mark in [0.5, 0.25]:
 			if reserve <= mark and not _warned.has(mark):
 				_warned[mark] = true
-				Career.say("Charlie", "Reserve's at half, captain. That's your turn-back point." if mark == 0.5 else "Quarter tank. I mean it. Come home.")
+				Career.say("Charlie", "Reserve's at half, captain. That's your turn-back point." if mark == 0.5 else "Quarter tank. I mean it. Come home.", true)
 	elif _dry_t < 0.0:
 		reserve = minf(1.0, reserve + REFILL * delta)
 		if reserve >= 1.0:
@@ -77,7 +77,7 @@ func step(delta: float) -> void:
 		if _dry_t > 2.0 and not _warned.has("tow"):
 			_warned["tow"] = true
 			var n := int(Career.flags.get("tows", 0))
-			Career.say("Charlie", ["Tow's on the way. It's going on the lien. Sorry, hon.", "Again? ...Tow's coming. Same fee.", "I'm sending the tow. My supervisor's asking about you, captain."][mini(n, 2)])
+			Career.say("Charlie", ["Tow's on the way. It's going on the lien. Sorry, hon.", "Again? ...Tow's coming. Same fee.", "I'm sending the tow. My supervisor's asking about you, captain."][mini(n, 2)], true)
 		if _dry_t > 7.0 and slip.is_empty():
 			Career.flags["tows"] = int(Career.flags.get("tows", 0)) + 1
 			Career.loan_balance += TOW_FEE

@@ -88,7 +88,7 @@ func _weekly_payment() -> void:
 		if loan_balance <= 0:
 			_paid_off()
 		else:
-			say("Charlie", Data.charlie["paid"] % [_fmt(due), _fmt(loan_balance)])
+			say("Charlie", Data.charlie["paid"] % [_fmt(due), _fmt(loan_balance)], true)
 	else:
 		loan_balance += int(due * Data.LOAN_INTEREST)
 		say("Charlie", Data.charlie["missed"])
@@ -267,11 +267,11 @@ func on_dock(station: String) -> void:
 	for j in jobs.duplicate():
 		if j["from"] == station and not j["loaded"]:
 			if cargo_free() < j["tons"]:
-				say("Dock crew", "We've got your %d tons, but your hold's full. Make room and dock again." % j["tons"])
+				say("Dock crew", "We've got your %d tons, but your hold's full. Make room and dock again." % j["tons"], true)
 				continue
 			j["loaded"] = true
 			job_cargo[j["good"]] = job_cargo.get(j["good"], 0) + j["tons"]
-			say("Dock crew", "%d tons of %s loaded for %s." % [j["tons"], Data.goods[j["good"]]["name"].to_lower(), Data.stations[j["to"]]["nick"]])
+			say("Dock crew", "%d tons of %s loaded for %s." % [j["tons"], Data.goods[j["good"]]["name"].to_lower(), Data.stations[j["to"]]["nick"]], true)
 			if j["id"] == "starter_water":
 				_set_objective("Jump to Tiberine and deliver the water to the Greenhouse. Spare room? Buy machine parts at the Bones first.", "greenhouse")
 		elif j["to"] == station and j["loaded"]:
@@ -359,7 +359,7 @@ func friend_say(key: String, once := false) -> void:
 			return
 		_once[key] = true
 	var text: String = Data.friend_memories[friend["memory"]]["line"] if key == "callback" else Data.friend_lines[key]
-	say(friend["name"], text)
+	say(friend["name"], text, key not in ["joined"])
 
 
 func friend_shot_down() -> void:
@@ -377,7 +377,7 @@ func on_enter_system(id: String) -> void:
 	visited[id] = true
 	if friend_with_you() and friend["memory"] == "gate":
 		credits += 300
-		say(friend["name"], "New sky. Never gets old. Sold our survey data, by the way: 300 credits.")
+		say(friend["name"], "New sky. Never gets old. Sold our survey data, by the way: 300 credits.", true)
 		changed.emit()
 
 
@@ -389,7 +389,13 @@ func _set_objective(text: String, station: String) -> void:
 	objective = {} if text == "" else {"text": text, "station": station}
 
 
-func say(speaker: String, text: String) -> void:
+## Is the line being said right now everyday chatter (scrolls by in the
+## ticker) rather than a story beat (waits for you)? Read by listeners.
+var chatter_now := false
+
+
+func say(speaker: String, text: String, chatter := false) -> void:
+	chatter_now = chatter
 	comms_log.append([day, speaker, text])
 	if comms_log.size() > 200:
 		comms_log.pop_front()

@@ -226,7 +226,7 @@ func _incident_step(delta: float) -> void:
 		if incident["kind"] == "petty":
 			if incident["robbed_t"] < 0.0:
 				incident["robbed_t"] = incident["t"]
-				Career.say(victim.display_name, Data.hails["robbed"])
+				Career.say(victim.display_name, Data.hails["robbed"], true)
 				for r in raiders:
 					r.controller = Leaving.new(r, main)
 			elif incident["t"] - incident["robbed_t"] > 25.0:
@@ -278,7 +278,7 @@ func _start_raid() -> void:
 	var where := _nearest_station_name(victim.global_position)
 	incident = {"victim": victim, "raiders": raiders, "kind": kind, "t": 0.0, "navy_at": randf_range(45.0, 75.0),
 		"navy_sent": false, "robbed_t": -1.0, "player_near": false, "player_hits": 0.0}
-	Career.say(victim.display_name, Data.hails["mayday"] % [victim.display_name, where])
+	Career.say(victim.display_name, Data.hails["mayday"] % [victim.display_name, where], true)
 
 
 func _nearest_station_name(at: Vector2) -> String:
@@ -310,11 +310,11 @@ func _end_raid(how: String) -> void:
 				if player_helped:
 					var reward := randi_range(2, 4) * 100
 					Career.credits += reward
-					Career.say(victim.display_name, Data.hails["thanks"] + " (+%s cr)" % Career.fmt(reward))
+					Career.say(victim.display_name, Data.hails["thanks"] + " (+%s cr)" % Career.fmt(reward), true)
 					Career.flags["rigs_saved"] = int(Career.flags.get("rigs_saved", 0)) + 1
 					_dez("helped")
 				else:
-					Career.say(victim.display_name, Data.hails["thanks_navy"])
+					Career.say(victim.display_name, Data.hails["thanks_navy"], true)
 		"destroyed":
 			if incident["player_near"] and not player_helped:
 				_dez("ignored")
@@ -326,7 +326,7 @@ func _end_raid(how: String) -> void:
 
 func _dez(key: String) -> void:
 	if Career.friend_with_you():
-		Career.say(str(Career.friend.get("name", "Dez")), Data.traffic_dez[key])
+		Career.say(str(Career.friend.get("name", "Dez")), Data.traffic_dez[key], true)
 
 
 ## A traffic ship died: if it carried cargo, the wreck stays where it fell.
@@ -386,13 +386,13 @@ func loot(n: Node2D) -> void:
 func hail(s: Ship) -> void:
 	var g: String = s.info.get("group", "")
 	if g == "raider":
-		Career.say(s.display_name if s.display_name != "" else "Raider", "Cut your engines and we'll take the cargo, not the rig." if incident.get("kind", "") == "petty" else "...")
+		Career.say(s.display_name if s.display_name != "" else "Raider", "Cut your engines and we'll take the cargo, not the rig." if incident.get("kind", "") == "petty" else "...", true)
 		return
 	var lines: Array = Data.hails.get(g, ["..."])
 	if s.controller is Pilot and s.controller.flee:
-		Career.say(s.display_name, "Not now! Not now!")
+		Career.say(s.display_name, "Not now! Not now!", true)
 		return
-	Career.say(s.display_name, lines[randi() % lines.size()])
+	Career.say(s.display_name, lines[randi() % lines.size()], true)
 
 
 # --- Pilots ------------------------------------------------------------------

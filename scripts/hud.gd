@@ -11,6 +11,15 @@ var _comms_queue: Array = []
 var _comms_age := 0.0
 var comms_top := 0.0      ## top edge of the comms panel this frame (cards stack above it)
 var comms_rect := Rect2()  ## the comms panel on screen, for clicks
+var _plate_k := 1.0        ## nav plate: 1 full, 0 tucked away
+var _plate_wake := 0.0     ## seconds since the plate last had news
+var _plate_sig := ""
+var _slip_k := 1.0
+var _slip_wake := 0.0
+var _slip_sig := ""
+var _tick: Array = []      ## chatter line on the ticker: [speaker, text]
+var _tick_t := 0.0
+var _tick_queue: Array = []
 var _comms_hold := false   ## this line waits for you (Space, Enter or a click)
 
 const COL_SHIELD := Color(0.35, 0.7, 1.0)
@@ -120,21 +129,63 @@ func _process(delta: float) -> void:
 	if not (_comms_hold and _comms_t > 0.0):
 		_comms_t = maxf(0.0, _comms_t - delta)
 	_comms_age += delta
-	if _comms_t <= 0.0 and not _comms_queue.is_empty():
+	if _comms_t <= 0.0 and not _comms_queue.is_empty() and not _quiet():
 		var next: Array = _comms_queue.pop_front()
 		_show_comms(next[0], next[1])
+	_quiet_step(delta)
+	# The ticker: everyday chatter scrolls by and doesn't wait for you.
+	_tick_t = maxf(0.0, _tick_t - delta)
+	if _tick_t <= 0.0 and not _tick_queue.is_empty() and not _quiet():
+		_tick = _tick_queue.pop_front()
+		_tick_t = 4.0 + str(_tick[1]).length() * 0.045
 	queue_redraw()
+
+
+## Quiet by default: panels speak up when something changes, then tuck
+## away. In a fight the trade panels go and the fleet takes their place.
+func _quiet_step(delta: float) -> void:
+	if not main.merchant:
+		return
+	var sig := "%s|%d|%d|%d" % [main.system_id, Career.credits, Career.cargo_used(), Career.loan_balance]
+	if sig != _plate_sig or main.docked_at != "":
+		_plate_sig = sig
+		_plate_wake = 0.0
+	var osig := str(Career.objective.get("text", ""))
+	if osig != _slip_sig or main.docked_at != "":
+		_slip_sig = osig
+		_slip_wake = 0.0
+	_plate_wake += delta
+	_slip_wake += delta
+	var mp := get_local_mouse_position()
+	var peek := mp.y < 140.0 and mp.y >= 0.0
+	var fight: bool = main.in_combat
+	var want_plate := 0.0 if fight else (1.0 if _plate_wake < 8.0 or peek else 0.0)
+	var want_slip := 0.0 if fight else (1.0 if _slip_wake < 10.0 or peek else 0.0)
+	_plate_k = move_toward(_plate_k, want_plate, delta * 3.0)
+	_slip_k = move_toward(_slip_k, want_slip, delta * 3.0)
+
+
+## Nobody talks during an engagement. Scripted scenes are the exception:
+## they stage their own talk.
+func _quiet() -> bool:
+	return main.merchant and main.in_combat and not (main.story and main.story.busy())
 
 
 ## Comms messages from people (Charlie, dock crews). Shown in flight for a while.
 ## In flight, a line that arrives while another is showing waits its turn.
 func on_comms(speaker: String, text: String) -> void:
+	if Career.chatter_now:
+		if main.docked_at == "":
+			_tick_queue.append([speaker, text])
+			while _tick_queue.size() > 3:
+				_tick_queue.pop_front()
+		return
 	if main.docked_at != "":
 		# Docked: the station's comms board shows it; don't replay it in flight.
 		_comms_queue.clear()
 		_comms_t = 0.0
 		return
-	if _comms_t > 0.0:
+	if _comms_t > 0.0 or _quiet():
 		if not hold_enabled():
 			_comms_t = minf(_comms_t, 2.5)
 		_comms_queue.append([speaker, text])
@@ -386,8 +437,8 @@ func _draw() -> void:
 
 	# Fleet roster, left side.
 	var live: Array = main.escorts.filter(func(e): return is_instance_valid(e) and e.alive)
-	if not live.is_empty():
-		var ry := 128.0
+	if not live.is_empty() and (not main.merchant or main.in_combat or main.wheel_open()):
+		var ry := 16.0 if main.merchant else 128.0
 		var rr := Rect2(Vector2(16, ry), Vector2(330, 48 + live.size() * 26))
 		UIStyle.draw_glass(self, rr, 1.0, 10.0)
 		_text(rr.position + Vector2(14, 22), _sp("FLEET") + "   ·   %s  ·  %s" % [_order_name(main.fleet_order), main.formation.capitalize()], 11, UIStyle.KICKER)
@@ -534,11 +585,11 @@ func _hazard(r: Rect2, col: Color, striped: bool) -> void:
 
 
 ## Embossed label-maker tape: black strip, raised white letters, tilted a hair.
-func _label_tape(at: Vector2, text: String, seed: int) -> void:
+func _label_tape(at: Vector2, text: String, seed: int, base := Vector2.ZERO) -> void:
 	var f: Font = Data.font_type_bold
 	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 20.0
 	var tilt := (float(absi(seed) % 7) - 3.0) * 0.006
-	draw_set_transform(at, tilt, Vector2.ONE)
+	draw_set_transform(base + at, tilt, Vector2.ONE)
 	var r := Rect2(Vector2.ZERO, Vector2(w, 22))
 	draw_rect(Rect2(r.position + Vector2(1, 2), r.size), Color(0, 0, 0, 0.5))
 	draw_rect(r, Color(0.08, 0.08, 0.09))
@@ -547,7 +598,7 @@ func _label_tape(at: Vector2, text: String, seed: int) -> void:
 	draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(3, 11), Vector2(0, 22)]), Color(0.075, 0.085, 0.095))
 	draw_colored_polygon(PackedVector2Array([Vector2(w, 0), Vector2(w - 3, 11), Vector2(w, 22)]), Color(0.075, 0.085, 0.095))
 	draw_string(f, Vector2(10, 16), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.93, 0.93, 0.9))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_set_transform(base, 0.0, Vector2.ONE)
 
 
 ## The current job, as a dispatch printout fed out of the dash printer:
@@ -634,6 +685,15 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	var sys: Dictionary = Data.systems.get(main.system_id, Data.crossroads)
 	# The rig's nav plate: security tag, stencilled system name, and the
 	# nickname spacers use, punched on label tape and stuck on crooked.
+	var pk := 1.0 - pow(1.0 - _plate_k, 3.0)
+	if _plate_k < 0.98 and not main.in_combat:
+		# Tucked away: one quiet line where the plate was.
+		var line := "%s  ·  %s  ·  %s cr" % [sys["name"].to_upper(), sys["security"].to_upper(), Career.fmt(Career.credits)]
+		var la := 1.0 - pk
+		draw_rect(Rect2(Vector2(16, 12), Vector2(Data.font_type_bold.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 24, 22)), Color(0.02, 0.03, 0.04, 0.6 * la))
+		draw_string(Data.font_type_bold, Vector2(28, 27), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(UIStyle.TEXT_DIM, la))
+	var lift := Vector2(0, -(1.0 - pk) * 140.0)
+	draw_set_transform(lift, 0.0, Vector2.ONE)
 	var plate := Rect2(Vector2(16, 16), Vector2(470, 108))
 	UIStyle.draw_glass(self, plate, 1.0, 14.0, SECURITY_COLORS.get(sys["security"], UIStyle.GOLD))
 	var sec: String = sys["security"].to_upper()
@@ -649,19 +709,22 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	draw_string(Data.font_stamp, Vector2(31, 79), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0, 0, 0, 0.6))
 	draw_string(Data.font_stamp, Vector2(30, 78), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.9, 0.88, 0.82))
 	var nick_x := 30.0 + Data.font_stamp.get_string_size(name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x + 14.0
-	_label_tape(Vector2(nick_x, 58), sys["nick"].to_upper(), sys["name"].hash())
+	_label_tape(Vector2(nick_x, 58), sys["nick"].to_upper(), sys["name"].hash(), lift)
 	var loan := "Loan paid off" if Career.loan_balance <= 0 else "Loan %s · %s due day %d" % [Career.fmt(Career.loan_balance), Career.fmt(mini(Data.LOAN_WEEKLY, Career.loan_balance)), int(Career.next_payment_day) + 1]
 	draw_line(Vector2(30, 90), Vector2(plate.end.x - 14, 90), Color(0.22, 0.24, 0.26), 1.0)
 	_text(Vector2(32, 112), "%s cr" % Career.fmt(Career.credits), 15, UIStyle.TEXT, false, true)
 	_text(Vector2(140, 112), "Hold %d/%d t" % [Career.cargo_used(), Career.cargo_capacity], 15, UIStyle.TEXT)
 	_text(Vector2(262, 112), loan, 15, UIStyle.RED if Career.loan_balance > 0 else UIStyle.GREEN)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# Objective line and a marker toward where to go next.
 	if not Career.objective.is_empty():
 		var ot: String = Career.objective["text"]
-		_draw_dispatch_slip(vp, ot)
-	if main.edge and not main.edge.slip.is_empty():
-		_draw_tow_slip(vp, main.edge.slip)
+		var sk := 1.0 - pow(1.0 - _slip_k, 3.0)
+		if sk > 0.01:
+			draw_set_transform(Vector2(0, -(1.0 - sk) * 110.0), 0.0, Vector2.ONE)
+			_draw_dispatch_slip(vp, ot)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		var target: Node2D = main.objective_target()
 		if target and is_instance_valid(main.player):
 			var sp := _to_screen(target.global_position)
@@ -677,6 +740,9 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 				draw_colored_polygon(PackedVector2Array([edge + dir * 18, edge + dir.rotated(2.5) * 13, edge + dir.rotated(-2.5) * 13]), col)
 				var dist := int(main.player.global_position.distance_to(target.global_position))
 				_text(edge - dir * 30 + Vector2(0, 5), "%d" % dist, 13, col, true)
+
+	if main.edge and not main.edge.slip.is_empty():
+		_draw_tow_slip(vp, main.edge.slip)
 
 	# What F does right now.
 	var b: Node2D = main.nearby_interactable()
@@ -704,7 +770,34 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	comms_top = vp.y - 192.0
 	if _comms_t > 0.0 and not main.docked_at:
 		_draw_comms(vp)
+	if _tick_t > 0.0 and not main.docked_at and not _tick.is_empty():
+		_draw_ticker(vp)
 
+
+## One line of chatter, low on the left: who, then what. Fades on its own.
+func _draw_ticker(vp: Vector2) -> void:
+	var a := clampf(_tick_t / 0.6, 0.0, 1.0) * clampf((4.0 + str(_tick[1]).length() * 0.045 - _tick_t) / 0.25, 0.0, 1.0)
+	var who := str(_tick[0])
+	var info: Dictionary = Data.speaker_info(who)
+	var col: Color = info["color"]
+	if str(_tick[1]).begins_with("Mayday"):
+		col = COL_ENEMY
+	var y := (comms_top - 18.0) if _comms_t > 0.0 else vp.y - 34.0
+	var fb: Font = Data.font_type_bold
+	var f: Font = Data.font_type
+	var ww := fb.get_string_size(who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	var text := str(_tick[1])
+	# Stay clear of the ship panel in the middle; long lines wrap to two.
+	var cap := minf(620.0, vp.x * 0.5 - 250.0 - 40.0 - ww)
+	var full := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+	var tw := minf(full, cap)
+	var lines := 1 if full <= cap else 2
+	var h := 24.0 + 16.0 * (lines - 1)
+	y -= 16.0 * (lines - 1)
+	draw_rect(Rect2(Vector2(16, y - 17), Vector2(ww + tw + 36, h)), Color(0.02, 0.035, 0.045, 0.78 * a))
+	draw_rect(Rect2(Vector2(16, y - 17), Vector2(3, h)), Color(col, a))
+	draw_string(fb, Vector2(28, y), who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col, a))
+	draw_multiline_string(f, Vector2(28 + ww + 12, y), text, HORIZONTAL_ALIGNMENT_LEFT, tw + 2.0, 13, 2, Color(0.9, 0.92, 0.95, a))
 
 
 func _draw_comms(vp: Vector2) -> void:
