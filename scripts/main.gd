@@ -1099,7 +1099,7 @@ func _run_merchant_test() -> void:
 				elif what in ["map", "maphover", "launch", "comms"] or what.begins_with("journal") or what.begins_with("mapnote"):
 					# The paperwork overlays, with a little history to show.
 					if Career.pilot.get("name", "") in ["", "Unnamed"]:
-						Career.pilot = {"name": "Hollis Graye", "rig": "Long Haul", "photo": 8}
+						Career.pilot = {"name": "Mara Quill", "rig": "Long Haul", "photo": 8}
 					if station_ui.visible:
 						undock()
 					await _wait(0.5)

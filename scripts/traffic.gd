@@ -404,7 +404,7 @@ func hail(s: Ship) -> void:
 			lines = Data.lanes["friend"]
 		elif Career.lane_rep() <= -2:
 			lines = Data.lanes["scav"]
-	if s.display_name == Data.ahead["rig"] and Career.flags.get("ahead_robbed", false):
+	if s.display_name == Data.ahead["victim_rig"] and Career.flags.get("ahead_robbed", false):
 		Career.say(s.display_name, Data.ahead["hail"], true)
 		return
 	if s.controller is Pilot and s.controller.flee:

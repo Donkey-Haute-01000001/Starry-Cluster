@@ -160,6 +160,7 @@ func _hunter_step(delta: float) -> void:
 # owner turns up later at the Saltgate bar.
 
 var _rig: Ship = null
+var _friend_rig: Ship = null   ## Alejandra's Sweet Margaret, flying with you
 var _raiders: Array = []
 
 
@@ -173,9 +174,11 @@ func _start_ahead() -> void:
 	var pts: Array = main.traffic.path(p.global_position, gh)
 	var dir: Vector2 = (pts[1] - p.global_position).normalized()
 	var at: Vector2 = p.global_position + dir * 1500.0 + dir.orthogonal() * 120.0
+	# Hollis' Girl up ahead is the one they hit; Alejandra's Sweet Margaret
+	# runs the lane alongside you and talks you through it.
 	_rig = main.traffic._spawn("liened_rig", "charter", at)
-	_rig.display_name = Data.ahead["rig"]
-	_rig.info["owner"] = Data.ahead["owner_tag"]
+	_rig.display_name = Data.ahead["victim_rig"]
+	_rig.info["owner"] = "%s, owner-operator" % Data.ahead["victim"]
 	_rig.info["job"] = "water to the Greenhouse"
 	_rig.info["good"] = "water"
 	_rig.info["tons"] = 40
@@ -186,6 +189,19 @@ func _start_ahead() -> void:
 	_rig.controller = pilot
 	_rig.rotation = dir.angle()
 	_rig.velocity = dir * _rig.max_speed * 0.5
+	var mat: Vector2 = p.global_position + dir * 400.0 - dir.orthogonal() * 260.0
+	_friend_rig = main.traffic._spawn("liened_rig", "charter", mat)
+	_friend_rig.display_name = Data.ahead["rig"]
+	_friend_rig.info["owner"] = Data.ahead["owner_tag"]
+	_friend_rig.info["job"] = "water to the Greenhouse"
+	var fp := Traffic.Pilot.new(_friend_rig, main, main.traffic)
+	fp.route = main.traffic.path(mat, gh).slice(1)
+	fp.end_kind = "dock"
+	fp.end_at = gh
+	_friend_rig.controller = fp
+	_friend_rig.rotation = dir.angle()
+	_friend_rig.velocity = p.velocity
+	_friend_rig.hull_floor = 0.5
 	# Nobody on your side dies on the first run, however it looks.
 	for s in _fleet():
 		s.hull_floor = 0.12
@@ -201,7 +217,7 @@ func _ahead_step(delta: float) -> void:
 		"lane":
 			if _t > 3.0 and not Career.flags.has("ahead_hello"):
 				Career.flags["ahead_hello"] = true
-				Career.say(Data.ahead["rig"], Data.ahead["hello"] % str(Career.pilot.get("rig", "new rig")), true)
+				Career.say(Data.ahead["owner"], Data.ahead["hello"] % str(Career.pilot.get("rig", "new rig")))
 			# They hit it once you're close enough to see, or soon regardless.
 			var near: bool = rig_ok and p.global_position.distance_to(_rig.global_position) < 2400.0
 			if rig_ok and _t > 8.0 and (near or _t > 30.0):
@@ -218,9 +234,11 @@ func _ahead_step(delta: float) -> void:
 					var to_p: float = r.global_position.distance_to(p.global_position)
 					if r == _raiders[0] and to_p < 900.0:
 						c.target = p
+						_coach_2(true)
 					elif c.target == p and to_p > 1400.0:
 						c.target = _rig
 			if _rig.disabled:
+				_coach_2(false)
 				_phase = "strip"
 				_t = 0.0
 				_rig.hull_floor = 0.1
@@ -247,7 +265,7 @@ func _ahead_step(delta: float) -> void:
 			if _t > 3.0 and not Career.flags.has("ahead_robbed_line"):
 				Career.flags["ahead_robbed_line"] = true
 				Career.flags["ahead_robbed"] = true
-				Career.say(Data.ahead["rig"], Data.ahead["robbed"], true)
+				Career.say(Data.ahead["victim"].split(" ")[0], Data.ahead["robbed"])
 			if _t > 6.0:
 				_end_ahead()
 
@@ -266,7 +284,18 @@ func _raid_rig() -> void:
 		r.info = {"group": "raider", "owner": "Pirate", "job": "hunting"}
 		_raiders.append(r)
 	_rig.controller.flee = true
-	Career.say(Data.ahead["rig"], Data.hails["mayday"] % [Data.ahead["rig"], "the Greenhouse lane"], true)
+	Career.say(Data.ahead["victim_rig"], Data.hails["mayday"] % [Data.ahead["victim_rig"], "the Greenhouse lane"], true)
+	Career.say(Data.ahead["owner"], Data.ahead["coach_1"])
+
+
+## Alejandra's second beat: a warning if you moved in, a quiet word if you watched.
+func _coach_2(went_in: bool) -> void:
+	if Career.flags.has("ahead_coach_2"):
+		return
+	Career.flags["ahead_coach_2"] = true
+	if went_in:
+		Career.flags["ahead_went_in"] = true
+	Career.say(Data.ahead["owner"], Data.ahead["coach_2"])
 
 
 func _end_ahead() -> void:

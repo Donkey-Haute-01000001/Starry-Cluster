@@ -535,7 +535,7 @@ var starts := [
 ## ID photos you can pick on the financing agreement (art/portraits/pilot_N.png).
 const PILOT_PHOTOS := 12
 ## Name ideas for the blank on the form; you can type your own.
-var pilot_names := ["Ines Kovac", "Tobias Reyes", "Mara Quill", "Sol Benedek", "Yara Mensah", "Pell Okonkwo", "Rosa Lindqvist", "Arun Desai", "Hollis Graye", "Nadia Ferro"]
+var pilot_names := ["Ines Kovac", "Tobias Reyes", "Mara Quill", "Sol Benedek", "Yara Mensah", "Pell Okonkwo", "Rosa Lindqvist", "Arun Desai", "Nadia Ferro"]
 var rig_names := ["Second Wind", "Paid in Full", "Long Haul", "Small Mercy", "Old Faithful", "Debt Collector", "Fair Weather", "Last Light"]
 
 ## Charlie Hansen, Charter Company dispatch. Lines from the script doc.
@@ -567,8 +567,9 @@ var ahead := {
 	"hello": "Sweet Margaret hailing %s. Grye, hauler. Welcome, family. Let's mint.",  ## %s = your rig's name (Vishnu)
 	"robbed": "Oh, sure, everybody just [wave]watches[/wave]. Great. Love that. ...Forty tons. That's my week. [slow]Somebody tell the Greenhouse I'm gonna be late. Real late.[/slow]",  ## Hollis (Vishnu)
 	"charlie_after": "...Greenhouse says the water's in. Board's open from here, captain. Pick your own runs.",
-	"bar": "You're the one who was behind me on the Greenhouse lane. Don't be sorry. Charter took the Margaret back a week later. One missed payment, that's all it took. I load ore here now. Just don't miss one, captain.",
-	"bar_saved": "There's my guardian angel. Charter still owns the Margaret, but she's still mine to fly. Drinks are on me. Which means water.",
+	## Alejandra at the Saltgate bar (Vishnu 2026-11-24): held back / went in after Hollis.
+	"bar": "Grye. Sit. Hollis already gave his speech, you missed it. [wave]Very moving.[/wave] ...You did right out there. [slow]Doesn't feel like it. It never does.[/slow]",
+	"bar_saved": "Grye. ...You didn't listen. [slow]Good.[/slow] Don't tell anyone I said that.",
 	"hail": "Go on, deliver yours. Somebody should get paid today.",
 	## Restage (Vishnu 2026-11-24): Alejandra flies with you; a stranger, Hollis Gray
 	## in Hollis' Girl, is the one raided. Alejandra coaches in two beats.
@@ -867,7 +868,7 @@ var neon := {
 	},
 	"people": ["Charlotte Hansen", "Charlie", "Desmond Okafor", "Dez", "Phaedra Andreou", "Fay",
 		"Mersham Ali", "Mersham", "Lt. Franz Kessler", "Franz Kessler", "Lt. Kessler", "Kessler", "Franz",
-		"Alejandra Vargas", "Alejandra", "Jack Tallyn", "Tallyman", "Tally", "Qasim", "Petty Officer Mbeki", "Mbeki",
+		"Alejandra Vargas", "Alejandra", "Hollis Gray", "Hollis", "Jack Tallyn", "Tallyman", "Tally", "Qasim", "Petty Officer Mbeki", "Mbeki",
 		"Notch", "Trojan", "Uncle Reeves", "Reeves", "Ines Kovac", "R. Pruitt", "Pruitt"],
 	"places": ["Hesper March", "the Long Haul", "the Crossroads", "the Wall", "Saltgate", "Amber's", "Four",
 		"the Drip", "the Bones", "the Counter", "the Grind", "the Gatehouse", "Wreckyard Nine", "Marcellus belt"],
@@ -882,7 +883,7 @@ var neon := {
 	"links": {
 		"Charlotte Hansen": "Charlie", "Desmond Okafor": "Dez", "Phaedra Andreou": "Fay", "Mersham Ali": "Mersham",
 		"Lt. Franz Kessler": "Franz", "Franz Kessler": "Franz", "Lt. Kessler": "Franz", "Kessler": "Franz",
-		"Alejandra Vargas": "Alejandra", "Jack Tallyn": "Tallyman", "Tally": "Tallyman", "Petty Officer Mbeki": "Mbeki",
+		"Alejandra Vargas": "Alejandra", "Hollis Gray": "Hollis", "Jack Tallyn": "Tallyman", "Tally": "Tallyman", "Petty Officer Mbeki": "Mbeki",
 		"charter": "charter", "navy": "federation", "dynasty": "dynasty", "tally": "grind",
 		"the Wall": "gate", "the Gatehouse": "gate",
 	},
@@ -900,7 +901,8 @@ var bios := {
 	"Qasim": "Pilot of the Red Stork. Missed three Charter payments, watched them paint his rig default red, and stole her back off the impound line the same night. Raids on Dynasty coin now.",
 	"Mbeki": "Petty Officer Mbeki, Federation Navy, flying the interceptor FNS Ulysses. On loan from Kessler's patrol. Young, by the book, and trying very hard.",
 	"Notch": "One of the Tallyman's raiders. Flies with you because Tally said so. Talks less than Tally, counts more.",
-	"Alejandra": "Alejandra Vargas, owner-operator of the Sweet Margaret, one number ahead of you in the Charter block. Was.",
+	"Alejandra": "Alejandra Vargas, owner-operator of the Sweet Margaret, one number ahead of you in the Charter block. Calls every trucker family. Means it.",
+	"Hollis": "Hollis Gray, owner-operator of Hollis' Girl. Named his rig after himself. Robbed on the Greenhouse lane, then billed for being late.",
 	"Charlie": "Charlotte Hansen, Charter dispatch, third ring. Roots for you while working for the people who own your rig. Loses paperwork on purpose, sometimes.",
 	"Dock crew": "Loading crews on every station. They'll load anything that's paid for, and remember who tips.",
 	"Dez": "Desmond Okafor. Your oldest friend. Flies for free, cracks wise, and won't let you forget who you were.",

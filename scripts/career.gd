@@ -477,7 +477,9 @@ func on_dock(station: String) -> void:
 	# Alejandra, from the rig ahead of you, working the Saltgate docks now.
 	if station == "saltgate" and flags.get("ahead_done", false) and not flags.get("nell_met", false):
 		flags["nell_met"] = true
-		say(Data.ahead["owner"], Data.ahead["bar"] if flags.get("ahead_robbed", false) else Data.ahead["bar_saved"])
+		var went_in: bool = flags.get("ahead_went_in", false)
+		say(Data.ahead["victim"].split(" ")[0], Data.ahead["hollis_bar_saved"] if went_in else Data.ahead["hollis_bar"])
+		say(Data.ahead["owner"], Data.ahead["bar_saved"] if went_in else Data.ahead["bar"])
 	# Saltgate's bar: two captains looking for work.
 	if station == "saltgate" and not flags.get("bar_pitch", false):
 		flags["bar_pitch"] = true
