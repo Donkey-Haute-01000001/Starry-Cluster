@@ -15,6 +15,8 @@ var font_bold: Font = null  ## titles and headings
 var font_type: Font = null       ## Courier Prime: forms, serials, typed text
 var font_type_bold: Font = null
 var font_hand: Font = null       ## Nanum Pen Script: pen notes, signatures, tally marks
+var font_talk: Font = null       ## VT323, crisp pixels: what people say (comms, ticker)
+const TALK_BODY := Color(0.68, 0.71, 0.76)  ## dim body so the neon words carry the line
 var font_stamp: Font = null      ## Big Shoulders Stencil: rubber stamps, hull marks
 
 
@@ -50,6 +52,15 @@ func _ready() -> void:
 		font_hand = FontVariation.new()
 		font_hand.base_font = hand
 		font_hand.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): 550}
+	var talk := _load_font("res://fonts/VT323-Regular.ttf")
+	if talk:
+		talk.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+		talk.hinting = TextServer.HINTING_NONE
+		talk.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+		var tv := FontVariation.new()
+		tv.base_font = talk
+		tv.spacing_glyph = 1
+		font_talk = tv
 	var base := _load_font(fs.get("ui", UI_FONT))
 	if base == null:
 		return
@@ -858,6 +869,15 @@ var neon := {
 	"tally": ["Tally's crew", "Tally crew"],
 	"threats": ["Charter Recovery", "Recovery", "repossession", "repossessed", "repossess", "repo", "strikes", "strike",
 		"overdue", "default", "seized", "impound", "raiders", "pirates", "mayday"],
+	## Click a highlighted word to open its journal page (M&B encyclopedia).
+	## Names -> People entry; powers -> Powers id. Places resolve by station name/nick.
+	"links": {
+		"Charlotte Hansen": "Charlie", "Desmond Okafor": "Dez", "Phaedra Andreou": "Fay", "Mersham Ali": "Mersham",
+		"Lt. Franz Kessler": "Franz", "Franz Kessler": "Franz", "Lt. Kessler": "Franz", "Kessler": "Franz",
+		"Alejandra Vargas": "Alejandra", "Jack Tallyn": "Tallyman", "Tally": "Tallyman", "Petty Officer Mbeki": "Mbeki",
+		"charter": "charter", "navy": "federation", "dynasty": "dynasty", "tally": "grind",
+		"the Wall": "gate", "the Gatehouse": "gate",
+	},
 }
 
 

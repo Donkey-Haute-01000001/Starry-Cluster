@@ -775,6 +775,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			pause_menu.open()
 			get_viewport().set_input_as_handled()
 		return
+	# A highlighted word in a comms line opens its journal page.
+	if hud.comms_showing() and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var hit: Array = hud.link_at(event.position)
+		if not hit.is_empty() and journal.open_to(hit[1], hit[2]):
+			get_viewport().set_input_as_handled()
+			return
 	# Comms wait for you: Space, Enter, or a click on the panel moves them on.
 	if hud.comms_showing() and ((event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER])
 			or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and hud.comms_rect.has_point(event.position))):
@@ -1334,6 +1340,14 @@ func _run_merchant_test() -> void:
 					_shot("look_neon_typing")
 					await _wait(4.0)
 					_shot("look_neon")
+					print("[neon] links=%s" % [hud.comms_links.map(func(h): return "%s:%s" % [h[1], h[2]])])
+					print("[neon] open charlie=%s navy=%s four=%s nobody=%s" % [journal.open_to("people", "Charlie"), journal.open_to("navy", "the Navy"), journal.open_to("places", "Four"), journal.open_to("people", "Nobody")])
+					journal.close()
+					await _wait(0.3)
+					journal.open_to("places", "Four")
+					await _wait(0.8)
+					_shot("look_neon_journal")
+					journal.close()
 				elif what == "scenic":
 					if station_ui.visible:
 						undock()

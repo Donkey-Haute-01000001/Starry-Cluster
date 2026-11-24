@@ -141,7 +141,7 @@ static func height(font: Font, p: Dictionary, width: float, size: int, max_lines
 ## pos.y + ascent). Only words that have typed in by `age` show. Returns height.
 ## paper=true: ink tones, no glow, for slips and printouts.
 static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width: float, size: int,
-		base: Color, alpha := 1.0, age := 1e9, paper := false, max_lines := -1) -> float:
+		base: Color, alpha := 1.0, age := 1e9, paper := false, max_lines := -1, hits = null) -> float:
 	var lay: Array = _layout(font, p, width, size)
 	var lh := _line_h(font, size)
 	var asc := font.get_ascent(size)
@@ -179,6 +179,9 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 				var at := Vector2(pos.x + x, y)
 				var rf := _run_font(kd, font, paper)
 				var rs := _run_size(kd, size, paper)
+				if hits != null and kd != "":
+					var rw := rf.get_string_size(seg, HORIZONTAL_ALIGNMENT_LEFT, -1, rs).x
+					hits.append([Rect2(at + Vector2(0, -asc), Vector2(rw, lh)), kd, span(p, k)])
 				if f & (SHAKE | WAVE):
 					var cx := at.x
 					for ci2 in seg.length():
@@ -197,7 +200,7 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 						var hum := 0.75 + 0.25 * sin(now * 2.4)
 						if kd == "dynasty":
 							hum = 1.0
-						ci.draw_string_outline(font, at, seg, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 12, Color(col, col.a * 0.07 * hum))
+						ci.draw_string_outline(font, at, seg, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 9, Color(col, col.a * 0.06 * hum))
 					_glyph(ci, rf, at, seg, rs, col, kd != "" and not paper)
 				x += rf.get_string_size(seg, HORIZONTAL_ALIGNMENT_LEFT, -1, rs).x
 				k = e
@@ -207,8 +210,8 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 
 static func _glyph(ci: CanvasItem, font: Font, at: Vector2, s: String, size: int, col: Color, glow: bool) -> void:
 	if glow:
-		ci.draw_string_outline(font, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 7, Color(col, col.a * 0.09))
-		ci.draw_string_outline(font, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 3, Color(col, col.a * 0.22))
+		ci.draw_string_outline(font, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 5, Color(col, col.a * 0.06))
+		ci.draw_string_outline(font, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 2, Color(col, col.a * 0.14))
 	ci.draw_string(font, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
 
 
@@ -325,16 +328,62 @@ static func bbcode(text: String) -> String:
 	var s: String = p["text"]
 	var out := ""
 	var cur := ""
+	var url := false
 	for i in s.length():
 		var k: String = p["kind"][i]
 		if k != cur:
 			if cur != "":
 				out += "[/color]"
+				if url:
+					out += "[/url]"
+					url = false
 			if k != "":
+				var ph := span(p, i)
+				if not link(k, ph).is_empty():
+					out += "[url=%s|%s]" % [k, ph]
+					url = true
 				out += "[color=#%s]" % color(k).to_html(false)
 			cur = k
 		var c := s[i]
 		out += "[lb]" if c == "[" else c
 	if cur != "":
 		out += "[/color]"
+		if url:
+			out += "[/url]"
 	return out
+
+
+## The whole highlighted phrase around character k ("Franz Kessler", not "Kessler").
+static func span(p: Dictionary, k: int) -> String:
+	var kd: String = p["kind"][k]
+	var a := k
+	var b := k
+	while a > 0 and p["kind"][a - 1] == kd:
+		a -= 1
+	while b < p["kind"].size() and p["kind"][b] == kd:
+		b += 1
+	return str(p["text"]).substr(a, b - a)
+
+
+## Where a highlighted phrase points in the journal: [tab, key] or [] if nowhere.
+## Tabs: 1 people, 2 places, 3 powers.
+static func link(kind: String, phrase: String) -> Array:
+	var links: Dictionary = Data.neon["links"]
+	match kind:
+		"people":
+			var who: String = links.get(phrase, phrase)
+			return [1, who] if Career.contacts.has(who) else []
+		"places":
+			var key: String = links.get(phrase, "")
+			if key != "":
+				return [2, key]
+			for id in Data.stations:
+				var st: Dictionary = Data.stations[id]
+				if phrase in [st["name"], st["nick"], str(st["nick"]).trim_prefix("the ")]:
+					return [2, id]
+			for id in Data.stations:
+				if Data.systems.get(Data.stations[id]["system"], {}).get("name", "") == phrase:
+					return [2, id]
+		"charter", "navy", "dynasty", "tally":
+			return [3, links[kind]]
+	return []

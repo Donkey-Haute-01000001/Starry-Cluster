@@ -66,6 +66,23 @@ func toggle() -> void:
 		open()
 
 
+## Open straight to the page for a highlighted word (M&B encyclopedia links).
+func open_to(kind: String, phrase: String) -> bool:
+	var l: Array = Neon.link(kind, phrase)
+	if l.is_empty():
+		return false
+	_tab = l[0]
+	var list := _entries()
+	for i in list.size():
+		var pay = list[i][3]
+		var key = pay["id"] if pay is Dictionary else pay
+		if str(key) == str(l[1]):
+			_sel[_tab] = i
+			break
+	open()
+	return true
+
+
 func open() -> void:
 	if visible or main.pause_menu.visible:
 		return

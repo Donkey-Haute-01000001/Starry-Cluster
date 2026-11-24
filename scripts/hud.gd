@@ -14,6 +14,7 @@ var _comms_age := 0.0
 var _comms_words := 0      ## words typed in so far (one key tick each)
 var comms_top := 0.0      ## top edge of the comms panel this frame (cards stack above it)
 var comms_rect := Rect2()  ## the comms panel on screen, for clicks
+var comms_links: Array = []  ## highlighted words in the comms panel: [Rect2, kind, phrase]
 var _plate_k := 1.0        ## nav plate: 1 full, 0 tucked away
 var _plate_wake := 0.0     ## seconds since the plate last had news
 var _plate_sig := ""
@@ -25,6 +26,7 @@ var _tick_t := 0.0
 var _tick_queue: Array = []
 var _comms_hold := false   ## this line waits for you (Space, Enter or a click)
 
+const TALK_SIZE := 24       ## VT323 runs small
 const COL_SHIELD := Color(0.35, 0.7, 1.0)
 const COL_HULL := Color(0.95, 0.75, 0.3)
 const COL_ENEMY := Color(1.0, 0.4, 0.3)
@@ -234,6 +236,17 @@ func advance_comms() -> void:
 	else:
 		_comms_hold = false
 		_comms_t = minf(_comms_t, 0.35)
+
+
+## The highlighted word under `at` in the comms panel that opens a journal
+## page: [Rect2, kind, phrase], or [] if none.
+func link_at(at: Vector2) -> Array:
+	if _comms_t <= 0.0 or not comms_rect.has_point(at):
+		return []
+	for h in comms_links:
+		if (h[0] as Rect2).grow(2).has_point(at) and not Neon.link(h[1], h[2]).is_empty():
+			return h
+	return []
 
 
 ## Story lines type in with a soft key tick per word; a threat word lands
@@ -887,22 +900,22 @@ func _draw_ticker(vp: Vector2) -> void:
 		col = COL_ENEMY
 	var y := (comms_top - 18.0) if _comms_t > 0.0 else vp.y - 34.0
 	var fb: Font = Data.font_type_bold
-	var f: Font = Data.font_type
+	var f: Font = Data.font_talk if Data.font_talk else Data.font_type
 	var ww := fb.get_string_size(who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 	var text := str(_tick[1])
 	# Stay clear of the ship panel in the middle; long lines wrap to two.
 	var cap := minf(620.0, vp.x * 0.5 - 250.0 - 40.0 - ww)
 	var np := Neon.parse(text)
 	text = str(np["text"])
-	var full := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+	var full := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
 	var tw := minf(full, cap)
 	var lines := 1 if full <= cap else 2
-	var h := 24.0 + 16.0 * (lines - 1)
-	y -= 16.0 * (lines - 1)
+	var h := 24.0 + 20.0 * (lines - 1)
+	y -= 20.0 * (lines - 1)
 	draw_rect(Rect2(Vector2(16, y - 17), Vector2(ww + tw + 36, h)), Color(0.02, 0.035, 0.045, 0.78 * a))
 	draw_rect(Rect2(Vector2(16, y - 17), Vector2(3, h)), Color(col, a))
 	draw_string(fb, Vector2(28, y), who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col, a))
-	Neon.draw(self, f, Vector2(28 + ww + 12, y - f.get_ascent(13)), np, tw + 12.0, 13, Color(0.9, 0.92, 0.95), a, 1e9, false, 2)
+	Neon.draw(self, f, Vector2(28 + ww + 12, y - f.get_ascent(19) + 1), np, tw + 12.0, 19, Data.TALK_BODY.lightened(0.1), a, 1e9, false, 2)
 
 
 func _draw_comms(vp: Vector2) -> void:
@@ -912,7 +925,8 @@ func _draw_comms(vp: Vector2) -> void:
 	# The panel grows upward to fit the whole line.
 	var body_w := 560.0 - 110.0 - 16.0
 	var np := Neon.parse(_comms_text)
-	var text_h := Neon.height(ThemeDB.fallback_font, np, body_w, 17)
+	var tf22: Font = Data.font_talk if Data.font_talk else ThemeDB.fallback_font
+	var text_h := Neon.height(tf22, np, body_w, TALK_SIZE)
 	var h := maxf(152.0, 70.0 + text_h + 18.0)
 	var r := Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
 	comms_top = r.position.y
@@ -963,5 +977,10 @@ func _draw_comms(vp: Vector2) -> void:
 		var hw := hf.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 		var blink := 0.55 + 0.45 * absf(sin(_comms_age * 3.0))
 		draw_string(hf, Vector2(r.end.x - hw - 12, r.end.y - 10), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, blink * a))
-	var f17: Font = ThemeDB.fallback_font
-	Neon.draw(self, f17, Vector2(x, r.position.y + 70 - f17.get_ascent(17)), np, body_w, 17, Color(UIStyle.TEXT.r, UIStyle.TEXT.g, UIStyle.TEXT.b), a, _comms_age)
+	comms_links.clear()
+	Neon.draw(self, tf22, Vector2(x, r.position.y + 70 - tf22.get_ascent(TALK_SIZE)), np, body_w, TALK_SIZE, Data.TALK_BODY, a, _comms_age, false, -1, comms_links)
+	# Highlighted words are links into the journal: underline the one under the mouse.
+	var hov := link_at(get_local_mouse_position())
+	if not hov.is_empty():
+		var hr: Rect2 = hov[0]
+		draw_line(Vector2(hr.position.x, hr.end.y - 2), Vector2(hr.end.x, hr.end.y - 2), Color(Neon.color(hov[1]), 0.8 * a), 1.0)

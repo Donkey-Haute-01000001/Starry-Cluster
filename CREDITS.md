@@ -7,3 +7,5 @@
 - Turret sound: "Machine Gun SFX" by Dragon Studio on Pixabay (Pixabay Content License). Single shots cut from the burst.
 - Menu clicks, kill/ally-lost cues and paperwork (page flips, paper, pen, stamps), docking, cruise and jump sounds: Kenney's "Interface Sounds", "RPG Audio", "Impact Sounds" and "Sci-fi Sounds" (CC0).
 - Remaining foley: synthesized in `tools/make_sounds.py`. `tools/make_combat_sounds.py` keeps synthesized placeholders in `sounds/synth/`.
+- Dialogue key ticks and neon buzz: Kenney's "Interface Sounds" clicks and "Sci-fi Sounds" computer noise (CC0), in `sounds/key*.wav` and `sounds/neon*.wav`.
+- Dialogue font: VT323 by Peter Hull (SIL Open Font License, `fonts/VT323-OFL.txt`).

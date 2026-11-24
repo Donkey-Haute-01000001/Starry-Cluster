@@ -157,8 +157,16 @@ func _ready() -> void:
 	_comms_text.scroll_active = false
 	_comms_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_comms_text.custom_minimum_size.x = 1100
-	_comms_text.add_theme_font_size_override("normal_font_size", 15)
-	_comms_text.add_theme_color_override("default_color", UIStyle.TEXT)
+	_comms_text.add_theme_font_size_override("normal_font_size", 22)
+	if Data.font_talk:
+		_comms_text.add_theme_font_override("normal_font", Data.font_talk)
+	_comms_text.add_theme_color_override("default_color", Data.TALK_BODY)
+	_comms_text.meta_underlined = false
+	# Highlighted words open their journal page.
+	_comms_text.meta_clicked.connect(func(m):
+		var bits := str(m).split("|")
+		if bits.size() == 2:
+			main.journal.open_to(bits[0], bits[1]))
 	cv.add_child(_comms_text)
 
 	var foot := HBoxContainer.new()
