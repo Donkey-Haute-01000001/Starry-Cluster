@@ -345,6 +345,7 @@ var liveries := {
 	"charter": [Color(0.86, 0.62, 0.18), Color(0.92, 0.9, 0.84)],   # company amber, white trim
 	"navy": [Color(0.32, 0.42, 0.58), Color(0.9, 0.92, 0.96)],      # Federation slate blue, white
 	"pirate": [Color(0.55, 0.26, 0.16), Color(0.85, 0.6, 0.3)],     # rust, scavenged brass
+	"default": [Color(0.72, 0.1, 0.08), Color(0.86, 0.62, 0.18)],   # Charter default red, over old company amber
 	"tally": [Color(0.32, 0.12, 0.1), Color(0.85, 0.82, 0.74)],     # oxblood, bone tally marks
 	"dynasty": [Color(0.22, 0.45, 0.32), Color(0.88, 0.7, 0.32)],   # Dynasty green, brass
 	"karabey": [Color(0.6, 0.12, 0.12), Color(0.2, 0.18, 0.18)],    # Clan Karabey crimson and black
@@ -366,7 +367,7 @@ var hull_variants := {
 		"mounts": [{"pos": Vector2(6, -3), "weapon": "pulse_cannon"}, {"pos": Vector2(6, 3), "weapon": "pulse_cannon"}]}],
 	"navy_cutter": ["kestrel", {"name": "FNS Halberd", "sprite": "warship", "livery": "navy", "layered": {"dir": "klaed/frigate"}, "hull": 900.0, "shields": 600.0, "radius": 27.0}],
 	"navy_wing": ["wasp", {"name": "Navy Interceptor", "sprite": "interstellar_runner", "livery": "navy", "layered": {"dir": "klaed/fighter"}, "radius": 15.0}],
-	"mud_lark": ["raider", {"name": "Red Stork", "sprite": "switchblade", "sprite_alts": [], "layered": {"dir": "nautolan/scout"}, "layered_alts": [], "hull": 380.0, "shields": 160.0, "radius": 15.0}],
+	"mud_lark": ["raider", {"name": "Red Stork", "sprite": "switchblade", "sprite_alts": [], "livery": "default", "layered": {"dir": "nautolan/scout"}, "layered_alts": [], "hull": 380.0, "shields": 160.0, "radius": 15.0}],
 	"fay_skiff": ["wasp", {"name": "Fay's Skiff", "sprite": "areisu",
 		"layered": {"dir": "void", "engine": "burst", "weapon": "cannon"}, "role": "fighter", "hull": 220.0, "shields": 140.0, "radius": 15.0}],
 	# Traffic: the March going about its business.
@@ -579,7 +580,7 @@ var forks := {
 	"tally_hauler_hail": "Unidentified rig, you are interfering with Charter property. Break off.",
 	"charter_heat": "Captain, Recovery just put a security surcharge on your account. Fifteen hundred. They wouldn't say why. ...I think I know why.",
 	# The Red Stork.
-	"lark_alive": "You took me in instead of out. Kessler's cells are cold, but I'm breathing. When you're past the gate, ask the Karabey docks for Qasim. I owe you.",
+	"lark_alive": "The Charter painted my rig red and called it theirs. You could've finished the job. You took me in instead of out. Kessler's cells are cold, but I'm breathing. When you're past the gate, ask the Karabey docks for Qasim. I owe you.",
 	"hunter": "For the Red Stork. The paymaster sends his regards.",
 	"hunter_crates": "You carried his crates and then you killed his dog. The paymaster sends his regards.",
 	"hunter_gone": "...Tell the paymaster his horse came back lame.",
@@ -592,6 +593,10 @@ var forks := {
 	"halloran_gate": "Never been through. Kessler said I'd know it when I saw it. ...He was right.",
 	"scratch_gate": "Tally always said he'd see this place. Guess I'm seeing it for him.",
 }
+
+## Default red: the Charter paints a repossessed rig red so no dock will service it.
+## The Red Stork wears it. Draft.
+var default_red := "Charter paints defaults red so no dock will touch them. Qasim missed three payments, watched them paint his rig, and took her back off the impound line the same night."
 
 ## Charter Recovery and navy customs. Drafts: the script doc wins.
 var recovery := {
@@ -746,7 +751,7 @@ var franz := {
 var bounty := {
 	"id": "mud_lark", "hull": "mud_lark", "station": "ambers",
 	"title": "BOUNTY: pirate skiff Red Stork",
-	"text": "Last seen near Amber's. 3,000 credits; alive pays 4,500.",
+	"text": "Repossessed Charter rig, default red, stolen back off the impound line by her own pilot. Raids out of Amber's now. 3,000 credits; alive pays 4,500.",
 	"sign": "Lt. F. Kessler",
 	"pay": 3000, "pay_alive": 4500,
 	"crew": 3, "marines": 4,
@@ -839,6 +844,7 @@ func speaker_info(who: String) -> Dictionary:
 # --- The journal: who people are, and the powers you deal with ---------------------
 ## One line per person, as you'd write it in your logbook. Drafts.
 var bios := {
+	"Qasim": "Pilot of the Red Stork. Missed three Charter payments, watched them paint his rig default red, and stole her back off the impound line the same night. Raids on Dynasty coin now.",
 	"Mbeki": "Petty Officer Mbeki, Federation Navy, flying the interceptor FNS Ulysses. On loan from Kessler's patrol. Young, by the book, and trying very hard.",
 	"Notch": "One of the Tallyman's raiders. Flies with you because Tally said so. Talks less than Tally, counts more.",
 	"Alejandra": "Alejandra Vargas, owner-operator of the Sweet Margaret, one number ahead of you in the Charter block. Was.",
