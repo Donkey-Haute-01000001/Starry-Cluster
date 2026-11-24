@@ -404,7 +404,7 @@ func on_dock(station: String) -> void:
 		if crew[id]["down"]:
 			crew[id]["down"] = false
 			crew_joined.emit(id)
-	# Nell, from the rig ahead of you, working the Saltgate docks now.
+	# Alejandra, from the rig ahead of you, working the Saltgate docks now.
 	if station == "saltgate" and flags.get("ahead_done", false) and not flags.get("nell_met", false):
 		flags["nell_met"] = true
 		say(Data.ahead["owner"], Data.ahead["bar"] if flags.get("ahead_robbed", false) else Data.ahead["bar_saved"])

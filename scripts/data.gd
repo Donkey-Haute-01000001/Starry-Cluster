@@ -550,8 +550,8 @@ const OBSTRUCTION_FEE := 2000 ## ...and when you drive it off
 ## The rig ahead of you, on the first water run. Drafts: the script doc wins.
 var ahead := {
 	"rig": "Sweet Margaret",
-	"owner": "Nell",
-	"owner_tag": "Nell Varga, owner-operator",
+	"owner": "Alejandra",
+	"owner_tag": "Alejandra Vargas, owner-operator",
 	"hello": "New rig on the water run? Same Charter number block as me. Race you to the Greenhouse. Loser buys the bad coffee.",
 	"robbed": "They took it. All forty. ...That was my payment, Charter. You hear me? That was this week's payment.",
 	"charlie_after": "...Greenhouse says the water's in. Board's open from here, captain. Pick your own runs.",
@@ -801,7 +801,7 @@ func speaker_info(who: String) -> Dictionary:
 # --- The journal: who people are, and the powers you deal with ---------------------
 ## One line per person, as you'd write it in your logbook. Drafts.
 var bios := {
-	"Nell": "Nell Varga, owner-operator of the Sweet Margaret, one number ahead of you in the Charter block. Was.",
+	"Alejandra": "Alejandra Vargas, owner-operator of the Sweet Margaret, one number ahead of you in the Charter block. Was.",
 	"Charlie": "Charlotte Hansen, Charter dispatch, third ring. Roots for you while working for the people who own your rig. Loses paperwork on purpose, sometimes.",
 	"Dock crew": "Loading crews on every station. They'll load anything that's paid for, and remember who tips.",
 	"Dez": "Desmond Okafor. Your oldest friend. Flies for free, cracks wise, and won't let you forget who you were.",
