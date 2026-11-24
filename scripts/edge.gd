@@ -84,11 +84,11 @@ func step(delta: float) -> void:
 			Career.changed.emit()
 			slip = {"fee": TOW_FEE, "n": int(Career.flags["tows"]), "t": 0.0}
 		if not slip.is_empty() and slip["t"] > 4.5:
-			_tow_home()
+			tow_home()
 
 
 ## The tug drops you at the nearest berth in the system.
-func _tow_home() -> void:
+func tow_home() -> void:
 	var p: Ship = main.player
 	var best := ""
 	var bd := INF

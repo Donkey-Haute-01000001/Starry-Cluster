@@ -50,6 +50,7 @@ var station_ui: Control
 var story: Node
 var traffic: Traffic
 var edge: Edge
+var debt  ## Debt (scripts/debt.gd)
 var docked_at := ""
 var jump_charge := -1.0      ## seconds charged, or -1 when not charging
 var jump_target: Node2D = null
@@ -148,6 +149,7 @@ func _ready() -> void:
 		add_child(traffic)
 		edge = Edge.new(self)
 		world.add_child(edge)
+		debt = preload("res://scripts/debt.gd").new(self)
 		player = spawn_ship("light_freighter", 0, Vector2.ZERO)
 		player.is_player = true
 		player.controller = PlayerController.new(player, self)
@@ -232,6 +234,7 @@ func load_system(id: String, from_system: String) -> void:
 	if traffic:
 		traffic.on_load()
 		edge.on_load()
+		debt.on_load()
 	Career.on_enter_system(id)
 	show_message("%s  ·  %s  ·  %s" % [sys["name"], sys["nick"], sys["security"]], 4.0)
 	if story:
@@ -406,6 +409,7 @@ func _merchant_step(delta: float) -> void:
 				s.hull_hp = minf(s.max_hull, s.hull_hp + s.max_hull * 0.02 * delta)
 	traffic.step(delta)
 	edge.step(delta)
+	debt.step(delta)
 	# Pirates hide in the rough systems' rocks. Mostly they hunt the lanes
 	# (Traffic raids); now and then they come for you.
 	var danger: float = Data.systems.get(system_id, Data.crossroads)["danger"]
@@ -585,6 +589,10 @@ func _on_ship_destroyed(s: Ship) -> void:
 		kills += 1
 		if merchant:
 			Career.friend_say("first_kill", true)
+	elif s.team == 3:
+		Career.obstruct()
+		Career.obstruct()
+		return
 	else:
 		if s.is_friend:
 			Career.friend_shot_down()
@@ -617,7 +625,8 @@ func hostile_count() -> int:
 ## Raiders (team 1) are everyone's enemy; you (0) and the March's own
 ## traffic (2) leave each other alone.
 func hostile(a: int, b: int) -> bool:
-	return a != b and (a == 1 or b == 1)
+	# 1 = raiders, against everyone. 3 = Charter Recovery, after you and your wing only.
+	return a != b and (a == 1 or b == 1 or (a == 3 and b == 0) or (a == 0 and b == 3))
 
 
 ## The ship under the mouse cursor, if any (not yours).
@@ -1278,6 +1287,46 @@ func _run_merchant_test() -> void:
 						if traffic.incident.is_empty():
 							break
 					print("[raid] over after %ds; wrecks=%s; credits=%d" % [int(traffic.incident.get("t", 0.0)), traffic._wrecks, Career.credits])
+				elif what == "repo":
+					if station_ui.visible:
+						undock()
+					Career.strikes = 2
+					Career.arrears = 1200
+					Career.cargo["water"] = 10
+					load_system("aurelia", "")
+					player.global_position = Vector2(-600, 900)
+					camera.global_position = player.global_position
+					debt._hunt_t = 0.3
+					await _wait(4.0)
+					print("[repo] cutter=%s dist=%d" % [is_instance_valid(debt.cutter), debt.cutter.global_position.distance_to(player.global_position) if is_instance_valid(debt.cutter) else -1])
+					_shot("look_repo")
+					for i in 40:
+						await _wait(1.0)
+						if not debt.slip.is_empty():
+							break
+					print("[repo] slip=%s loan=%d credits=%d strikes=%d" % [debt.slip, Career.loan_balance, Career.credits, Career.strikes])
+					await _wait(1.6)
+					_shot("look_repo_slip")
+					await _wait(4.0)
+					print("[repo] docked=%s" % docked_at)
+				elif what == "shady":
+					Career.flags["starter_done"] = true
+					var offer := Career.shady_offer("bones")
+					print("[shady] offer=%s" % offer)
+					load_system("aurelia", "")
+					_go("bones")
+					await _wait(1.0)
+					_shot("look_shady_note")
+					Career.take_shady(offer)
+					if station_ui.visible:
+						undock()
+					var navy := spawn_ship("navy_patrol", 2, player.global_position + Vector2(400, 0))
+					navy.add_to_group("traffic")
+					navy.info = {"group": "navy", "owner": "Federation Navy", "job": "patrol"}
+					await _wait(2.0)
+					_shot("look_scan")
+					await _wait(3.0)
+					print("[shady] sealed=%s busted=%s credits=%d" % [Career.job_cargo.get("sealed", 0), Career.flags.get("busted", 0), Career.credits])
 				elif what == "orders":
 					if station_ui.visible:
 						undock()

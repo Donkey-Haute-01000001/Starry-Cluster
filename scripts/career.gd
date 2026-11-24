@@ -17,6 +17,8 @@ var job_cargo := {}         ## good id -> tons carried for a job (not yours to s
 var cargo_capacity := 40
 var day := 0.0              ## days since the start; one week = 7 days
 var next_payment_day := 7.0
+var strikes := 0              ## missed payments not yet made good; 2 = repo cutter
+var arrears := 0              ## overdue amount (already part of loan_balance)
 var system_id := "aurelia"
 var jobs: Array = []        ## accepted jobs
 var flags := {}
@@ -51,6 +53,8 @@ func start_merchant(p_friend: Dictionary = {}, p_pilot: Dictionary = {}) -> void
 	cargo_capacity = Data.hulls["light_freighter"]["cargo"]
 	day = 0.0
 	next_payment_day = 7.0
+	strikes = 0
+	arrears = 0
 	system_id = "aurelia"
 	jobs = []
 	flags = {}
@@ -82,17 +86,106 @@ func _weekly_payment() -> void:
 	if loan_balance <= 0:
 		return
 	var due := mini(Data.LOAN_WEEKLY, loan_balance)
-	if credits >= due:
-		credits -= due
-		loan_balance -= due
+	var owed := mini(due + arrears, loan_balance)
+	if credits >= owed:
+		credits -= owed
+		loan_balance -= owed
+		var cleared := strikes > 0
+		arrears = 0
+		strikes = 0
 		if loan_balance <= 0:
 			_paid_off()
+		elif cleared:
+			say("Charlie", Data.charlie["called_off"], true)
 		else:
-			say("Charlie", Data.charlie["paid"] % [_fmt(due), _fmt(loan_balance)], true)
+			say("Charlie", Data.charlie["paid"] % [_fmt(owed), _fmt(loan_balance)], true)
 	else:
+		# A strike: interest on the lien, and the overdue sticks until it's paid.
 		loan_balance += int(due * Data.LOAN_INTEREST)
-		say("Charlie", Data.charlie["missed"])
-		friend_say("missed")
+		arrears += due
+		strikes += 1
+		say("Charlie", Data.charlie["strike1"] if strikes == 1 else Data.charlie["strike2"])
+		friend_say("missed" if strikes == 1 else "strike")
+	changed.emit()
+
+
+## The cutter caught you: cargo seized, cash taken against the overdue, fee on the lien.
+func repossess() -> Dictionary:
+	var seized := cargo_used()
+	cargo.clear()
+	job_cargo.clear()
+	jobs = jobs.filter(func(j): return not j["loaded"])
+	var took := mini(credits, arrears)
+	credits -= took
+	loan_balance -= took
+	loan_balance += Data.REPO_FEE
+	arrears = 0
+	strikes = 0
+	flags["repos"] = int(flags.get("repos", 0)) + 1
+	say("Charlie", Data.charlie["repossessed"])
+	changed.emit()
+	return {"seized": seized, "took": took, "fee": Data.REPO_FEE}
+
+
+## You drove the cutter off. The company bills for that too.
+func obstruct() -> void:
+	loan_balance += Data.OBSTRUCTION_FEE
+	flags["obstructed"] = int(flags.get("obstructed", 0)) + 1
+	friend_say("repo_fought", true)
+	changed.emit()
+
+
+# --- The no-questions job ------------------------------------------------------
+
+## This week's sealed-crate job, if one is pinned here.
+func shady_offer(station: String) -> Dictionary:
+	if station in ["counter", "gatehouse"] or not flags.get("starter_done", false) or loan_balance <= 0:
+		return {}
+	if int(flags.get("shady_week", 0)) == week():
+		return {}
+	for j in jobs:
+		if j["id"] == "shady":
+			return {}
+	var here: String = Data.stations[station]["system"]
+	var dests: Array = []
+	for sid in Data.stations:
+		if sid != "gatehouse" and Data.stations[sid]["system"] != here:
+			dests.append(sid)
+	if dests.is_empty():
+		return {}
+	dests.sort()
+	var to: String = dests[absi(hash(station + str(week()))) % dests.size()]
+	return {"id": "shady", "title": "No questions: sealed crates", "good": "sealed", "tons": Data.shady["tons"],
+		"from": station, "to": to, "pay": Data.LOAN_WEEKLY, "loaded": true}
+
+
+func take_shady(j: Dictionary) -> bool:
+	if cargo_free() < j["tons"]:
+		say("Dock crew", "Six tons won't fit, captain. Make room.", true)
+		return false
+	flags["shady_week"] = week()
+	jobs.append(j)
+	job_cargo["sealed"] = job_cargo.get("sealed", 0) + j["tons"]
+	friend_say("shady_take" if int(flags.get("shady_done", 0)) == 0 else "shady_again")
+	if objective.is_empty():
+		set_objective("Deliver the sealed crates to %s. Keep clear of navy patrols." % Data.stations[j["to"]]["nick"], j["to"])
+	changed.emit()
+	return true
+
+
+## Navy customs found the crates.
+func customs_bust() -> void:
+	jobs = jobs.filter(func(j): return j["id"] != "shady")
+	job_cargo.erase("sealed")
+	var fine := Data.LOAN_WEEKLY
+	var cash := mini(credits, fine)
+	credits -= cash
+	loan_balance += fine - cash
+	flags["busted"] = int(flags.get("busted", 0)) + 1
+	say("Navy patrol", Data.customs["bust"], true)
+	friend_say("shady_caught")
+	if str(objective.get("text", "")).begins_with("Deliver the sealed"):
+		set_objective("", "")
 	changed.emit()
 
 
@@ -103,8 +196,16 @@ func pay_extra(amount: int) -> void:
 		return
 	credits -= amount
 	loan_balance -= amount
+	var cleared := false
+	if arrears > 0:
+		arrears = maxi(0, arrears - amount)
+		if arrears == 0:
+			strikes = 0
+			cleared = true
 	if loan_balance <= 0:
 		_paid_off()
+	elif cleared:
+		say("Charlie", Data.charlie["called_off"], true)
 	else:
 		friend_say("paid_extra", true)
 	changed.emit()
@@ -280,6 +381,11 @@ func on_dock(station: String) -> void:
 				job_cargo.erase(j["good"])
 			credits += j["pay"]
 			jobs.erase(j)
+			if j["id"] == "shady":
+				flags["shady_done"] = int(flags.get("shady_done", 0)) + 1
+				friend_say("shady_done", true)
+				if str(objective.get("text", "")).begins_with("Deliver the sealed"):
+					_set_objective("", "")
 			if j["id"] == "starter_water":
 				flags["starter_done"] = true
 				say("Charlie", Data.charlie["job_done"])
@@ -452,7 +558,7 @@ func prize_share(keep: float) -> int:
 ## back at that station's counter.
 
 const SAVE_PATH := "user://merchant_save.txt"
-const SAVE_KEYS := ["credits", "loan_balance", "cargo", "job_cargo", "cargo_capacity", "day",
+const SAVE_KEYS := ["credits", "loan_balance", "strikes", "arrears", "cargo", "job_cargo", "cargo_capacity", "day",
 	"next_payment_day", "system_id", "jobs", "flags", "objective", "friend", "crew", "visited", "_once", "_prices", "pilot", "comms_log", "contacts"]
 var resume_station := ""
 

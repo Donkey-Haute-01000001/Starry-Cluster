@@ -675,6 +675,54 @@ func _ship_tag(at: Vector2, ship: Ship, hov: bool) -> void:
 		draw_string(fr, (at + Vector2(0, y)).round(), "[Y] hail", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.GOLD)
 
 
+## The lien in flight: the repo cutter, a customs scan, the repossession notice.
+func _draw_debt(vp: Vector2) -> void:
+	var d = main.debt
+	if is_instance_valid(d.cutter) and d.cutter.alive:
+		var sp := _to_screen(d.cutter.global_position)
+		if Rect2(Vector2.ZERO, vp).has_point(sp):
+			_ship_tag(sp + Vector2(d.cutter.radius * main.camera.zoom.x * 1.5, -10), d.cutter, false)
+		_text(Vector2(vp.x * 0.5, 188), _sp("REPO CUTTER") + "   ·   pay the overdue at the Counter, or jump out", 13, COL_ENEMY, true, true)
+	if not d.scan.is_empty() and is_instance_valid(d.scan["by"]):
+		var by: Ship = d.scan["by"]
+		var sp2 := _to_screen(by.global_position)
+		var k: float = d.scan["k"]
+		var amber := Color(1.0, 0.75, 0.3)
+		draw_arc(sp2, by.radius * main.camera.zoom.x + 26.0, -PI * 0.5, -PI * 0.5 + TAU * k, 48, amber, 2.5)
+		_text(Vector2(vp.x * 0.5, vp.y * 0.33), "CUSTOMS SCAN  ·  SEALED CRATES ABOARD", 15, amber, true, true)
+		_bar(Rect2(Vector2(vp.x * 0.5 - 150, vp.y * 0.33 + 10), Vector2(300, 6)), k, amber)
+	if not d.slip.is_empty():
+		_draw_repo_slip(vp, d.slip)
+
+
+## Charter Recovery's notice: what they took, and the fee on top.
+func _draw_repo_slip(vp: Vector2, slip: Dictionary) -> void:
+	var k := clampf(float(slip["t"]) / 0.4, 0.0, 1.0)
+	var r := Rect2(Vector2(roundf(vp.x * 0.5 - 200), lerpf(-220.0, 140.0, 1.0 - pow(1.0 - k, 3.0))), Vector2(400, 210))
+	draw_rect(Rect2(r.position + Vector2(5, 7), r.size), Color(0, 0, 0, 0.45))
+	draw_rect(r, Color(0.93, 0.91, 0.85))
+	draw_rect(Rect2(r.position, Vector2(r.size.x, 6)), UIStyle.INK_STAMP)
+	var f: Font = Data.font_type
+	var fb: Font = Data.font_type_bold
+	draw_string(fb, r.position + Vector2(18, 30), "THE CHARTER COMPANY  ·  RECOVERY", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
+	draw_string(fb, r.position + Vector2(18, 58), "NOTICE OF REPOSSESSION", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 84), "Cargo seized: %d t, all of it." % int(slip["seized"]), HORIZONTAL_ALIGNMENT_LEFT, 364, 12, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 102), "Cash applied to overdue: %s cr." % Career.fmt(int(slip["took"])), HORIZONTAL_ALIGNMENT_LEFT, 364, 12, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 120), "Rig released to owner-operator. Strikes cleared.", HORIZONTAL_ALIGNMENT_LEFT, 364, 12, UIStyle.INK_TYPE)
+	draw_line(r.position + Vector2(18, 134), r.position + Vector2(382, 134), Color(UIStyle.INK_FADED, 0.5), 1.0)
+	draw_string(fb, r.position + Vector2(18, 156), "RECOVERY FEE", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_TYPE)
+	draw_string(fb, r.position + Vector2(140, 156), "%s cr" % Career.fmt(int(slip["fee"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_TYPE)
+	if float(slip["t"]) > 0.9:
+		var sk := clampf((float(slip["t"]) - 0.9) / 0.15, 0.0, 1.0)
+		var sc := 1.6 - 0.6 * sk
+		draw_set_transform(r.position + Vector2(285, 170), -0.16, Vector2(sc, sc))
+		var stamp := "RECOVERED"
+		var sw := Data.font_stamp.get_string_size(stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+		draw_rect(Rect2(Vector2(-sw * 0.5 - 8, -26), Vector2(sw + 16, 34)), Color(UIStyle.INK_STAMP, 0.85 * sk), false, 2.5)
+		draw_string(Data.font_stamp, Vector2(-sw * 0.5, 0), stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(UIStyle.INK_STAMP, 0.85 * sk))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
 ## The tow slip: a Charter recovery chit, fee stamped onto the lien.
 func _draw_tow_slip(vp: Vector2, slip: Dictionary) -> void:
 	var k := clampf(float(slip["t"]) / 0.4, 0.0, 1.0)
@@ -712,6 +760,8 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	if _plate_k < 0.98 and not main.in_combat:
 		# Tucked away: one quiet line where the plate was.
 		var line := "%s  ·  %s  ·  %s cr" % [sys["name"].to_upper(), sys["security"].to_upper(), Career.fmt(Career.credits)]
+		if Career.strikes > 0:
+			line += "  ·  STRIKE %d/2" % Career.strikes
 		var la := 1.0 - pk
 		draw_rect(Rect2(Vector2(16, 12), Vector2(Data.font_type_bold.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 24, 22)), Color(0.02, 0.03, 0.04, 0.6 * la))
 		draw_string(Data.font_type_bold, Vector2(28, 27), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(UIStyle.TEXT_DIM, la))
@@ -734,6 +784,8 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	var nick_x := 30.0 + Data.font_stamp.get_string_size(name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x + 14.0
 	_label_tape(Vector2(nick_x, 58), sys["nick"].to_upper(), sys["name"].hash(), lift)
 	var loan := "Loan paid off" if Career.loan_balance <= 0 else "Loan %s · %s due day %d" % [Career.fmt(Career.loan_balance), Career.fmt(mini(Data.LOAN_WEEKLY, Career.loan_balance)), int(Career.next_payment_day) + 1]
+	if Career.strikes > 0:
+		loan = "Loan %s · OVERDUE %s · STRIKE %d/2" % [Career.fmt(Career.loan_balance), Career.fmt(Career.arrears), Career.strikes]
 	draw_line(Vector2(30, 90), Vector2(plate.end.x - 14, 90), Color(0.22, 0.24, 0.26), 1.0)
 	_text(Vector2(32, 112), "%s cr" % Career.fmt(Career.credits), 15, UIStyle.TEXT, false, true)
 	_text(Vector2(140, 112), "Hold %d/%d t" % [Career.cargo_used(), Career.cargo_capacity], 15, UIStyle.TEXT)
@@ -766,6 +818,8 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 
 	if main.edge and not main.edge.slip.is_empty():
 		_draw_tow_slip(vp, main.edge.slip)
+	if main.debt:
+		_draw_debt(vp)
 
 	# What F does right now.
 	var b: Node2D = main.nearby_interactable()

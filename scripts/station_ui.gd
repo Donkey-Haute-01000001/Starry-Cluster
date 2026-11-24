@@ -477,15 +477,54 @@ func _refresh() -> void:
 	if station_id == "counter" and Career.loan_balance > 0:
 		var d := _card(_dispatch, "CHARTER COMPANY · ACCOUNT CC-40817-M", "manila")
 		_typed(d.get_child(0), "Rig loan, company terms. Balance %s cr. Early payments accepted." % Career.fmt(Career.loan_balance), 13, UIStyle.INK_TYPE).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if Career.arrears > 0:
+			_typed(d.get_child(0), "OVERDUE %s CR  ·  STRIKE %d OF 2%s" % [Career.fmt(Career.arrears), Career.strikes, "  ·  RECOVERY DISPATCHED" if Career.strikes >= 2 else ""], 14, UIStyle.INK_STAMP, true)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		d.get_child(0).add_child(row)
+		if Career.arrears > 0:
+			_button(row, "PAY OVERDUE", func(): Career.pay_extra(Career.arrears), Career.credits >= Career.arrears, "stamp")
 		_button(row, "PAY 1,000 EXTRA", func(): Career.pay_extra(1000), Career.credits > 0, "stamp")
 		_button(row, "PAY IN FULL", func(): Career.pay_extra(Career.loan_balance), Career.credits >= Career.loan_balance, "stamp")
 	if station_id == "four" and Career.flags.get("franz_met", false) and not Career.flags.get("bounty_paid", false):
 		_bounty_notice()
 	if station_id == "saltgate":
 		_bar()
+	var shady := Career.shady_offer(station_id)
+	if not shady.is_empty():
+		_shady_note(shady)
+
+
+## The no-questions job: a scrap of paper tucked behind the real notices.
+## Handwritten, unsigned but for where to find the sender.
+func _shady_note(j: Dictionary) -> void:
+	var paper := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.86, 0.82, 0.72)
+	sb.set_content_margin_all(12)
+	paper.add_theme_stylebox_override("panel", sb)
+	paper.rotation = deg_to_rad(1.4)
+	_dispatch.add_child(paper)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	paper.add_child(v)
+	var t := _label(v, Data.shady["title"], 15, UIStyle.INK_TYPE)
+	if Data.font_type_bold:
+		t.add_theme_font_override("font", Data.font_type_bold)
+	var body := _label(v, Data.shady["text"] % [Data.stations[j["to"]]["nick"], Career.fmt(j["pay"])], 17, UIStyle.INK_PEN)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size.x = 380
+	if Data.font_hand:
+		body.add_theme_font_override("font", Data.font_hand)
+	var row := HBoxContainer.new()
+	v.add_child(row)
+	var sig := _label(row, "- " + Data.shady["sign"], 20, UIStyle.INK_PEN)
+	sig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if Data.font_hand:
+		sig.add_theme_font_override("font", Data.font_hand)
+	_button(row, "TAKE THE CRATES", func():
+		Sfx.play("tick")
+		Career.take_shady(j), true, "stamp")
 
 
 ## Kessler's notice, pinned to the board at Four: typed, signed in pen.

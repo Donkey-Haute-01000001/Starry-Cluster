@@ -95,6 +95,12 @@ var weapons := {
 		"damage": 10.0, "cooldown": 9.0, "energy": 0.0, "speed": 700.0, "range": 2400.0,
 		"gimbal": 30.0, "spread": 0.0, "color": Color(0.7, 0.5, 1.0), "size": 7.0, "ion": 14.0,
 	},
+	# Charter Recovery's grapple-ion: a short stall, again and again, until it's alongside.
+	"repo_ion": {
+		"name": "Recovery Ion", "kind": "gun",
+		"damage": 4.0, "cooldown": 5.0, "energy": 0.0, "speed": 760.0, "range": 1100.0,
+		"gimbal": 40.0, "spread": 0.0, "color": Color(1.0, 0.7, 0.3), "size": 7.0, "ion": 3.5,
+	},
 	# Secondaries: right click fires the selected one, R swaps.
 	"ion_cannon": {
 		"name": "Ion Bolt", "kind": "secondary",
@@ -260,6 +266,8 @@ const MAKES_FACTOR := 0.8   ## price multiplier for goods a station makes
 const WANTS_FACTOR := 1.25  ## price multiplier for goods a station needs
 
 var goods := {
+	"sealed": {"name": "Sealed crates", "slang": "no-questions", "base": 0,
+		"desc": "No manifest, no markings. Heavy for their size."},
 	"water": {"name": "Water", "slang": "wet", "base": 40,
 		"desc": "Ice cut, melted and filtered. Everyone needs it; nobody pays much for it."},
 	"rations": {"name": "Rations", "slang": "bricks", "base": 80,
@@ -374,6 +382,9 @@ var hull_variants := {
 	"backed_raider": ["raider", {"name": "Raider", "hull": 460.0, "shields": 220.0,
 		"mounts": [{"pos": Vector2(6, -3), "weapon": "pulse_cannon"}, {"pos": Vector2(6, 3), "weapon": "pulse_cannon"}]}],
 	"dynasty_corsair": ["marauder", {"name": "Corsair", "livery": "dynasty", "layered": {"dir": "nairan/frigate"}, "layered_alts": [], "hull": 1100.0, "shields": 600.0, "radius": 28.0}],
+	"repo_cutter": ["kestrel", {"name": "Recovery Cutter", "sprite": "warship", "livery": "charter", "layered": {"dir": "klaed/frigate"}, "layered_alts": [],
+		"hull": 1300.0, "shields": 700.0, "accel": 320.0, "max_speed": 315.0, "radius": 27.0,
+		"mounts": [{"pos": Vector2(20, -5), "weapon": "repo_ion"}, {"pos": Vector2(20, 5), "weapon": "repo_ion"}]}],
 	"karabey_fighter": ["wasp", {"name": "Karabey Lancer", "sprite": "endra", "livery": "karabey", "layered": {"dir": "nairan/fighter"}, "hull": 320.0, "shields": 240.0, "accel": 600.0, "max_speed": 490.0, "radius": 17.0,
 		"mounts": [{"pos": Vector2(8, -5), "weapon": "pulse_cannon"}, {"pos": Vector2(8, 5), "weapon": "pulse_cannon"}, {"pos": Vector2(10, 0), "weapon": "pulse_cannon"}]}],
 }
@@ -521,6 +532,11 @@ var charlie := {
 	"paid": "Payment's through. %s down, %s to go. You're doing great, captain.",
 	"missed": "Payment bounced, hon. They added interest. Get me something by next week, okay? I can only lose the paperwork so many times.",
 	"paid_off": "...That's it. That's the last one. Paid in full. I'm stamping it myself. And your papers came through. Go see the gate, captain. Send me a postcard.",
+	"strike1": "Payment bounced, hon. That's a strike on your file. One more and Recovery sends a cutter for the rig. Please don't make me watch that.",
+	"strike2": "Second strike. I'm sorry, captain, it's out of my hands. Recovery's sending a repo cutter. Pay the overdue at the Counter and I can call it off.",
+	"called_off": "Overdue's paid. I called Recovery off. Breathe, captain.",
+	"cutter_inbound": "Heads up, captain. The repo cutter just logged a jump into your system. Run, or come pay.",
+	"repossessed": "They took the cargo, and the fee's on the lien. ...I'm so sorry, captain.",
 	"job_done": "Greenhouse says the water's in. Nice flying, captain. The board's open: pick your own runs from here. Watch the belt, though. Marcellus pays well for a reason.",
 }
 
@@ -528,6 +544,26 @@ var charlie := {
 const LOAN_TOTAL := 40000
 const LOAN_WEEKLY := 1200
 const LOAN_INTEREST := 0.1   ## fraction of a missed payment added to the balance
+const REPO_FEE := 2500       ## Charter Recovery's fee when the cutter catches you
+const OBSTRUCTION_FEE := 2000 ## ...and when you drive it off
+
+## Charter Recovery and navy customs. Drafts: the script doc wins.
+var recovery := {
+	"hail": "Rig CC-40817-M, cut your engines and prepare for recovery. This is a lawful repossession.",
+	"driven_off": "Interference noted. Obstruction fee assessed. We'll be back.",
+}
+var customs := {
+	"scan": "Charter rig, hold your course. Routine customs scan.",
+	"clean": "You're clean. Fly safe, captain.",
+	"bust": "Sealed cargo, no manifest. That's contraband, captain. Crates are seized, fine goes on your account.",
+}
+## The weekly no-questions job: a note pinned where Charter eyes don't look.
+var shady := {
+	"title": "NO QUESTIONS",
+	"text": "Six crates, sealed. Take them to %s. Don't open them, don't scan them, don't get scanned. %s cr when they land. That's a week's payment, captain.",
+	"sign": "a friend at Amber's",
+	"tons": 6,
+}
 const START_CREDITS := 2000
 const SECONDS_PER_DAY := 60.0
 
@@ -619,6 +655,12 @@ var friend_lines := {
 	"paid_off": "Free and clear. Never thought I'd see it.",
 	"down": "I'm out! Pod's fine. Meet you at the next dock.",
 	"back": "Patched her up. Where were we?",
+	"shady_take": "Sealed crates, no name on 'em. ...I'm not asking. I'm just saying I noticed.",
+	"shady_done": "Payment's covered. Nobody got hurt. Probably. Let's not make it a habit.",
+	"shady_again": "Same note, same crates. You know whose silver that is, right?",
+	"shady_caught": "Well. Now the navy knows our names. Good start.",
+	"strike": "Missed two. They're coming for the rig now. Pay or run, but pick fast.",
+	"repo_fought": "We just shot at the company. I'd like that noted somewhere.",
 }
 
 
