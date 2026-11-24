@@ -100,7 +100,8 @@ func _send_cutter(p: Ship) -> void:
 	cutter.display_name = "Charter Recovery"
 	cutter.info = {"group": "recovery", "owner": "Charter Company", "job": "repossession"}
 	cutter.controller = Cutter.new(cutter, main)
-	Career.say("Charlie", Data.charlie["cutter_inbound"], true)
+	# A full comms line, not the ticker: she's breaking the rules to tell you.
+	Career.say("Charlie", Data.charlie["cutter_inbound"])
 	Career.say("Charter Recovery", Data.recovery["hail"], true)
 
 
