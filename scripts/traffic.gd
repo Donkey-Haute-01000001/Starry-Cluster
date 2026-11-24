@@ -312,6 +312,7 @@ func _end_raid(how: String) -> void:
 					Career.credits += reward
 					Career.say(victim.display_name, Data.hails["thanks"] + " (+%s cr)" % Career.fmt(reward), true)
 					Career.flags["rigs_saved"] = int(Career.flags.get("rigs_saved", 0)) + 1
+					Career.remember("saved_names", victim.display_name)
 					_dez("helped")
 				else:
 					Career.say(victim.display_name, Data.hails["thanks_navy"], true)
@@ -373,6 +374,11 @@ func loot(n: Node2D) -> void:
 		return
 	Career.cargo[w["good"]] = int(Career.cargo.get(w["good"], 0)) + take
 	w["tons"] -= take
+	# The lanes keep count of who picks rigs clean.
+	if not w.get("looted", false):
+		w["looted"] = true
+		Career.flags["rigs_looted"] = int(Career.flags.get("rigs_looted", 0)) + 1
+		Career.remember("looted_names", str(w["name"]))
 	Career.changed.emit()
 	Sfx.play("dock", -8.0)
 	main.show_message("Salvaged %d t of %s from the %s." % [take, Data.goods[w["good"]]["name"].to_lower(), w["name"]], 3.0)
@@ -389,6 +395,15 @@ func hail(s: Ship) -> void:
 		Career.say(s.display_name if s.display_name != "" else "Raider", "Cut your engines and we'll take the cargo, not the rig." if incident.get("kind", "") == "petty" else "...", true)
 		return
 	var lines: Array = Data.hails.get(g, ["..."])
+	if g in ["charter", "ore_barge", "compact"]:
+		# Truckers talk to each other. They know who you are.
+		if s.display_name in Career.flags.get("saved_names", []):
+			Career.say(s.display_name, Data.lanes["saved"], true)
+			return
+		if Career.lane_rep() >= 2:
+			lines = Data.lanes["friend"]
+		elif Career.lane_rep() <= -2:
+			lines = Data.lanes["scav"]
 	if s.display_name == Data.ahead["rig"] and Career.flags.get("ahead_robbed", false):
 		Career.say(s.display_name, Data.ahead["hail"], true)
 		return
@@ -455,6 +470,12 @@ class Pilot extends RefCounted:
 					respond = null
 				return
 		ai._set_fire(false)
+		if g in ["charter", "ore_barge", "compact"] and not flee and Career.lane_rep() <= -2 and is_instance_valid(main.player):
+			var away: Vector2 = ship.global_position - main.player.global_position
+			if away.length() < 650.0:
+				# A known scavenger on the scope: veer off the lane until they've passed.
+				ai._fly_to(ship.global_position + away.normalized() * 400.0, away.normalized() * ship.max_speed * 0.8, away.angle())
+				return
 		if flee:
 			var haven := _nearest_haven()
 			ai._fly_to(haven, Vector2.ZERO, (haven - ship.global_position).angle())

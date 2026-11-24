@@ -490,9 +490,47 @@ func _refresh() -> void:
 		_bounty_notice()
 	if station_id == "saltgate":
 		_bar()
+	# The forks: Kessler's commission at Four, the Tallyman's job at Amber's.
+	var side: String = Career.flags.get("side", "")
+	if station_id == "four" and Career.flags.get("franz_pitch", false) and side == "" and not Career.flags.get("tally_job", false):
+		_fork_note("NAVY COMMISSION · MARCELLUS PATROL", Data.forks["navy_offer"], "Lt. F. Kessler", "SIGN IT", func(): Career.sign_navy(), UIStyle.PAPER, deg_to_rad(-0.8))
+	if station_id == "ambers" and Career.flags.get("tally_offered", false) and side == "" and not Career.flags.get("tally_job", false):
+		_fork_note("ONE RIG", Data.forks["tally_offer"], "IIII IIII IIII II", "I'M IN", func(): Career.take_tally_job(), Color(0.8, 0.76, 0.66), deg_to_rad(1.8))
 	var shady := Career.shady_offer(station_id)
 	if not shady.is_empty():
+		Career.flags["shady_seen"] = true
 		_shady_note(shady)
+
+
+## An offer that picks a side: typed, signed in pen, one stamp to take it.
+func _fork_note(title: String, text: String, sign: String, verb: String, cb: Callable, bg: Color, rot: float) -> void:
+	var paper := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.set_content_margin_all(12)
+	paper.add_theme_stylebox_override("panel", sb)
+	paper.rotation = rot
+	_dispatch.add_child(paper)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	paper.add_child(v)
+	var t := _label(v, title, 15, UIStyle.INK_TYPE)
+	if Data.font_type_bold:
+		t.add_theme_font_override("font", Data.font_type_bold)
+	var body := _label(v, text, 13, UIStyle.INK_TYPE)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size.x = 380
+	if Data.font_type:
+		body.add_theme_font_override("font", Data.font_type)
+	var row := HBoxContainer.new()
+	v.add_child(row)
+	var sig := _label(row, sign, 22, UIStyle.INK_PEN)
+	sig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if Data.font_hand:
+		sig.add_theme_font_override("font", Data.font_hand)
+	_button(row, verb, func():
+		Sfx.play("stamp")
+		cb.call(), true, "stamp")
 
 
 ## The no-questions job: a scrap of paper tucked behind the real notices.

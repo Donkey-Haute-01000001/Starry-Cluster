@@ -1081,6 +1081,12 @@ func _run_merchant_test() -> void:
 			await _wait(0.3)
 			for what in a.substr(7).split(","):
 				if what == "crossroads":
+					if station_ui.visible:
+						undock()
+					spawn_captain("fay")
+					spawn_captain("mersham")
+					await _wait(0.5)
+					story.scene = "ending"
 					story.arrive_crossroads()
 					await _wait(9.0)
 				elif what in ["map", "maphover", "launch", "comms"] or what.begins_with("journal") or what.begins_with("mapnote"):
@@ -1316,6 +1322,69 @@ func _run_merchant_test() -> void:
 					_go("greenhouse")
 					await _wait(0.5)
 					print("[ahead] objective=%s" % Career.objective)
+				elif what == "scenic":
+					if station_ui.visible:
+						undock()
+					load_system("tiberine", "")
+					await _wait(0.3)
+					for c in ["fay", "mersham"]:
+						spawn_captain(c)
+					Career.friend["met"] = true
+					spawn_friend()
+					var w := add_escort("navy_wing", Vector2(-200, 120))
+					w.display_name = "Halloran"
+					formation = "wedge"
+					player.controller = null
+					player.global_position = Vector2(-820, 760)
+					player.rotation = -0.45
+					player.velocity = Vector2.RIGHT.rotated(-0.45) * 150.0
+					fleet_heading = -0.45
+					for e in escorts:
+						if is_instance_valid(e):
+							e.global_position = formation_slot(escorts.find(e))
+							e.velocity = player.velocity
+							e.rotation = -0.45
+					hud.visible = false
+					_zoom = 1.05
+					for i in 14:
+						player.velocity = Vector2.RIGHT.rotated(-0.45) * 110.0
+						player.in_move = Vector2.ZERO
+						await _wait(0.5)
+					Music._credit_t = -1.0
+					Music._credit.queue_redraw()
+					await _wait(0.2)
+					_shot("look_scenic")
+				elif what == "forks":
+					if station_ui.visible:
+						undock()
+					# Lanes: a scavenger's prices and hails.
+					var b0 := Career.buy_price("bones", "parts")
+					Career.flags["rigs_looted"] = 3
+					print("[forks] rep=%d buy %d -> %d" % [Career.lane_rep(), b0, Career.buy_price("bones", "parts")])
+					Career.flags["rigs_looted"] = 0
+					Career.flags["rigs_saved"] = 2
+					Career.remember("saved_names", "Tin Saint")
+					# The Tallyman's job.
+					Career.flags["tally_job"] = true
+					Career.flags["tally_done"] = true
+					Career.flags["tally_hailed"] = true
+					load_system("marcellus", "aurelia")
+					await _wait(1.0)
+					var h: Ship = story._hauler
+					print("[forks] hauler=%s team=%d" % [h.display_name if h else "-", h.team if h else -1])
+					if h:
+						player.global_position = h.global_position + Vector2(-500, 0)
+						h.take_damage(99999.0, h.global_position)
+					await _wait(9.0)
+					print("[forks] side=%s crew=%s loan=%d" % [Career.flags.get("side"), Career.crew.keys(), Career.loan_balance])
+					# The paymaster's knife.
+					Career.flags["bounty_paid"] = true
+					Career.flags["shady_done"] = 2
+					story._hunt_t = 0.5
+					await _wait(2.0)
+					print("[forks] hunter=%s angry=%s offer=%s" % [story._hunter.display_name if is_instance_valid(story._hunter) else "-", Career.paymaster_angry(), Career.shady_offer("bones").is_empty()])
+					Career.flags["busted"] = 1
+					print("[forks] gate lines=%s" % [story._crossroads_lines().map(func(l): return l[1])])
 				elif what == "repo":
 					if station_ui.visible:
 						undock()

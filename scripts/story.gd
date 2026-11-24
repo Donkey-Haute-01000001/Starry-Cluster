@@ -51,6 +51,108 @@ func ceasefire() -> bool:
 	return scene == "ambush" and _phase in ["hail", "talk", "gone"]
 
 
+# --- The Tallyman's job: one Charter hauler ------------------------------------------
+
+var _hauler: Ship = null
+var _hit_t := -1.0
+var _hit_crew: Array = []
+
+
+func _tally_hit_step(delta: float) -> void:
+	if not Career.flags.get("tally_job", false) or main.system_id != "marcellus" or main.docked_at != "":
+		return
+	var p: Ship = main.player
+	if not is_instance_valid(p):
+		return
+	if not is_instance_valid(_hauler):
+		if scene != "":
+			return
+		# She pulls out of Four, bound for Aurelia.
+		var four: Vector2 = Data.stations["four"]["pos"]
+		_hauler = main.traffic._spawn("charter_hauler", "charter_hauler", four + Vector2(-260, 160))
+		_hauler.remove_from_group("traffic")
+		_hauler.team = 3
+		_hauler.hold_fire = true
+		_hauler.hull_floor = 0.05
+		_hauler.display_name = Data.forks["tally_hauler"]
+		_hauler.info["job"] = "ore to Aurelia"
+		var exit: Vector2 = main.traffic.place("@aurelia")
+		var pilot := Traffic.Pilot.new(_hauler, main, main.traffic)
+		pilot.route = main.traffic.path(_hauler.global_position, exit).slice(1)
+		pilot.end_kind = "jump"
+		pilot.end_at = exit
+		_hauler.controller = pilot
+		_hit_t = -1.0
+		_hit_crew.clear()
+		main.show_message("Charter hauler %s leaving Four." % _hauler.display_name, 3.0)
+		return
+	if _hit_t < 0.0:
+		if _hauler.disabled:
+			_hit_t = 0.0
+			# Tally's crew, right on cue.
+			for k in 2:
+				var at: Vector2 = _hauler.global_position + Vector2(900, 0).rotated(randf() * TAU)
+				var r: Ship = main.spawn_ship("tally_escort", 2, at)
+				r.display_name = "Tally's crew"
+				var sp := ScriptedPilot.new(r, main)
+				sp.goal = _hauler.global_position + Vector2(140, 0).rotated(TAU * k / 2.0)
+				sp.face = (_hauler.global_position - sp.goal).angle()
+				r.controller = sp
+				_hit_crew.append(r)
+		elif not _hauler.alive or not _hauler.is_inside_tree():
+			_hauler = null
+		elif main.debt and int(Career.flags.get("ledger_hailed", 0)) == 0 and p.global_position.distance_to(_hauler.global_position) < 1200.0:
+			Career.flags["ledger_hailed"] = 1
+			Career.say(_hauler.display_name, Data.forks["tally_hauler_hail"], true)
+		return
+	_hit_t += delta
+	if _hit_t > 7.0:
+		_hauler.team = 2
+		_hauler.controller = Traffic.Leaving.new(_hauler, main)
+		for r in _hit_crew:
+			if is_instance_valid(r):
+				r.controller = Traffic.Leaving.new(r, main)
+		_hit_crew.clear()
+		_hauler = null
+		Career.tally_job_done()
+
+
+# --- The paymaster's knife: kill his raider and he sends someone ---------------------
+
+var _hunter: Ship = null
+var _hunt_t := -1.0
+
+
+func _hunter_step(delta: float) -> void:
+	var f: Dictionary = Career.flags
+	if not f.get("bounty_paid", false) or f.get("bounty_alive", false) or f.get("hunter_done", false):
+		return
+	if is_instance_valid(_hunter):
+		if not _hunter.alive or _hunter.disabled:
+			f["hunter_done"] = true
+			if _hunter.alive:
+				Career.say("The Knife", Data.forks["hunter_gone"], true)
+				_hunter.controller = Traffic.Leaving.new(_hunter, main)
+			_hunter = null
+		return
+	if main.system_id != "marcellus" or scene != "" or main.docked_at != "" or not is_instance_valid(main.player):
+		return
+	if _hunt_t < 0.0:
+		_hunt_t = randf_range(90.0, 150.0)
+	_hunt_t -= delta
+	if _hunt_t > 0.0 or main.in_combat:
+		return
+	_hunt_t = -1.0
+	var p: Ship = main.player
+	var at := p.global_position + Vector2(1700, 0).rotated(randf() * TAU)
+	_hunter = main.spawn_ship("dynasty_corsair", 1, at, (p.global_position - at).angle())
+	_hunter.display_name = "The Knife"
+	_hunter.info = {"group": "raider", "owner": "the paymaster at Amber's", "job": "hunting you"}
+	_hunter.controller = AIController.new(_hunter, main)
+	_hunter.controller.target = p
+	Career.say("The Knife", Data.forks["hunter_crates"] if int(f.get("shady_done", 0)) > 0 else Data.forks["hunter"], true)
+
+
 # --- The rig ahead of you ------------------------------------------------------------
 # The first water run. Another liened rig is on the same lane a little ahead,
 # same Charter number block, same forty tons. Backed raiders take it, and one
@@ -186,6 +288,10 @@ func _end_ahead() -> void:
 ## First arrival in Marcellus: he's waiting at the jump exit.
 func on_enter_system(id: String, from_system: String) -> void:
 	_bounty_ship = null
+	_hauler = null
+	_hunter = null
+	_hunt_t = -1.0
+	_hit_crew.clear()
 	if id == "marcellus" and from_system != "" and not Career.flags.get("tally_done", false) and scene == "":
 		_start_ambush()
 	elif id == "tiberine" and from_system != "" and scene == "" and not Career.flags.get("ahead_done", false) \
@@ -246,6 +352,8 @@ func _physics_process(delta: float) -> void:
 		"ahead":
 			_ahead_step(delta)
 	_bounty_step()
+	_tally_hit_step(delta)
+	_hunter_step(delta)
 
 
 func _ambush_step() -> void:
@@ -636,7 +744,21 @@ func start_gate(jump: Node2D) -> void:
 		return
 	scene = "ending"
 	_next("customs")
+	var f: Dictionary = Career.flags
+	# The rigs you came back for are in the queue, and they speak up.
+	var saved: Array = f.get("saved_names", [])
+	for i in mini(saved.size(), 2):
+		Career.say(str(saved[saved.size() - 1 - i]), Data.lanes["vouch"])
 	Career.say("Gate customs", Data.ending["customs"])
+	match str(f.get("side", "")):
+		"navy":
+			Career.say("Gate customs", Data.forks["navy_papers"])
+		"tally":
+			Career.say("Gate customs", Data.forks["tally_heat"])
+	if int(f.get("busted", 0)) > 0:
+		Career.say("Gate customs", Data.forks["flagged"])
+	elif int(f.get("shady_done", 0)) == 0 and f.get("shady_seen", false):
+		Career.say("Gate customs", Data.forks["charlie_vouch"])
 	Sfx.play("stamp")
 	main.jump_charge = 0.0
 	main.jump_target = jump
@@ -675,21 +797,46 @@ func arrive_crossroads() -> void:
 	_next("arrive")
 
 
+var _end_lines: Array = []
+
+
+## Who's with you past the gate, and what you carry through it.
+func _crossroads_lines() -> Array:
+	var out: Array = []
+	var f: Dictionary = Career.flags
+	if Career.friend_with_you():
+		var dez: String = Data.friend_memories["gate"]["line"] if Career.friend.get("memory", "") == "gate" else "Look at it. Look at all of it."
+		out.append(["dez", Career.friend["name"], dez])
+	if Career.crew.has("mersham"):
+		out.append(["mersham", "Mersham", Data.ending["mersham"]])
+	if Career.crew.has("navy_wing"):
+		out.append(["wing", "Halloran", Data.forks["halloran_gate"]])
+	elif Career.crew.has("tally_wing"):
+		out.append(["wing", "Scratch", Data.forks["scratch_gate"]])
+	if f.get("bounty_alive", false):
+		out.append(["lark", "Imre", Data.forks["lark_alive"]])
+	if int(f.get("shady_done", 0)) >= 2 and not Career.paymaster_angry():
+		out.append(["letter", "Dynasty courier", Data.forks["letter"]])
+	out.append(["end", "", Data.ending["line"]])
+	return out
+
+
 func _ending_step() -> void:
 	match _phase:
 		"arrive":
 			# The camera holds while the fleet drifts past.
 			if is_instance_valid(main.player):
 				main.player.velocity = main.player.velocity.move_toward(Vector2(40, 0), 20.0 * get_physics_process_delta_time())
-			if _t > 4.0 and not _overlay.has_line("dez"):
-				var dez: String = Data.friend_memories["gate"]["line"] if Career.friend.get("memory", "") == "gate" else "Look at it. Look at all of it."
-				if Career.friend_with_you():
-					_overlay.show_line("dez", Career.friend["name"], dez)
-			if _t > 9.0 and Career.crew.has("mersham") and not _overlay.has_line("mersham"):
-				_overlay.show_line("mersham", "Mersham", Data.ending["mersham"])
-			if _t > 14.0 and not _overlay.has_line("end"):
-				_overlay.show_line("end", "", Data.ending["line"])
-			if _t > 22.0:
+			if _end_lines.is_empty():
+				_end_lines = _crossroads_lines()
+			# One voice at a time, then the line, then the card.
+			var at := 4.0
+			for l in _end_lines:
+				if _t > at and not _overlay.has_line(l[0]):
+					_overlay.show_line(l[0], l[1], l[2])
+					break
+				at += 4.8
+			if _t > at + 8.0:
 				_overlay.title_card()
 				_next("title")
 		"title":

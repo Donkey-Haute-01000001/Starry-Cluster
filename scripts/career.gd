@@ -141,7 +141,7 @@ func obstruct() -> void:
 func shady_offer(station: String) -> Dictionary:
 	if station in ["counter", "gatehouse"] or not flags.get("starter_done", false) or loan_balance <= 0:
 		return {}
-	if int(flags.get("shady_week", 0)) == week():
+	if int(flags.get("shady_week", 0)) == week() or paymaster_angry():
 		return {}
 	for j in jobs:
 		if j["id"] == "shady":
@@ -249,6 +249,63 @@ func hire(id: String) -> bool:
 	return true
 
 
+## A wingman who comes with a side, not a contract.
+func join(id: String) -> void:
+	if crew.has(id):
+		return
+	crew[id] = {"down": false}
+	say(Data.captains[id]["name"], Data.captains[id]["hired"])
+	crew_joined.emit(id)
+	changed.emit()
+
+
+# --- The forks -------------------------------------------------------------------
+
+## How the lanes see you: rigs you came back for, minus rigs you picked clean.
+func lane_rep() -> int:
+	return int(flags.get("rigs_saved", 0)) - int(flags.get("rigs_looted", 0))
+
+
+func remember(key: String, name: String) -> void:
+	var arr: Array = flags.get(key, [])
+	if name != "" and not arr.has(name):
+		arr.append(name)
+	flags[key] = arr
+
+
+func sign_navy() -> void:
+	if flags.get("side", "") != "":
+		return
+	flags["side"] = "navy"
+	say("Franz", Data.forks["navy_signed"])
+	join("navy_wing")
+
+
+func take_tally_job() -> void:
+	if flags.get("side", "") != "" or flags.get("tally_job", false):
+		return
+	flags["tally_job"] = true
+	set_objective("Knock out the Charter hauler leaving Four. Tally's crew does the rest.", "four")
+	changed.emit()
+
+
+func tally_job_done() -> void:
+	flags["side"] = "tally"
+	flags["tally_job"] = false
+	say("Tallyman", Data.forks["tally_done"])
+	join("tally_wing")
+	loan_balance += 1500
+	say("Charlie", Data.forks["charter_heat"], true)
+	if str(objective.get("text", "")).begins_with("Knock out the Charter"):
+		set_objective("", "")
+	changed.emit()
+
+
+## The paymaster at Amber's knows what you did to his raider.
+func paymaster_angry() -> bool:
+	return flags.get("bounty_paid", false) and not flags.get("bounty_alive", false) and int(flags.get("shady_done", 0)) > 0
+
+
 func crew_with_you(id: String) -> bool:
 	return crew.has(id) and not crew[id]["down"]
 
@@ -298,6 +355,10 @@ func price(station: String, good: String) -> int:
 ## What you actually pay and get, after your friend's haggling.
 func buy_price(station: String, good: String) -> int:
 	var f := 1.0
+	if lane_rep() <= -2:
+		f += 0.04   # dock crews know your rig
+	elif lane_rep() >= 2:
+		f -= 0.02   # truckers tip you off
 	if friend_with_you() and friend["role"] == "trader":
 		f -= 0.03
 	return maxi(1, int(floor(price(station, good) * f)))
@@ -305,6 +366,10 @@ func buy_price(station: String, good: String) -> int:
 
 func sell_price(station: String, good: String) -> int:
 	var f := 1.0
+	if lane_rep() >= 2:
+		f += 0.03
+	elif lane_rep() <= -2:
+		f -= 0.03
 	if friend_with_you() and friend["role"] == "trader":
 		f += 0.03
 	if friend_with_you() and friend["memory"] == "lost" and station == "ambers":
@@ -404,6 +469,11 @@ func on_dock(station: String) -> void:
 		if crew[id]["down"]:
 			crew[id]["down"] = false
 			crew_joined.emit(id)
+	# The Tallyman's offer, in Amber's back room.
+	if station == "ambers" and flags.get("tally_done", false) and flags.get("franz_met", false) \
+			and flags.get("side", "") == "" and not flags.get("tally_offered", false):
+		flags["tally_offered"] = true
+		say("Tallyman", Data.forks["tally_offer"])
 	# Alejandra, from the rig ahead of you, working the Saltgate docks now.
 	if station == "saltgate" and flags.get("ahead_done", false) and not flags.get("nell_met", false):
 		flags["nell_met"] = true
@@ -431,6 +501,8 @@ func on_dock(station: String) -> void:
 		elif not first and flags.get("bounty_paid", false) and not flags.get("franz_pitch", false):
 			flags["franz_pitch"] = true
 			say("Franz", Data.franz["pitch"])
+			if flags.get("side", "") == "":
+				say("Franz", Data.forks["navy_offer"])
 	changed.emit()
 
 

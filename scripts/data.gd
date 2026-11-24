@@ -560,6 +560,39 @@ var ahead := {
 	"hail": "Go on, deliver yours. Somebody should get paid today.",
 }
 
+## The forks: what the March remembers of you, and how it pays off at the gate.
+## Drafts: the script doc wins.
+var lanes := {
+	"friend": ["Hey, it's the rig that stops for people. Clear skies, captain.", "Word on the band is you came back for a stranger. Drinks on me, Saltgate.", "Saw you on the scope and stopped worrying. Funny, that."],
+	"scav": ["Keep your distance, scavenger. I'm still breathing.", "Nothing in my hold worth dying for. Fly on.", "Everyone knows your rig. Everyone."],
+	"saved": "You came for me. I won't forget it. Ask anyone on the lane.",
+	"vouch": "That's the one who came for us. Let 'em through.",
+}
+var forks := {
+	# Navy or Tallyman.
+	"navy_offer": "Navy Commission, Marcellus patrol. Sign, and you fly under my orders when I need you. You'll get a wingman and papers that open doors at the Wall. Your rig stays yours.",
+	"navy_signed": "Welcome aboard, captain. Halloran will fly with you. Don't get him killed, his mother writes me.",
+	"navy_after_tally": "I heard about the Charter hauler. I can't prove it. I don't have to. We're done, captain.",
+	"tally_offer": "Amber's back room. You know who I am. One Charter hauler, out of Four. You knock her engines out, my crew takes her, the crew walks. Do that and I scratch your rig off my list. Forever.",
+	"tally_done": "There she goes. Charter's poorer by one hauler and nobody bled. You're on the good list now, captain. Scratch'll fly with you.",
+	"tally_hauler": "CCS Ledger Line",
+	"tally_hauler_hail": "Unidentified rig, you are interfering with Charter property. Break off.",
+	"charter_heat": "Captain, Recovery just put a security surcharge on your account. Fifteen hundred. They wouldn't say why. ...I think I know why.",
+	# The Mud Lark.
+	"lark_alive": "You took me in instead of out. Kessler's cells are cold, but I'm breathing. When you're past the gate, ask the Karabey docks for Imre. I owe you.",
+	"hunter": "For the Mud Lark. The paymaster sends his regards.",
+	"hunter_crates": "You carried his crates and then you killed his dog. The paymaster sends his regards.",
+	"hunter_gone": "...Tell the paymaster his knife came back dull.",
+	# The crates.
+	"letter": "Captain. A letter for you, from a friend at Amber's. Any house on the Dynasty side will honor it. He says you deliver.",
+	"charlie_vouch": "One more thing on your file, from Charter dispatch. Handwritten. 'Honest. Mostly.' ...Cleared.",
+	"flagged": "Flagged, captain. Contraband, Marcellus patrol report. Papers are papers, so you're cleared. But the Wall will remember your face.",
+	"tally_heat": "Charter has you down for a hauler that went missing on your watch. They can't prove it. Cleared. Barely.",
+	"navy_papers": "Navy commission, Lieutenant Kessler's signature. Wall's yours, captain. Fly safe.",
+	"halloran_gate": "Never been through. Kessler said I'd know it when I saw it. ...He was right.",
+	"scratch_gate": "Tally always said he'd see this place. Guess I'm seeing it for him.",
+}
+
 ## Charter Recovery and navy customs. Drafts: the script doc wins.
 var recovery := {
 	"hail": "Rig CC-40817-M, cut your engines and prepare for recovery. This is a lawful repossession.",
@@ -748,6 +781,11 @@ var captains := {
 		"pitch": "You fly a hauler, and your escorts fly like cargo. I flew for Clan Karabey, until the court decided my clan backed the wrong prince. My price is high. My aim is better.",
 		"hired": "Point me at whoever's bothering you.",
 		"note": "Clan Karabey ace. Expensive. Flies point."},
+	# Fork wingmen: they come with a side you picked, not from the bar. Drafts.
+	"navy_wing": {"name": "Halloran", "full": "Ensign Tomas Halloran, FNS", "hull": "navy_wing", "ship": "interceptor", "wage": 0, "temper": "steady",
+		"pitch": "", "hired": "Ensign Halloran, on loan from the Marcellus patrol. Lieutenant says keep you alive. I intend to.", "note": "Navy interceptor on loan. Goes where you go, reports to Kessler."},
+	"tally_wing": {"name": "Scratch", "full": "\"Scratch\", Tally's crew", "hull": "tally_escort", "ship": "raider", "wage": 0, "temper": "presses",
+		"pitch": "", "hired": "Tally says you're on the list now. The good list. Don't make him cross you off.", "note": "One of the Tallyman's raiders. Flies with you because Tally said so."},
 }
 var captain_order := ["fay", "mersham"]
 ## the discovered bond when you hire both.
@@ -801,6 +839,8 @@ func speaker_info(who: String) -> Dictionary:
 # --- The journal: who people are, and the powers you deal with ---------------------
 ## One line per person, as you'd write it in your logbook. Drafts.
 var bios := {
+	"Halloran": "Ensign Tomas Halloran, Federation Navy. On loan from Kessler's patrol. Young, by the book, and trying very hard.",
+	"Scratch": "One of the Tallyman's raiders. Flies with you because Tally said so. Talks less than Tally, counts more.",
 	"Alejandra": "Alejandra Vargas, owner-operator of the Sweet Margaret, one number ahead of you in the Charter block. Was.",
 	"Charlie": "Charlotte Hansen, Charter dispatch, third ring. Roots for you while working for the people who own your rig. Loses paperwork on purpose, sometimes.",
 	"Dock crew": "Loading crews on every station. They'll load anything that's paid for, and remember who tips.",
