@@ -23,7 +23,7 @@ Gap #2 of `baseline-audit.md`. Status: **A picked (Vishnu, 2026-11-25), built.**
 
 ## Options
 
-- **A. Career files. PICKED.** One autosave file per career, never overwritten by another. Continue = last played. New: "Careers" sheet on the title clipboard lists every file (pilot, rig, start, station, day); open or shred. Fits pick 7, fits the paperwork look.
+- **A. Career files. PICKED.** One autosave file per career, never overwritten by another. Continue = last played. New: "Careers" opens the **berth register** (pick 2026-11-25): printed ledger, columns PILOT / RIG / LAST BERTH / DAY, no headline; click a line to open, "void" twice stamps VOID and deletes. Fits pick 7, fits the paperwork look.
 - **B. Confirm only.** Keep one file; New Career asks "this shreds your career" first. Smallest. Second start still wipes the first.
 - **C. Three fixed slots.** Pick a slot at New Career, autosave into it. Familiar, but caps careers at 3 and adds a picker before the opening.
 
