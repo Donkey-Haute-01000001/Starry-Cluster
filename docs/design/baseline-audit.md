@@ -2,6 +2,7 @@
 
 What every game like this ships with, checked against `dev` (2026-11-25). Re-run before each start ships.
 Rule: this list is mine to keep current. Flag gaps before Vishnu has to ask.
+Each gap gets its own thread. When it ships, move it to "Have" here.
 
 ## Have
 
