@@ -454,6 +454,22 @@ func _show_settings(animate := true) -> void:
 			PlayerController.toggle_mute(key)
 			_show_settings(false), 16)
 	_rule(v)
+	# Text speed: the four marks typed in a row, the live one bracketed.
+	var ts := HBoxContainer.new()
+	ts.add_theme_constant_override("separation", 10)
+	v.add_child(ts)
+	var ts_l := _type(ts, "Text", 18, true)
+	ts_l.custom_minimum_size = Vector2(110, 0)
+	for k in Neon.SPEEDS.size():
+		var nm: String = Neon.SPEEDS[k][0]
+		var on := k == PlayerController.text_speed
+		_type_button(ts, ("[%s]" % nm) if on else nm, func():
+			PlayerController.text_speed = k
+			PlayerController.save_settings()
+			_show_settings(false), 16)
+	var tn := _type(v, "       How fast story lines and comms type out. Click or Space finishes a line.", 13, false, UIStyle.INK_FADED)
+	tn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_rule(v)
 	_type_button(v, "Controls  ·  key list + rebinding  >", func(): _show_controls(true), 18)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL

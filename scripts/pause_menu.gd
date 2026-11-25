@@ -225,6 +225,9 @@ func _show_settings() -> void:
 			PlayerController.toggle_mute(key)
 			_show_settings(), 20)
 		mb.get_parent().reparent(row)
+	_button("TEXT SPEED   %s" % PlayerController.text_speed_name().to_upper(), func():
+		PlayerController.step_text_speed(1)
+		_show_settings(), 20)
 	_small("%s also toggles flight assist in flight." % Keys.key_name("assist"))
 	_button("CONTROLS", func():
 		_bind_wait = ""

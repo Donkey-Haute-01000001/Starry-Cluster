@@ -216,7 +216,7 @@ func _show_comms(speaker: String, text: String) -> void:
 	_comms_speaker = speaker
 	_comms_text = text
 	_comms_hold = hold_enabled()
-	_comms_t = 6.0 + text.length() * 0.04
+	_comms_t = maxf(6.0 + text.length() * 0.04, Neon.duration(Neon.parse(text)) + 3.0)
 	_comms_age = 0.0
 	_comms_words = 0
 

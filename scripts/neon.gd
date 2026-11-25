@@ -4,7 +4,11 @@ extends RefCounted
 ## Lines type out a word at a time, with a beat after each sentence.
 ## Use: var p := Neon.parse(text); Neon.draw(self, font, pos, p, width, size, col, a, age)
 
-const RATE := 55.0             ## characters per second while typing
+const RATE := 55.0             ## base characters per second; `pace` scales it
+## Text speed from Settings: the multiple of RATE everything types at.
+## Times in a parsed line stay in base units; duration/words_at/draw scale them.
+const SPEEDS := [["Slow", 14.0], ["Normal", 20.0], ["Fast", 35.0], ["Instant", 0.0]]
+static var pace := 20.0 / RATE
 const SENTENCE_PAUSE := 0.28
 const COMMA_PAUSE := 0.1
 const SHAKE := 1
@@ -95,12 +99,19 @@ static func parse(text: String) -> Dictionary:
 
 ## Seconds until the whole line has typed in.
 static func duration(p: Dictionary) -> float:
-	return float(p["dur"])
+	return float(p["dur"]) / pace
+
+
+## Set the text speed by its index in SPEEDS.
+static func set_speed(i: int) -> void:
+	var cps: float = SPEEDS[clampi(i, 0, SPEEDS.size() - 1)][1]
+	pace = 1e4 if cps <= 0.0 else cps / RATE
 
 
 ## How many words are showing `age` seconds in.
 static func words_at(p: Dictionary, age: float) -> int:
 	var n := 0
+	age *= pace
 	for t in p["times"]:
 		if t <= age:
 			n += 1
@@ -151,16 +162,17 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 	var asc := font.get_ascent(size)
 	var now := Time.get_ticks_msec() / 1000.0
 	var text: String = p["text"]
+	var sa := age * pace   ## age in the line's base time
 	for li in lay.size():
 		if max_lines > 0 and li >= max_lines:
 			break
 		for wi in lay[li]:
-			if p["times"][wi] > age:
+			if p["times"][wi] > sa:
 				return (li + 1) * lh
 			var w: Array = p["words"][wi]
 			var x: float = lay[li][wi]
 			var y := pos.y + li * lh + asc
-			var dt: float = age - p["times"][wi]
+			var dt: float = (sa - p["times"][wi]) / pace   ## real seconds since it landed
 			# Runs of the same kind and effects inside the word.
 			var k: int = w[0]
 			while k < w[1]:
