@@ -78,7 +78,7 @@ func _hunt_step(delta: float, p: Ship) -> void:
 		_hunt_t = randf_range(150.0, 220.0)
 		return
 	# Caught: engines ioned and the cutter alongside.
-	if p.ion_t > 0.0 and cutter.global_position.distance_to(p.global_position) < CATCH_RANGE:
+	if (p.ion_t > 0.0 or p.disabled) and cutter.global_position.distance_to(p.global_position) < CATCH_RANGE:
 		_caught_t = maxf(_caught_t, 0.0) + delta
 		if _caught_t > 2.5:
 			var r := Career.repossess()

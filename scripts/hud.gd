@@ -367,7 +367,10 @@ func _draw() -> void:
 		for k in 4:
 			var inset := float(k) * 6.0
 			draw_rect(Rect2(Vector2(inset, inset), vp - Vector2(inset, inset) * 2.0), Color(1.0, 0.15, 0.1, a * (1.0 - k * 0.25)), false, 6.0)
-		if main.escorts.is_empty():
+		if is_instance_valid(main.player) and main.player.disabled:
+			_text(Vector2(vp.x * 0.5, 42), "ENGINES DEAD", 24, Color(1.0, 0.45, 0.35), true)
+			_text(Vector2(vp.x * 0.5, 64), "Adrift. Your wing is all you've got.", 14, Color(1.0, 0.8, 0.75), true)
+		elif main.escorts.is_empty():
 			_text(Vector2(vp.x * 0.5, 42), "HOSTILES CLOSING", 24, Color(1.0, 0.45, 0.35), true)
 			_text(Vector2(vp.x * 0.5, 64), "Fight with your turret, or run for a station", 14, Color(1.0, 0.8, 0.75), true)
 		else:
@@ -773,8 +776,8 @@ func _draw_tow_slip(vp: Vector2, slip: Dictionary) -> void:
 	draw_string(fb, r.position + Vector2(18, 26), "THE CHARTER COMPANY  ·  RECOVERY", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
 	draw_string(fb, r.position + Vector2(18, 54), "TOW SLIP  No. %03d" % (40 + int(slip["n"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.INK_TYPE)
 	var rig := str(Career.pilot.get("rig", "your rig"))
-	draw_string(f, r.position + Vector2(18, 82), "Recovery of rig \"%s\" from past beacon range." % rig, HORIZONTAL_ALIGNMENT_LEFT, 344, 12, UIStyle.INK_TYPE)
-	draw_string(f, r.position + Vector2(18, 102), "Towed to nearest berth. Reserve refuelled.", HORIZONTAL_ALIGNMENT_LEFT, 344, 12, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 82), slip.get("what", "Recovery of rig \"%s\" from past beacon range." % rig), HORIZONTAL_ALIGNMENT_LEFT, 344, 12, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 102), "Towed to nearest berth." if slip.has("what") else "Towed to nearest berth. Reserve refuelled.", HORIZONTAL_ALIGNMENT_LEFT, 344, 12, UIStyle.INK_TYPE)
 	draw_line(r.position + Vector2(18, 116), r.position + Vector2(362, 116), Color(UIStyle.INK_FADED, 0.5), 1.0)
 	draw_string(fb, r.position + Vector2(18, 138), "FEE", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_TYPE)
 	draw_string(fb, r.position + Vector2(90, 138), "%s cr" % Career.fmt(int(slip["fee"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_TYPE)

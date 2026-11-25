@@ -129,6 +129,32 @@ func repossess() -> Dictionary:
 	return {"seized": seized, "took": took, "fee": Data.REPO_FEE}
 
 
+## Raiders had you for three days. They took the cargo and the cash; the Charter
+## paid to get its rig back and put it on your lien. The clock kept running.
+func ransom(downed: int) -> Dictionary:
+	var seized := cargo_used()
+	cargo.clear()
+	job_cargo.clear()
+	jobs = jobs.filter(func(j): return not j["loaded"])
+	var took := credits
+	credits = 0
+	var fee := Data.RANSOM_FEE + Data.RANSOM_PER_ESCORT * downed
+	loan_balance += fee
+	flags["ransoms"] = int(flags.get("ransoms", 0)) + 1
+	advance(Data.HELD_DAYS * Data.SECONDS_PER_DAY)
+	changed.emit()
+	return {"seized": seized, "took": took, "downed": downed, "fee": fee, "n": int(flags["ransoms"])}
+
+
+## Escorts shot down since your last dock: they come home with you, on the bill.
+func downed_escorts() -> int:
+	var n := 1 if not friend.is_empty() and friend.get("met", false) and friend.get("down", false) else 0
+	for id in crew:
+		if crew[id]["down"]:
+			n += 1
+	return n
+
+
 ## You drove the cutter off. The company bills for that too.
 func obstruct() -> void:
 	loan_balance += Data.OBSTRUCTION_FEE

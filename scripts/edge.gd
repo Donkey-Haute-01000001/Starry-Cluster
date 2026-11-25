@@ -43,6 +43,8 @@ func step(delta: float) -> void:
 	_t += delta
 	if not slip.is_empty():
 		slip["t"] += delta
+		if slip.get("call", false) and slip["t"] > 4.5:
+			tow_home()
 	var p: Ship = main.player
 	if not is_instance_valid(p) or not p.alive:
 		return
@@ -87,6 +89,14 @@ func step(delta: float) -> void:
 			tow_home()
 
 
+## A tow for a rig that's dead in space inside the ring (losing.md): same slip, same fee.
+func bill_tow(what: String) -> void:
+	Career.flags["tows"] = int(Career.flags.get("tows", 0)) + 1
+	Career.loan_balance += TOW_FEE
+	Career.changed.emit()
+	slip = {"fee": TOW_FEE, "n": int(Career.flags["tows"]), "t": 0.0, "what": what, "call": true}
+
+
 ## The tug drops you at the nearest berth in the system.
 func tow_home() -> void:
 	var p: Ship = main.player
@@ -104,6 +114,8 @@ func tow_home() -> void:
 	reserve = 1.0
 	outside = false
 	p.ion_t = 0.0
+	if p.disabled:
+		p.recover()
 	slip = {}
 	if best == "":
 		return
