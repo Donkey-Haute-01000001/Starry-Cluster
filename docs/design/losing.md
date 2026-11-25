@@ -45,7 +45,7 @@ So capture can reuse disable → board → printout → wake docked. Small build
 ## Open questions (cards, one at a time)
 
 1. ~~Core~~ **PICKED (2026-11-25): Captured, Charter ransoms you.** Disabled, victor boards and robs you, Charter pays ransom onto the lien, RANSOM RECEIPT, wake docked.
-2. Can you truly die in the Merchant opening? When?
+2. ~~Death~~ **PICKED (2026-11-25): only if you resist boarders.** When boarded: surrender or fight the breach. Fight and lose = death card, reload last dock.
 3. What each captor takes (cargo, credits, a part, the rig itself?).
 4. Escorts and companions (Dez, Fay, Mersham): captured with you, scatter, or ransomed separately?
 5. Time cost: how many days, and does it trigger payments/strikes?
