@@ -1,6 +1,6 @@
 # UI look: neon menus, pixel paper
 
-Status: **draft, waiting on Vishnu's sign-off.** Pick 2026-11-25: "A + B mix".
+Status: **signed by Vishnu 2026-11-25.** Pick 2026-11-25: "A + B mix".
 Mocks: `/mnt/project-files/sector-secundus/ui-look/` (A, B, C, now).
 
 ## Why the old look read as slop

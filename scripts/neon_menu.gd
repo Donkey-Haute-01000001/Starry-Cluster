@@ -1,0 +1,235 @@
+extends Control
+## A menu drawn as neon text over the scene (docs/design/ui-look.md).
+## Dark fade from the right, one tracked header, VT323 rows that flicker on.
+## The picked row burns gold with a caret. Numbers are green, danger is red.
+## Up/down or the mouse picks a row, Enter or a click opens it, Esc backs out.
+## If `can_void`, Del (or the VOID hint) arms the row, a second press voids it.
+
+signal chosen(i: int)
+signal voided(i: int)
+signal back
+
+const ROW_H := 52.0
+const ROW_SIZE := 32
+const HEAD_SIZE := 24
+const HINT_SIZE := 24
+const WHITE := Color(0.9, 0.9, 0.94)
+const DIM := Color(0.47, 0.49, 0.56)
+const OFF := Color(0.3, 0.31, 0.37)
+const RED := Color(1.0, 0.3, 0.33)
+
+var title := ""
+## Each row: {"cells": [String...], "off": bool}. Cells line up under `cols`.
+var rows: Array = []
+var cols: Array = []                 ## x offset of each cell from the left edge
+var heads: Array = []                ## optional small column heads
+var num_cols: Array = []             ## cells drawn in green
+var can_void := false
+
+var sel := 0
+var _armed := -1
+var _age := 0.0
+var _hint_rects: Array = []          ## [Rect2, Callable]
+
+
+func _ready() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	size = get_parent().size if get_parent() is Control else get_viewport_rect().size
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	focus_mode = Control.FOCUS_ALL
+	grab_focus.call_deferred()
+	sel = _next_on(0, 1)
+	Sfx.play("neon", -12.0)
+
+
+func set_rows(r: Array) -> void:
+	rows = r
+	_armed = -1
+	sel = clampi(sel, 0, maxi(rows.size() - 1, 0))
+	if rows.size() > 0 and rows[sel].get("off", false):
+		sel = _next_on(sel, 1)
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	_age += delta
+	if _age < 1.0 or _armed >= 0:
+		queue_redraw()
+
+
+func _left() -> float:
+	return size.x - 600.0
+
+
+func _row_y(i: int) -> float:
+	return 200.0 + (30.0 if heads.size() > 0 else 0.0) + i * ROW_H
+
+
+## The next row you can land on: live rows first; dead ones only when they can be voided.
+func _next_on(from: int, step: int, any := false) -> int:
+	for live_only in ([false] if any else [true, false]):
+		for k in rows.size():
+			var i := posmod(from + k * step, rows.size())
+			if not rows[i].get("off", false) or (can_void and not live_only):
+				return i
+	return 0
+
+
+# --- Input -----------------------------------------------------------------------
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		var i := _row_at(event.position)
+		if i >= 0 and i != sel:
+			_pick(i)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		for h in _hint_rects:
+			if h[0].has_point(event.position):
+				h[1].call()
+				accept_event()
+				return
+		var i := _row_at(event.position)
+		if i >= 0:
+			_open(i)
+		accept_event()
+	elif event is InputEventKey and event.pressed and not event.echo:
+		match event.keycode:
+			KEY_UP, KEY_W:
+				_pick(_next_on(sel - 1, -1, true))
+			KEY_DOWN, KEY_S:
+				_pick(_next_on(sel + 1, 1, true))
+			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
+				_open(sel)
+			KEY_DELETE, KEY_BACKSPACE:
+				_void()
+			KEY_ESCAPE:
+				_back()
+			_:
+				return
+		accept_event()
+
+
+func _row_at(p: Vector2) -> int:
+	if p.x < _left() - 40.0:
+		return -1
+	for i in rows.size():
+		var y := _row_y(i)
+		if p.y >= y - ROW_H * 0.5 and p.y < y + ROW_H * 0.5:
+			return i
+	return -1
+
+
+func _pick(i: int) -> void:
+	if i == sel:
+		return
+	sel = i
+	_armed = -1
+	Sfx.play("tick", -16.0, 1.4)
+	queue_redraw()
+
+
+func _open(i: int) -> void:
+	if i < 0 or i >= rows.size() or rows[i].get("off", false):
+		return
+	sel = i
+	Sfx.play("tick", -6.0)
+	chosen.emit(i)
+
+
+func _void() -> void:
+	if not can_void or rows.is_empty():
+		return
+	if _armed != sel:
+		_armed = sel
+		Sfx.play("tick", -6.0, 0.7)
+		queue_redraw()
+		return
+	_armed = -1
+	Sfx.play("stamp", -4.0)
+	voided.emit(sel)
+
+
+func _back() -> void:
+	Sfx.play("tick", -6.0)
+	back.emit()
+
+
+# --- Drawing ---------------------------------------------------------------------
+
+## Text with a soft neon bloom behind it.
+func _glow(f: Font, pos: Vector2, s: String, sz: int, col: Color, a: float) -> void:
+	for o in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2), Vector2(0, 2), Vector2(-3, -3), Vector2(3, 3)]:
+		draw_string(f, pos + o, s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(col, 0.13 * a))
+	draw_string(f, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(col, a))
+
+
+## Flicker on: each row stutters in, one after the other.
+func _flicker(i: int) -> float:
+	var t := _age - 0.04 * i
+	if t <= 0.0:
+		return 0.0
+	if t > 0.22:
+		return 1.0
+	return [1.0, 0.15, 0.8, 0.0, 1.0, 0.4][int(t / 0.04) % 6]
+
+
+func _draw() -> void:
+	var x0 := _left()
+	var fade_from := x0 - 260.0
+	var steps := 40
+	for k in steps:
+		var x := fade_from + (size.x - fade_from) * k / steps
+		var w := (size.x - fade_from) / steps + 1.0
+		draw_rect(Rect2(x, 0, w, size.y), Color(0.016, 0.02, 0.047, 0.88 * minf(1.0, float(k) / 14.0)))
+	for y in range(0, int(size.y), 3):
+		draw_line(Vector2(x0 - 120.0, y), Vector2(size.x, y), Color(0, 0, 0, 0.22), 1.0)
+
+	var talk: Font = Data.font_talk
+	var bold: Font = Data.font_bold
+	var head_a := _flicker(0)
+	var tx := x0
+	for ch in title:
+		draw_string(bold, Vector2(tx, 140), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, HEAD_SIZE, Color(1, 1, 1, head_a))
+		tx += bold.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, HEAD_SIZE).x + 7.0
+	for c in heads.size():
+		draw_string(talk, Vector2(x0 + cols[c], _row_y(0) - 42.0), heads[c], HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(OFF, head_a))
+
+	for i in rows.size():
+		var a := _flicker(i + 1)
+		var r: Dictionary = rows[i]
+		var y := _row_y(i) + ROW_SIZE * 0.3
+		var on := i == sel
+		var off: bool = r.get("off", false)
+		if i == _armed:
+			var pulse := 0.75 + 0.25 * sin(_age * 9.0)
+			_glow(talk, Vector2(x0 - 26, y), ">", ROW_SIZE, RED, a)
+			_glow(talk, Vector2(x0, y), "VOID %s?   DEL AGAIN" % str(r["cells"][0]).to_upper(), ROW_SIZE, RED, a * pulse)
+			continue
+		if on:
+			_glow(talk, Vector2(x0 - 26, y), ">", ROW_SIZE, UIStyle.GOLD, a)
+		for c in r["cells"].size():
+			var s := str(r["cells"][c]).to_upper()
+			var col := OFF if off else (UIStyle.GREEN if c in num_cols else (UIStyle.GOLD if on else WHITE))
+			var p := Vector2(x0 + cols[c], y)
+			if on and not off:
+				_glow(talk, p, s, ROW_SIZE, col, a)
+			else:
+				draw_string(talk, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, ROW_SIZE, Color(col, a))
+
+	_hint_rects.clear()
+	var hints := [["ENTER", "OPEN", _open.bind(sel)]]
+	if can_void:
+		hints.append(["DEL", "VOID", _void])
+	hints.append(["ESC", "BACK", _back])
+	var hx := x0
+	var hy := size.y - 60.0
+	for h in hints:
+		var key: String = h[0]
+		var verb: String = h[1]
+		var kw := talk.get_string_size(key + "  ", HORIZONTAL_ALIGNMENT_LEFT, -1, HINT_SIZE).x
+		var vw := talk.get_string_size(verb, HORIZONTAL_ALIGNMENT_LEFT, -1, HINT_SIZE).x
+		draw_string(talk, Vector2(hx, hy), key, HORIZONTAL_ALIGNMENT_LEFT, -1, HINT_SIZE, Color(OFF, head_a))
+		var vc := RED if verb == "VOID" and _armed >= 0 else DIM
+		draw_string(talk, Vector2(hx + kw, hy), verb, HORIZONTAL_ALIGNMENT_LEFT, -1, HINT_SIZE, Color(vc, head_a))
+		_hint_rects.append([Rect2(hx - 6, hy - 22, kw + vw + 12, 30), h[2]])
+		hx += kw + vw + 56.0

@@ -16,6 +16,7 @@ var _page: Control                  ## the current sheet of paper
 var _busy := false
 var _menu: HBoxContainer            ## the main menu: one row along the bottom
 const Neon = preload("res://scripts/neon.gd")
+const NeonMenu = preload("res://scripts/neon_menu.gd")
 var _beats: Control                 ## the start's opening, typing onto the file
 const BeatsOnPaper = preload("res://scripts/beats_on_paper.gd")
 const Keys = preload("res://scripts/keys.gd")
@@ -90,8 +91,7 @@ func _ready() -> void:
 		if a.begins_with("--menu-shot="):
 			_snapshot.call_deferred(a.substr(12))
 		elif a.begins_with("--careers-shot="):
-			_open_board()
-			_show_careers(false)
+			_show_register.call_deferred()
 			_snapshot.call_deferred(a.substr(15))
 		elif a.begins_with("--files-shot="):
 			_open_board()
@@ -209,9 +209,7 @@ func _build_menu() -> void:
 	if Career.has_save():
 		_menu_button("CONTINUE", _continue, Career.save_summary())
 	if not Career.list_careers().is_empty():
-		_menu_button("CAREERS", func():
-			_open_board()
-			_show_careers(false))
+		_menu_button("CAREERS", _show_register)
 	# The clipboard slides in with the page already on it (no second page swipe).
 	_menu_button("NEW CAREER", func():
 		_open_board()
@@ -324,98 +322,42 @@ func _continue(n := -1) -> void:
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
-## The berth register: one printed line per career, last played on top.
-## Click a line to take it up. Void stamps it out for good.
-const REG_COLS := [["PILOT", 150.0], ["RIG", 120.0], ["LAST BERTH", 104.0], ["DAY", 44.0]]
-
-
-func _show_careers(animate := true) -> void:
-	var page := _new_page(animate)
-	var v := _sheet_body(page)
-	v.add_theme_constant_override("separation", 0)
-	_type(v, "AURELIA  ·  BERTH 14  ·  REGISTER", 13, true, UIStyle.INK_FADED)
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 18)
-	v.add_child(gap)
-	_reg_row(v, REG_COLS.map(func(c): return c[0]), true)
-	_rule(v)
-	for c in Career.list_careers():
-		var cells: Array = ["FILE %d" % c["slot"], "unreadable", "", ""] if c["damaged"] \
-			else [c["pilot"], c["rig"], c["where"], str(c["day"])]
-		var row := _reg_row(v, cells, false, c["damaged"])
-		if not c["damaged"]:
-			row.pressed.connect(_continue.bind(c["slot"]))
-		var void_b := Button.new()
-		void_b.text = "void"
-		void_b.flat = true
-		void_b.focus_mode = Control.FOCUS_NONE
-		void_b.add_theme_font_override("font", Data.font_type)
-		void_b.add_theme_font_size_override("font_size", 11)
-		for k in ["font_color", "font_hover_color", "font_pressed_color"]:
-			void_b.add_theme_color_override(k, UIStyle.INK_FADED)
-		void_b.add_theme_color_override("font_hover_color", UIStyle.INK_STAMP)
-		row.get_child(0).add_child(void_b)
-		void_b.pressed.connect(func():
-			if not void_b.get_meta("armed", false):
-				void_b.set_meta("armed", true)
-				void_b.text = "void?"
-				void_b.add_theme_color_override("font_color", UIStyle.INK_STAMP)
-				return
-			void_b.disabled = true
-			row.disabled = true
-			var at := row.get_global_rect().position - page.get_global_rect().position
-			_stamp(page, "VOID", at + Vector2(150, -10), -4.0, true, UIStyle.INK_STAMP, 30)
-			Career.delete_career(c["slot"])
-			get_tree().create_timer(0.7).timeout.connect(func():
-				_build_menu()
-				_set_menu_shown(false)
-				if Career.list_careers().is_empty():
-					_close_board()
-				else:
-					_show_careers(false)))
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(spacer)
-	_type_button(v, "back to menu", _close_board, 12)
-
-
-## One ruled line of the register. Header lines are plain; career lines are buttons.
-func _reg_row(parent: Node, cells: Array, header := false, faded := false) -> Button:
-	var b := Button.new()
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(0, 22 if header else 36)
-	var none := StyleBoxFlat.new()
-	none.bg_color = Color(0, 0, 0, 0)
-	none.border_color = Color(UIStyle.INK_TYPE, 0.18)
-	none.border_width_bottom = 0 if header else 1
-	var hover := none.duplicate()
-	hover.bg_color = Color(UIStyle.INK_TYPE, 0.06)
-	for st in ["normal", "focus", "disabled"]:
-		b.add_theme_stylebox_override(st, none)
-	for st in ["hover", "pressed", "hover_pressed"]:
-		b.add_theme_stylebox_override(st, none if header else hover)
-	if header:
-		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(b)
-	var h := HBoxContainer.new()
-	h.set_anchors_preset(Control.PRESET_FULL_RECT)
-	h.add_theme_constant_override("separation", 0)
-	h.alignment = BoxContainer.ALIGNMENT_BEGIN
-	b.add_child(h)
-	for i in REG_COLS.size():
-		var text: String = cells[i]
-		var l := _type(h, text.to_upper() if header else text, 11 if header else 15, header,
-			UIStyle.INK_FADED if header or faded else UIStyle.INK_TYPE)
-		l.custom_minimum_size = Vector2(REG_COLS[i][1], 0)
-		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		l.clip_text = true
-		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var fill := Control.new()
-	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(fill)
-	return b
-
+## The berth register, in neon: one line per career, last played on top.
+## Enter takes it up; Del twice voids it for good.
+func _show_register() -> void:
+	_set_menu_shown(false)
+	var m := NeonMenu.new()
+	m.title = "REGISTER"
+	m.cols = [0.0, 200.0, 330.0, 470.0]
+	m.heads = ["PILOT", "RIG", "LAST BERTH", "DAY"]
+	m.num_cols = [3]
+	m.can_void = true
+	var careers := []
+	var fill := func():
+		# Lambdas capture by value: refill the same array, don't reassign it.
+		var all := Career.list_careers()
+		careers.clear()
+		careers.append_array(all.filter(func(c): return not c["damaged"]))
+		careers.append_array(all.filter(func(c): return c["damaged"]))
+		m.set_rows(careers.map(func(c):
+			if c["damaged"]:
+				return {"cells": ["File %d" % c["slot"], "unreadable", "", ""], "off": true}
+			return {"cells": [c["pilot"], c["rig"], c["where"], str(c["day"])]}))
+	fill.call()
+	add_child(m)
+	m.chosen.connect(func(i): _continue(careers[i]["slot"]))
+	m.voided.connect(func(i):
+		Career.delete_career(careers[i]["slot"])
+		_build_menu()
+		if Career.list_careers().is_empty():
+			m.queue_free()
+			_set_menu_shown(true)
+		else:
+			_set_menu_shown(false)
+			fill.call())
+	m.back.connect(func():
+		m.queue_free()
+		_set_menu_shown(true))
 
 
 func _open_board() -> void:

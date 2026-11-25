@@ -14,7 +14,8 @@ Updated 2026-11-25. Edit this file when something ships or a pick changes the pl
 - Debt bites: strikes, repo cutter, customs scans, weekly no-questions job
 - Merchant script complete (all lines locked, 2026-11-25)
 - Story: rig ahead (Alejandra, Hollis), Tallyman ambush + Franz, Red Stork bounty + boarding, Saltgate bar (Fay, Mersham), Navy offer + Mbeki, four forks with gate payoffs, ending + title card
-- Chart (M), journal (J), pause menu, autosave on dock, career files (Careers sheet on title)
+- Chart (M), journal (J), pause menu, autosave on dock, career files (neon Careers register on title)
+- UI look redo in progress (`docs/design/ui-look.md`, signed): neon menus, pixel-paper documents. Done: Careers register
 - Comms ticker, quiet HUD, neon text, VT323 dialogue
 - Real-recording sounds, Pink Bloom music
 
