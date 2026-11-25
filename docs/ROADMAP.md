@@ -42,3 +42,4 @@ Updated 2026-11-25. Edit this file when something ships or a pick changes the pl
 - VCR OSD Mono for now-playing / day readouts (license check)
 - Fighters / carrier sorties (designed, build after crew v1)
 - Outposts, co-op (long term)
+- Play your own music (Spotify / Apple Music / playlists). Spotify API only remote-controls the Spotify app (Premium); Apple Music has no desktop hook. Cheap version: "Game music: On / Off (play your own)" setting
