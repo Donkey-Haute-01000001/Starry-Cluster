@@ -1,4 +1,6 @@
 extends Node
+
+const TALLY_FORK := false  ## Tally's job offer: Scrapper/Pirate starts only
 ## The player's career state: money, the Charter loan, cargo, time, jobs and
 ## story flags. An autoload, so it survives jumping between systems.
 
@@ -472,9 +474,10 @@ func on_dock(station: String) -> void:
 		if crew[id]["down"]:
 			crew[id]["down"] = false
 			crew_joined.emit(id)
-	# The Tallyman's offer, in Amber's back room. Only once the Charter has a
-	# strike on you: a merchant takes his deal because they're desperate (Vishnu).
-	if station == "ambers" and flags.get("tally_done", false) and flags.get("franz_met", false) \
+	# The Tallyman's offer, in Amber's back room. Off for the Merchant start
+	# (Vishnu 2026-11-25: Merchant is locked to the Navy; Scrapper gets the real
+	# Franz-or-Tally choice, Pirate is locked to Tally). Kept for those starts.
+	if TALLY_FORK and station == "ambers" and flags.get("tally_done", false) and flags.get("franz_met", false) \
 			and strikes >= 1 and flags.get("side", "") == "" and not flags.get("tally_offered", false):
 		flags["tally_offered"] = true
 		say("Tallyman", Data.forks["tally_offer"])
