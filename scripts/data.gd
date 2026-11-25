@@ -601,9 +601,9 @@ var forks := {
 	"charter_heat": "Captain, Recovery just put a security surcharge on your account. Fifteen hundred. They wouldn't say why. ...I think I know why.",
 	# The Red Stork.
 	"lark_alive": "They painted her red and called her theirs. I only took back what I paid for. ...You brought me in breathing. That is a debt, and Karabey pays its debts. Ask for Qasim on the other side of the Wall.",
-	"hunter": "For the Red Stork. The paymaster sends his regards.",
-	"hunter_crates": "You carried his crates and then you killed his dog. The paymaster sends his regards.",
-	"hunter_gone": "...Tell the paymaster his horse came back lame.",
+	"hunter": "Qasim had a mother. She asked the paymaster for your name. He gave it to me.",
+	"hunter_crates": "You carried our crates. Clean work. Then you killed our man. The paymaster does not do business twice.",
+	"hunter_gone": "...Keep running, trucker. The paymaster is old, and he has nothing else to do.",
 	# The crates.
 	"letter": "Captain. A letter for you, from a friend at Amber's. Any house on the Dynasty side will honor it. He says you deliver.",
 	"charlie_vouch": "One more thing on your file, from Charter dispatch. Handwritten. 'Honest. Mostly.' ...Cleared.",
