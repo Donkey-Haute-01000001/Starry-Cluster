@@ -85,6 +85,10 @@ func _ready() -> void:
 	for a in args:
 		if a.begins_with("--menu-shot="):
 			_snapshot.call_deferred(a.substr(12))
+		elif a.begins_with("--careers-shot="):
+			_open_board()
+			_show_careers(false)
+			_snapshot.call_deferred(a.substr(15))
 		elif a.begins_with("--files-shot="):
 			_open_board()
 			_show_index(false)
@@ -184,6 +188,10 @@ func _build_menu() -> void:
 	_menu.set_meta("strip", strip)
 	if Career.has_save():
 		_menu_button("CONTINUE", _continue, Career.save_summary())
+	if not Career.list_careers().is_empty():
+		_menu_button("CAREERS", func():
+			_open_board()
+			_show_careers(false))
 	# The clipboard slides in with the page already on it (no second page swipe).
 	_menu_button("NEW CAREER", func():
 		_open_board()
@@ -289,10 +297,67 @@ func _build_bulletin() -> void:
 	slip.set_meta("tacks", tacks)
 
 
-func _continue() -> void:
-	if Career.load_game():
+func _continue(n := -1) -> void:
+	if Career.load_game(n):
 		Data.mode = "merchant"
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+## Every career on file, last played first: open one, or shred it.
+func _show_careers(animate := true) -> void:
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	_type(v, "BERTH 14  ·  CAREERS ON FILE", 13, true, UIStyle.INK_FADED)
+	_label(v, "Pick up where you left off.", Data.font_bold, 34, UIStyle.INK_TYPE)
+	_type(v, "Each career saves at every dock. Shredding is for good.", 14, false, UIStyle.INK_FADED)
+	_rule(v)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 12)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var careers := Career.list_careers()
+	for c in careers:
+		var row := VBoxContainer.new()
+		row.add_theme_constant_override("separation", 2)
+		list.add_child(row)
+		var top := HBoxContainer.new()
+		top.add_theme_constant_override("separation", 14)
+		row.add_child(top)
+		if c["damaged"]:
+			var b := _type_button(top, "FILE %d   ·   DAMAGED" % c["slot"], func(): pass, 18)
+			b.disabled = true
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_type(row, "Couldn't read this one, or its backup.", 13, false, UIStyle.INK_FADED)
+		else:
+			var name: String = c["pilot"].to_upper() + (("   ·   " + c["rig"].to_upper()) if c["rig"] != "" else "")
+			var b := _type_button(top, name, _continue.bind(c["slot"]), 18)
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var when := Time.get_datetime_string_from_unix_time(int(c["saved_at"]) + _tz_offset(), true).substr(0, 16)
+			_type(row, "%s  ·  docked at %s, day %d  ·  %s" % [String(c["start"]).capitalize(), c["where"], c["day"], when], 13, false, UIStyle.INK_FADED)
+		var shred := _type_button(top, "shred", func(): pass, 12)
+		shred.pressed.connect(func():
+			if shred.get_meta("armed", false):
+				Career.delete_career(c["slot"])
+				Sfx.play("paper", -4.0)
+				_build_menu()
+				_set_menu_shown(false)
+				if Career.list_careers().is_empty():
+					_close_board()
+				else:
+					_show_careers(false)
+			else:
+				shred.set_meta("armed", true)
+				shred.text = "shred? sure"
+				shred.add_theme_color_override("font_color", UIStyle.INK_STAMP))
+	_type_button(v, "back to menu", _close_board, 12)
+
+
+static func _tz_offset() -> int:
+	return int(Time.get_time_zone_from_system().get("bias", 0)) * 60
 
 
 func _open_board() -> void:
