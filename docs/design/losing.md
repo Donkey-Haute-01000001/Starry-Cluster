@@ -1,6 +1,6 @@
 # Losing (capture, ransom, rare death)
 
-Status: **ALL PICKS IN (2026-11-25), awaiting Vishnu's signature.** Gap #1 of `baseline-audit.md`. Thread: "Design losing and capture".
+Status: **SIGNED by Vishnu 2026-11-25** (incl. both fill-ins). Building. Gap #1 of `baseline-audit.md`. Thread: "Design losing and capture".
 
 ## Problem
 
