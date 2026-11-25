@@ -591,9 +591,9 @@ var lanes := {
 }
 var forks := {
 	# Navy or Tallyman.
-	"navy_offer": "They gave me one cutter for the whole belt. One. [slow]So I'm asking you.[/slow] Sign this and you fly when I call. You get a wingman, you get papers that open the Wall. The rig stays yours. ...I can't promise it's safe. I can promise it matters.",
-	"navy_signed": "Welcome aboard. Mbeki's on your wing. Keep him alive, his mother writes me. [slow]Every week.[/slow] Long letters.",
-	"navy_after_tally": "I heard about the Charter hauler. [slow]I can't prove it.[/slow] I don't have to. ...I had papers drawn up for you, captain. We're done.",
+	"navy_offer": "Captain! Sorry, that was loud. I've been practicing this. ...The Navy gave us one cutter for the whole belt, so I'm asking for help. If you sign, you fly with us when we need you. You'd get a wingman, and papers that get you through the Wall. And your rig stays yours. I made sure of that.",
+	"navy_signed": "Thank you. Really. Mbeki will fly with you. Please bring him back, his mother writes me every week. Long letters.",
+	"navy_after_tally": "The Ledger Line went missing out of Four. People say you were there. ...I don't want to believe it. I had your papers ready, captain. I can't sign them now. I'm sorry.",
 	"tally_offer": "Amber's back room. You know who I am. One Charter hauler, out of Four. You knock her engines out, my crew takes her, the crew walks. Do that and I scratch your rig off my list. Forever.",
 	"tally_done": "There she goes. Charter's poorer by one hauler and nobody bled. You're on the good list now, captain. Notch'll fly with you.",
 	"tally_hauler": "CCS Ledger Line",
