@@ -46,7 +46,7 @@ So capture can reuse disable → board → printout → wake docked. Small build
 
 1. ~~Core~~ **PICKED (2026-11-25): Captured, Charter ransoms you.** Disabled, victor boards and robs you, Charter pays ransom onto the lien, RANSOM RECEIPT, wake docked.
 2. ~~Death~~ **PICKED (2026-11-25): only if you resist boarders.** When boarded: surrender or fight the breach. Fight and lose = death card, reload last dock.
-3. What each captor takes (cargo, credits, a part, the rig itself?).
+3. ~~Take~~ **PICKED (2026-11-25): raiders take cargo + cash on hand.** Rig and outfits stay. Tallyman takes nothing (locked lore).
 4. Escorts and companions (Dez, Fay, Mersham): captured with you, scatter, or ransomed separately?
 5. Time cost: how many days, and does it trigger payments/strikes?
 6. The defeat moment: look and sound (printout, stamp, Katana Zero-style line).
