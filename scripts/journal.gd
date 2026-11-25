@@ -108,14 +108,12 @@ func close(keep_paused := false) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.pressed and not event.echo):
-		return
-	if event.keycode == KEY_J:
+	if event.is_action_pressed("journal"):
 		if not main.merchant or main.pause_menu.visible:
 			return
 		toggle()
 		get_viewport().set_input_as_handled()
-	elif not visible:
+	elif not visible or not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	elif event.keycode == KEY_ESCAPE:
 		close()

@@ -6,6 +6,9 @@ var main: Node
 var _list: VBoxContainer
 var _note: Label
 var _page := "main"
+const Keys = preload("res://scripts/keys.gd")
+var _bind_wait := ""   ## action waiting for a key on the controls page
+var _bind_note := ""
 
 
 func _ready() -> void:
@@ -63,6 +66,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ESCAPE, KEY_P]:
 		if _page == "main":
 			close()
+		elif _page == "controls":
+			_show_settings()
 		else:
 			_show_main()
 		get_viewport().set_input_as_handled()
@@ -220,8 +225,102 @@ func _show_settings() -> void:
 			PlayerController.toggle_mute(key)
 			_show_settings(), 20)
 		mb.get_parent().reparent(row)
-	_small("V also toggles flight assist in flight.")
+	_small("%s also toggles flight assist in flight." % Keys.key_name("assist"))
+	_button("CONTROLS", func():
+		_bind_wait = ""
+		_bind_note = ""
+		_show_controls(), 20)
 	_button("BACK", _show_main, 20)
+
+
+## Every key in two columns. Click a key, press the new one.
+func _show_controls() -> void:
+	_page = "controls"
+	_clear()
+	_title("CONTROLS")
+	var cols := HBoxContainer.new()
+	cols.alignment = BoxContainer.ALIGNMENT_CENTER
+	cols.add_theme_constant_override("separation", 48)
+	_list.add_child(cols)
+	var left := VBoxContainer.new()
+	var right := VBoxContainer.new()
+	for c in [left, right]:
+		c.custom_minimum_size = Vector2(300, 0)
+		c.add_theme_constant_override("separation", 0)
+		cols.add_child(c)
+	var group := ""
+	for a in Keys.ACTIONS:
+		var col: VBoxContainer = left if a[2] == "FLIGHT" else right
+		if a[2] != group:
+			group = a[2]
+			if col.get_child_count() > 0:
+				var gap := Control.new()
+				gap.custom_minimum_size = Vector2(0, 8)
+				col.add_child(gap)
+			col.add_child(_tag(group, 12, 0.5))
+		var row := HBoxContainer.new()
+		col.add_child(row)
+		var l := _tag(a[1], 15, 0.8)
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(l)
+		var id: String = a[0]
+		var b := _button("PRESS A KEY" if _bind_wait == id else Keys.key_name(id).to_upper(), func():
+			_bind_wait = id
+			_bind_note = "Press the new key for %s. Esc cancels." % Keys.label(id)
+			_show_controls(), 16)
+		b.get_parent().custom_minimum_size = Vector2(110, 0)
+		b.get_parent().reparent(row)
+		if _bind_wait == id:
+			b.add_theme_color_override("font_color", UIStyle.GOLD)
+	var fixed := ""
+	for f in Keys.FIXED:
+		fixed += ("    " if fixed != "" else "") + "%s  %s" % [f[0], f[1].to_lower()]
+	_small("Fixed:  " + fixed, 0.45)
+	if _bind_note != "":
+		_small(_bind_note, 0.9)
+	if not Keys.is_default():
+		_button("RESET TO DEFAULTS", func():
+			Keys.reset()
+			_bind_wait = ""
+			_bind_note = "Defaults restored."
+			_show_controls(), 18)
+	_button("BACK", func():
+		_bind_wait = ""
+		_bind_note = ""
+		_show_settings(), 20)
+
+
+func _tag(text: String, sz: int, alpha: float) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", Data.font_type)
+	l.add_theme_font_size_override("font_size", sz)
+	l.add_theme_color_override("font_color", Color(1, 1, 1, alpha))
+	return l
+
+
+func _input(event: InputEvent) -> void:
+	if not visible or _page != "controls" or _bind_wait == "":
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_bind_wait = ""
+		_bind_note = ""
+	else:
+		var sp := Keys.spec_of(event)
+		if sp == "":
+			return
+		if sp == "reserved":
+			_bind_note = "That key is spoken for (see Fixed). Pick another."
+		else:
+			var id := _bind_wait
+			var swapped := Keys.rebind(id, sp)
+			_bind_wait = ""
+			_bind_note = "%s  →  %s." % [Keys.label(id), Keys.key_name(id)]
+			if swapped != "":
+				_bind_note += "  %s moved to %s." % [Keys.label(swapped), Keys.key_name(swapped)]
+		Sfx.play("tick", -6.0)
+	get_viewport().set_input_as_handled()
+	_show_controls.call_deferred()
 
 
 func _step_vol(key: String, d: float) -> void:
@@ -240,6 +339,21 @@ func _shot_test(dir: String) -> void:
 	for i in 3:
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(dir + "/pause_settings.png")
+	_show_controls()
+	# Rebind check: Forward guns onto R should swap Swap secondary onto Space.
+	_bind_wait = "fire_fixed"
+	_show_controls()
+	var ev := InputEventKey.new()
+	ev.physical_keycode = KEY_R
+	ev.keycode = KEY_R
+	ev.pressed = true
+	_input(ev)
+	await get_tree().process_frame
+	print("[keys] fire_fixed=%s swap=%s map_ok=%s" % [Keys.key_name("fire_fixed"), Keys.key_name("swap_secondary"), InputMap.event_is_action(ev, "fire_fixed")])
+	for i in 3:
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/pause_controls.png")
+	Keys.reset()
 	close()
 	print("[pause] paused=%s visible=%s" % [get_tree().paused, visible])
 	get_tree().quit()

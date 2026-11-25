@@ -1,6 +1,6 @@
 # Controls
 
-Gap #3 of `baseline-audit.md`. Status: **card out (2026-11-25).**
+Gap #3 of `baseline-audit.md`. Status: **A picked (Vishnu, 2026-11-25), built.**
 
 ## Problem
 
@@ -34,7 +34,7 @@ Fixed (shown, not rebindable): Esc / P pause, Space / Enter next comms line, 1-5
 
 ## Options
 
-- **A. Full list + rebind (rec).** Controls page in both Settings. Every action above rebindable, keys or mouse buttons. Click row, press key. Clash: swap with the other action, note it on the sheet. "Reset to defaults". Prompts and H overlay read live keys.
+- **A. Full list + rebind. PICKED.** Controls page in both Settings. Every action above rebindable, keys or mouse buttons. Click row, press key. Clash: swap with the other action, note it on the sheet. "Reset to defaults". Prompts and H overlay read live keys.
 - **B. Rebind flight + combat only.** Screens/comms keys fixed. Smaller, but players who move M/J can't.
 - **C. Read-only list.** Key list in Settings, no rebinding. Smallest, fails the gap.
 
@@ -42,3 +42,10 @@ Fixed (shown, not rebindable): Esc / P pause, Space / Enter next comms line, 1-5
 
 - One key per action; arrow keys and F1 stay as fixed extras.
 - Saved in `user://settings.cfg` under `[keys]`.
+
+## Built
+
+- `scripts/keys.gd`: action table, binds, swap, reset, save/load (`[keys]` in settings.cfg). Preload it.
+- Title clipboard: Settings > "Controls" sheet. Pause: Settings > CONTROLS.
+- Raw keycodes in main/story/map/journal now read actions. `restart` stays R (losing thread owns it).
+- Test: `--controls-shot=FILE` (title sheet); `--pause-shot=DIR` also rebinds Forward guns to R and checks the swap.
