@@ -527,7 +527,7 @@ var starts := [
 	{"id": "merchant", "doc": {"issuer": "THE CHARTER COMPANY", "title": "Rig Financing Agreement", "office": "Aurelia Sector Office", "file": "CC-40817-M", "stamp": "APPROVED", "note": "7 years. never again."}, "name": "Merchant", "playable": true,
 		"beats": [
 			"Seven years loading freighters.\nSeven years planning routes.\nSeven years eating shit from [red]greedy bosses[/red].",
-			"Every time they made a hundred credits, they tossed you one.\nAnd insisted you thank them.",
+			"Every time they made a hundred credits,\nthey tossed you one.\nAnd insisted you thank them.",
 			"You smiled in their faces.\nBehind their backs, you plotted.\n[slow]No. You designed.[/slow]",
 			"Seven years, and you bought your way out.\nThe Charter Company financed your first freighter.",
 			"It isn't freedom yet.\nJust a new master who [red]bills weekly[/red].",
@@ -538,15 +538,15 @@ var starts := [
 			"To them, you were worthless vermin.\nA despondent, lonely, and unloved urchin.\nNo one noticed children like you.\nThere was no point in noticing.",
 			"Half of your friends were dead by ten.\nOf those remaining, half would meet violent ends\nbefore they reached adulthood.",
 			"And Uncle Reeves, who sent them into the wrecks,\nstill says you [red]owe him for every meal[/red].",
-			"You scraped, hid, salvaged, recycled,\nand reclaimed the life your peers never got to have.\nYou learned how to survive, but not how to live.",
+			"You scraped, hid, salvaged, recycled,\nand reclaimed the life\nyour peers never got to have.\nYou learned how to survive, but not how to live.",
 			"You kept parts.\nA reactor coil here, a navigation computer there.\nEventually a cruise drive.\nAnd one fated day, a set of thrusters.",
-			"After years of starving, unquenched dreaming,\nyou finally built your first ship.\nShe was wretched, she was small,\nand she barely got the job done.\n[slow]But you had never seen a thing so beautiful in your life.[/slow]",
+			"After years of starving, unquenched dreaming,\nyou finally built your first ship.\nShe was wretched, she was small,\nand she barely got the job done.\n[slow]But you had never seen a thing\nso beautiful in your life.[/slow]",
 			"[slow]Will people finally notice you?[/slow]"
 		]},
 	{"id": "miner", "doc": {"issuer": "MINERS' COMPACT", "title": "Family Claim Deed", "office": "Belt Registry", "file": "MC-2216-F", "stamp": "SEALED", "note": "not for sale."}, "name": "Miner", "playable": false,
 		"beats": [
 			"Since you were old enough to crawl,\nyou were accustomed to the sights and sounds\nof haulers, mining lasers, and claim life.\nThis was a family business for you.",
-			"You learned to read a rock face before you learned to read.\nYou learned which seams sang and which ones lied.",
+			"You learned to read a rock face\nbefore you learned to read.\nYou learned which seams sang and which ones lied.",
 			"Then the laser rig in Shaft Three failed,\nand your mother didn't get out in time.\n[slow]She lived. She just can't fly anymore.[/slow]",
 			"Now the claim is yours.\nYour little brother asks when Mom will fly again.\nYou don't have an answer.",
 			"Eleven workers still clock in every shift,\nbecause eleven families still need to eat.",
@@ -558,11 +558,11 @@ var starts := [
 	{"id": "pirate", "doc": {"issuer": "SECTOR PATROL", "title": "Notice of Bounty", "office": "Wanted, Dead or Alive", "file": "SP-7741-W", "stamp": "SEALED", "note": "rex says one last run."}, "name": "Pirate", "playable": false,
 		"beats": [
 			"You were alone for as long as you could remember.\nNo crew, no flag, no one to watch your back.",
-			"You took what you needed from whoever couldn't stop you,\nuntil the day you jumped the wrong ship.",
+			"You took what you needed from whoever\ncouldn't stop you,\nuntil the day you jumped the wrong ship.",
 			"Captain Rex outflew you, shot out your engines,\nand boarded you himself.\nThen, instead of spacing you, he laughed.\n[wave]\"Work for me, kid.\"[/wave]",
 			"Nobody had ever offered you anything before.",
-			"Six years later, his crew is the only family you've known.\nYou've bled for his dream:\na fleet, a flag, a name nobody can take away.",
-			"Tonight is the big one.\nOne last run, Rex says, and the dream comes true for all of you.",
+			"Six years later,\nhis crew is the only family you've known.\nYou've bled for his dream:\na fleet, a flag, a name nobody can take away.",
+			"Tonight is the big one.\nOne last run, Rex says,\nand the dream comes true for all of you.",
 			"[slow]Where would you be without him?[/slow]"
 		]},
 ]
