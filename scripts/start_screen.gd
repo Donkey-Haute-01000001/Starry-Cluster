@@ -15,6 +15,9 @@ var _bulletin: Control              ## top-right sector bulletin (hidden under t
 var _page: Control                  ## the current sheet of paper
 var _busy := false
 var _menu: HBoxContainer            ## the main menu: one row along the bottom
+var _title_sign: Control                  ## the game's name, top left
+const Neon = preload("res://scripts/neon.gd")
+const StartIntro = preload("res://scripts/start_intro.gd")
 
 
 func _ready() -> void:
@@ -61,6 +64,7 @@ func _ready() -> void:
 	sign.position = Vector2(48, 36)
 	sign.add_theme_constant_override("separation", 0)
 	add_child(sign)
+	_title_sign = sign
 	var title := _label(sign, "SECTOR SECUNDUS", Data.font_bold, 46, Color(0.88, 0.92, 0.98))
 	title.add_theme_constant_override("outline_size", 0)
 	_label(sign, "COUNTER STATION  ·  BERTH 14  ·  AURELIA", Data.font_type_bold, 15, Color(1.0, 0.75, 0.35, 0.85))
@@ -97,6 +101,9 @@ func _ready() -> void:
 			_open_board()
 			_show_settings(false)
 			_snapshot.call_deferred(a.substr(16))
+		elif a.begins_with("--intro-shot="):
+			# --intro-shot=DIR: each start's opening, a beat in, plus the Merchant file after.
+			_intro_shots.call_deferred(a.substr(13))
 		elif a.begins_with("--start-shot="):
 			_open_board()
 			_show_file(0, false)
@@ -109,6 +116,27 @@ func _ready() -> void:
 			_open_board()
 			_show_contact(false)
 			_snapshot.call_deferred(a.substr(15))
+
+
+func _intro_shots(dir: String) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	for i in Data.starts.size():
+		_play_intro(i)
+		var intro: Node = get_child(get_child_count() - 1)
+		await get_tree().create_timer(1.2).timeout
+		intro.advance()
+		intro.advance()
+		intro.advance()
+		await get_tree().create_timer(5.0).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/intro_%s.png" % [dir, Data.starts[i]["id"]])
+		intro.skip()
+		await get_tree().create_timer(1.0).timeout
+	_show_file(0, false)
+	await get_tree().create_timer(0.5).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/intro_file.png")
+	get_tree().quit()
 
 
 func _snapshot(path: String) -> void:
@@ -298,9 +326,9 @@ func _show_index(animate := true) -> void:
 		var b := _type_button(row, "%s   ·   %s" % [st["name"].to_upper(), st["doc"]["file"]], _pick.bind(k), 18)
 		if not st["playable"]:
 			b.add_theme_color_override("font_color", Color(UIStyle.INK_TYPE, 0.55))
-		var blurb: String = st["blurb"]
-		var cut := blurb.find(".", 60)
-		var t := _type(row, blurb.substr(0, cut + 1) if cut > 0 else blurb, 13, false, UIStyle.INK_FADED)
+		var first := Neon.plain(st["beats"][0]).replace("\n", " ")
+		var cut := first.find(".", 60)
+		var t := _type(row, first.substr(0, cut + 1) if cut > 0 else first, 13, false, UIStyle.INK_FADED)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		t.custom_minimum_size = Vector2(PAPER_W - 70, 0)
 		var gap := Control.new()
@@ -596,7 +624,7 @@ func _show_file(i: int, animate := true) -> void:
 	file.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_rule(v)
 
-	var blurb := _type(v, s["blurb"], 14)
+	var blurb := _type(v, Neon.plain(s["beats"][-1]), 15)
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.custom_minimum_size.x = PAPER_W - 60
 
@@ -645,8 +673,29 @@ func _show_file(i: int, animate := true) -> void:
 func _pick(i: int) -> void:
 	if _busy or i == _selected:
 		return
-	Sfx.play("flip", -4.0)
-	_show_file(i)
+	_play_intro(i)
+
+
+## The career's opening over the berth, then its file on the clipboard.
+func _play_intro(i: int) -> void:
+	_busy = true
+	var s: Dictionary = Data.starts[i]
+	var home := _board.position
+	var tw := create_tween()
+	tw.tween_property(_board, "position:x", home.x + 700.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	Sfx.play("paper", -6.0)
+	_title_sign.visible = false
+	var intro := StartIntro.new()
+	intro.beats = s["beats"]
+	intro.place = "%s  ·  %s" % [s["doc"]["office"].to_upper(), s["doc"]["issuer"]]
+	add_child(intro)
+	await intro.finished
+	_title_sign.visible = true
+	_board.position = home
+	_board.visible = false
+	_busy = false
+	_open_board()
+	_show_file(i, false)
 
 
 ## Signing the loan: the pen scrawls a signature, then the next form comes up.

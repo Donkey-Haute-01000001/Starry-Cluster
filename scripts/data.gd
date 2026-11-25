@@ -521,15 +521,50 @@ var station_walls := {
 }
 
 ## Start screen. Only the Merchant start is playable in the demo.
+## beats: the opening, read over the berth one beat at a time (Space).
+## Vishnu's text, cut into beats. Neon tags work: [red] [slow] [wave] [shake].
 var starts := [
 	{"id": "merchant", "doc": {"issuer": "THE CHARTER COMPANY", "title": "Rig Financing Agreement", "office": "Aurelia Sector Office", "file": "CC-40817-M", "stamp": "APPROVED", "note": "7 years. never again."}, "name": "Merchant", "playable": true,
-		"blurb": "Seven years of loading freighters. Seven years of planning routes. Seven years of eating shit from your greedy bosses. Every time they made a hundred credits, they tossed you one, and insisted you thank them. But you smiled in their faces, and plotted (no, designed) behind their backs. After seven years, you were able to buy your way out. With the Charter Company financing your first freighter, you're eager to do things your way. It isn't freedom yet. Just a new master who bills weekly. What will your company look like?"},
+		"beats": [
+			"Seven years loading freighters.\nSeven years planning routes.\nSeven years eating shit from [red]greedy bosses[/red].",
+			"Every time they made a hundred credits, they tossed you one.\nAnd insisted you thank them.",
+			"You smiled in their faces.\nBehind their backs, you plotted.\n[slow]No. You designed.[/slow]",
+			"Seven years, and you bought your way out.\nThe Charter Company financed your first freighter.",
+			"It isn't freedom yet.\nJust a new master who [red]bills weekly[/red].",
+			"[slow]What will your company look like?[/slow]"
+		]},
 	{"id": "scrapper", "doc": {"issuer": "REEVES SALVAGE & RECLAMATION", "title": "Debt Ledger, Minor", "office": "Wreckyard Nine", "file": "RS-0013", "stamp": "SEALED", "note": "every meal. he counted every meal."}, "name": "Scrapper", "playable": false,
-		"blurb": "To them, you were worthless vermin. A despondent, lonely, and unloved urchin. No one noticed children like you. There was no point in noticing. Half of your friends were dead by ten. Of those remaining, half would meet violent ends before they reached adulthood. And Uncle Reeves, who sent them into the wrecks, still says you owe him for every meal. You scraped, hid, salvaged, recycled, and reclaimed the life your peers never got to have. You learned how to survive, but not how to live. You kept parts. A reactor coil here, a navigation computer there, eventually a cruise drive, and one fated day, a set of thrusters. After years of starving, unquenched dreaming, you finally built your first ship. She was wretched, she was small, and she barely got the job done, but you had never seen a thing so beautiful in your life. Will people finally notice you?"},
+		"beats": [
+			"To them, you were worthless vermin.\nA despondent, lonely, and unloved urchin.\nNo one noticed children like you.\nThere was no point in noticing.",
+			"Half of your friends were dead by ten.\nOf those remaining, half would meet violent ends\nbefore they reached adulthood.",
+			"And Uncle Reeves, who sent them into the wrecks,\nstill says you [red]owe him for every meal[/red].",
+			"You scraped, hid, salvaged, recycled,\nand reclaimed the life your peers never got to have.\nYou learned how to survive, but not how to live.",
+			"You kept parts.\nA reactor coil here, a navigation computer there.\nEventually a cruise drive.\nAnd one fated day, a set of thrusters.",
+			"After years of starving, unquenched dreaming,\nyou finally built your first ship.\nShe was wretched, she was small,\nand she barely got the job done.\n[slow]But you had never seen a thing so beautiful in your life.[/slow]",
+			"[slow]Will people finally notice you?[/slow]"
+		]},
 	{"id": "miner", "doc": {"issuer": "MINERS' COMPACT", "title": "Family Claim Deed", "office": "Belt Registry", "file": "MC-2216-F", "stamp": "SEALED", "note": "not for sale."}, "name": "Miner", "playable": false,
-		"blurb": "Since you were old enough to crawl, you were accustomed to the sights and sounds of haulers, mining lasers, and claim life. This was a family business for you. You learned to read a rock face before you learned to read. You learned which seams sang and which ones lied. Then the laser rig in Shaft Three failed, and your mother didn't get out in time. She lived. She just can't fly anymore. Now the claim is yours. Your little brother asks when Mom will fly again. You don't have an answer. Eleven workers still clock in every shift, because eleven families still need to eat. The letter came on a Tuesday. A League house, sealed in real wax, offering to buy the claim. The price was an insult. The last line was worse: \"Accidents are so common in the belts. We would hate to see another.\" Your mother read it twice, then burned it. Can you hold what your family built?"},
+		"beats": [
+			"Since you were old enough to crawl,\nyou were accustomed to the sights and sounds\nof haulers, mining lasers, and claim life.\nThis was a family business for you.",
+			"You learned to read a rock face before you learned to read.\nYou learned which seams sang and which ones lied.",
+			"Then the laser rig in Shaft Three failed,\nand your mother didn't get out in time.\n[slow]She lived. She just can't fly anymore.[/slow]",
+			"Now the claim is yours.\nYour little brother asks when Mom will fly again.\nYou don't have an answer.",
+			"Eleven workers still clock in every shift,\nbecause eleven families still need to eat.",
+			"The letter came on a Tuesday.\nA League house, sealed in real wax,\noffering to buy the claim.\nThe price was an insult.",
+			"The last line was worse:\n[red]\"Accidents are so common in the belts.\nWe would hate to see another.\"[/red]",
+			"Your mother read it twice, then burned it.",
+			"[slow]Can you hold what your family built?[/slow]"
+		]},
 	{"id": "pirate", "doc": {"issuer": "SECTOR PATROL", "title": "Notice of Bounty", "office": "Wanted, Dead or Alive", "file": "SP-7741-W", "stamp": "SEALED", "note": "rex says one last run."}, "name": "Pirate", "playable": false,
-		"blurb": "You were alone for as long as you could remember. No crew, no flag, no one to watch your back. You took what you needed from whoever couldn't stop you, until the day you jumped the wrong ship. Captain Rex outflew you, shot out your engines, and boarded you himself. Then, instead of spacing you, he laughed. \"Work for me, kid.\" Nobody had ever offered you anything before. Six years later, his crew is the only family you've known. You've bled for his dream: a fleet, a flag, a name nobody can take away. Tonight is the big one. One last run, Rex says, and the dream comes true for all of you. Where would you be without him?"},
+		"beats": [
+			"You were alone for as long as you could remember.\nNo crew, no flag, no one to watch your back.",
+			"You took what you needed from whoever couldn't stop you,\nuntil the day you jumped the wrong ship.",
+			"Captain Rex outflew you, shot out your engines,\nand boarded you himself.\nThen, instead of spacing you, he laughed.\n[wave]\"Work for me, kid.\"[/wave]",
+			"Nobody had ever offered you anything before.",
+			"Six years later, his crew is the only family you've known.\nYou've bled for his dream:\na fleet, a flag, a name nobody can take away.",
+			"Tonight is the big one.\nOne last run, Rex says, and the dream comes true for all of you.",
+			"[slow]Where would you be without him?[/slow]"
+		]},
 ]
 
 ## ID photos you can pick on the financing agreement (art/portraits/pilot_N.png).
