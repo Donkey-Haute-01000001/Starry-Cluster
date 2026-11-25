@@ -324,61 +324,98 @@ func _continue(n := -1) -> void:
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
-## Every career on file, last played first: open one, or shred it.
+## The berth register: one printed line per career, last played on top.
+## Click a line to take it up. Void stamps it out for good.
+const REG_COLS := [["PILOT", 150.0], ["RIG", 120.0], ["LAST BERTH", 104.0], ["DAY", 44.0]]
+
+
 func _show_careers(animate := true) -> void:
 	var page := _new_page(animate)
 	var v := _sheet_body(page)
-	_type(v, "BERTH 14  ·  CAREERS ON FILE", 13, true, UIStyle.INK_FADED)
-	_label(v, "Pick up where you left off.", Data.font_bold, 34, UIStyle.INK_TYPE)
-	_type(v, "Each career saves at every dock. Shredding is for good.", 14, false, UIStyle.INK_FADED)
+	v.add_theme_constant_override("separation", 0)
+	_type(v, "AURELIA  ·  BERTH 14  ·  REGISTER", 13, true, UIStyle.INK_FADED)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 18)
+	v.add_child(gap)
+	_reg_row(v, REG_COLS.map(func(c): return c[0]), true)
 	_rule(v)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	v.add_child(scroll)
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 12)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(list)
-	var careers := Career.list_careers()
-	for c in careers:
-		var row := VBoxContainer.new()
-		row.add_theme_constant_override("separation", 2)
-		list.add_child(row)
-		var top := HBoxContainer.new()
-		top.add_theme_constant_override("separation", 14)
-		row.add_child(top)
-		if c["damaged"]:
-			var b := _type_button(top, "FILE %d   ·   DAMAGED" % c["slot"], func(): pass, 18)
-			b.disabled = true
-			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			_type(row, "Couldn't read this one, or its backup.", 13, false, UIStyle.INK_FADED)
-		else:
-			var name: String = c["pilot"].to_upper() + (("   ·   " + c["rig"].to_upper()) if c["rig"] != "" else "")
-			var b := _type_button(top, name, _continue.bind(c["slot"]), 18)
-			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			var when := Time.get_datetime_string_from_unix_time(int(c["saved_at"]) + _tz_offset(), true).substr(0, 16)
-			_type(row, "%s  ·  docked at %s, day %d  ·  %s" % [String(c["start"]).capitalize(), c["where"], c["day"], when], 13, false, UIStyle.INK_FADED)
-		var shred := _type_button(top, "shred", func(): pass, 12)
-		shred.pressed.connect(func():
-			if shred.get_meta("armed", false):
-				Career.delete_career(c["slot"])
-				Sfx.play("paper", -4.0)
+	for c in Career.list_careers():
+		var cells: Array = ["FILE %d" % c["slot"], "unreadable", "", ""] if c["damaged"] \
+			else [c["pilot"], c["rig"], c["where"], str(c["day"])]
+		var row := _reg_row(v, cells, false, c["damaged"])
+		if not c["damaged"]:
+			row.pressed.connect(_continue.bind(c["slot"]))
+		var void_b := Button.new()
+		void_b.text = "void"
+		void_b.flat = true
+		void_b.focus_mode = Control.FOCUS_NONE
+		void_b.add_theme_font_override("font", Data.font_type)
+		void_b.add_theme_font_size_override("font_size", 11)
+		for k in ["font_color", "font_hover_color", "font_pressed_color"]:
+			void_b.add_theme_color_override(k, UIStyle.INK_FADED)
+		void_b.add_theme_color_override("font_hover_color", UIStyle.INK_STAMP)
+		row.get_child(0).add_child(void_b)
+		void_b.pressed.connect(func():
+			if not void_b.get_meta("armed", false):
+				void_b.set_meta("armed", true)
+				void_b.text = "void?"
+				void_b.add_theme_color_override("font_color", UIStyle.INK_STAMP)
+				return
+			void_b.disabled = true
+			row.disabled = true
+			var at := row.get_global_rect().position - page.get_global_rect().position
+			_stamp(page, "VOID", at + Vector2(150, -10), -4.0, true, UIStyle.INK_STAMP, 30)
+			Career.delete_career(c["slot"])
+			get_tree().create_timer(0.7).timeout.connect(func():
 				_build_menu()
 				_set_menu_shown(false)
 				if Career.list_careers().is_empty():
 					_close_board()
 				else:
-					_show_careers(false)
-			else:
-				shred.set_meta("armed", true)
-				shred.text = "shred? sure"
-				shred.add_theme_color_override("font_color", UIStyle.INK_STAMP))
+					_show_careers(false)))
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(spacer)
 	_type_button(v, "back to menu", _close_board, 12)
 
 
-static func _tz_offset() -> int:
-	return int(Time.get_time_zone_from_system().get("bias", 0)) * 60
+## One ruled line of the register. Header lines are plain; career lines are buttons.
+func _reg_row(parent: Node, cells: Array, header := false, faded := false) -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, 22 if header else 36)
+	var none := StyleBoxFlat.new()
+	none.bg_color = Color(0, 0, 0, 0)
+	none.border_color = Color(UIStyle.INK_TYPE, 0.18)
+	none.border_width_bottom = 0 if header else 1
+	var hover := none.duplicate()
+	hover.bg_color = Color(UIStyle.INK_TYPE, 0.06)
+	for st in ["normal", "focus", "disabled"]:
+		b.add_theme_stylebox_override(st, none)
+	for st in ["hover", "pressed", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, none if header else hover)
+	if header:
+		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(b)
+	var h := HBoxContainer.new()
+	h.set_anchors_preset(Control.PRESET_FULL_RECT)
+	h.add_theme_constant_override("separation", 0)
+	h.alignment = BoxContainer.ALIGNMENT_BEGIN
+	b.add_child(h)
+	for i in REG_COLS.size():
+		var text: String = cells[i]
+		var l := _type(h, text.to_upper() if header else text, 11 if header else 15, header,
+			UIStyle.INK_FADED if header or faded else UIStyle.INK_TYPE)
+		l.custom_minimum_size = Vector2(REG_COLS[i][1], 0)
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		l.clip_text = true
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(fill)
+	return b
+
 
 
 func _open_board() -> void:
