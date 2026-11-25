@@ -1,6 +1,6 @@
 # Losing (capture, ransom, rare death)
 
-Status: **DRAFT, not signed.** Gap #1 of `baseline-audit.md`. Thread: "Design losing and capture".
+Status: **ALL PICKS IN (2026-11-25), awaiting Vishnu's signature.** Gap #1 of `baseline-audit.md`. Thread: "Design losing and capture".
 
 ## Problem
 
@@ -29,18 +29,38 @@ So capture can reuse disable → board → printout → wake docked. Small build
 | **Kenshi** | Knocked out → robbed, jailed or enslaved | Gear, freedom; escape is play | Who beat you decides what happens. [slavery](https://www.kenshi.wiki/w/Slavery) |
 | **Katana Zero** (look) | Death = "No, that won't work." rewind | Nothing; it's planning | Reload can be **in voice**, not a menu. |
 
-## Draft shape (recommendation, pending cards)
+## Locked design
 
-1. **Player can be disabled.** At 15% hull your rig goes dead in space like any NPC. Turrets go quiet. Escorts fight on; if they drive the attacker off, you get towed or limp home.
-2. **Whoever beat you boards.** What happens depends on who:
-   - Raiders: take cargo + credits on hand, hold you for ransom.
-   - Tallyman: takes nothing. He counts. (Scene, not a fee.)
-   - Charter Recovery: already built (seize + fee + tow).
-   - Navy: already built as customs bust.
-3. **The Charter pays your ransom and bills the lien.** You are collateral. Losing makes you *more owned*, not dead. A **RANSOM RECEIPT** printout, same paper family as TOW SLIP.
-4. **Time passes** while you're held (days). A payment can fall due. Strikes ripple into the repo cutter.
-5. **Wake docked** at the nearest friendly station, with a line from Charlie / Dez.
-6. **Death is rare and earned.** Only if you're destroyed outright (e.g. still taking fire while disabled, or a specific killer). Then an authored death card, and reload from last dock.
+**Flow**
+1. Your rig hits 15% hull → **disabled** (same as NPCs). Engines and turrets dead. You drift.
+2. Escorts still flying keep fighting. If they drive the attacker off: no capture, Charter tow home (TOW SLIP, existing).
+3. Otherwise the attacker pulls alongside. Card: **SURRENDER** / **FIGHT THE BREACH**.
+4. **Surrender** → capture:
+   - Hull clangs (real recordings), fade to black.
+   - Hand-ticked **Day 1, Day 2, Day 3**. Loan clock runs; a payment due while held can strike you.
+   - **RANSOM RECEIPT** (Courier Prime, red Charter stamp): cargo seized, cash taken, ransom **2,500 + 500 per downed escort** added to the lien.
+   - Wake docked at nearest station in that system. Autosaves (it's a dock). Charlie line.
+   - Escorts that were still flying are waiting there. Disabled escorts come back with you (ransomed). Dez is aboard, comes back with you.
+5. **Fight the breach** → reverse of player boarding (your crew vs theirs). Lose = **death card**, reload last dock. Win = they cut loose; you're still dead in space, Charter tow home.
+6. **No reload to undo a capture.** Quit-to-menu still loads last dock mid-fight (already true).
+
+**By captor**
+- Raiders: as above.
+- Charter Recovery: already built (seize + fee + tow). Unchanged.
+- Navy: customs bust, already built. Navy doesn't fight you in the opening.
+- Tallyman: locked lore, he takes nothing. **Not covered by picks** — see below.
+
+**Lines needed (Vishnu writes, take method):** boarder hail at the SURRENDER card, Charlie on waking, death card line, Dez on waking (if aboard).
+
+**Not covered yet (flag, decide before or after build):**
+- Tallyman beats you: no take; does the Charter still bill a ransom? Rec: no ransom, he lets you go, tow home. Paint a tally mark on your hull later (parked).
+- "Win the breach" outcome above is my fill-in, not a pick.
+
+**Build order (small)**
+1. Player disable at 15% + attacker closes + SURRENDER / FIGHT card.
+2. Capture: fade, day ticks, RANSOM RECEIPT, wake docked, escorts.
+3. Fight the breach + death card + reload.
+4. Lines in as DRAFT until Vishnu writes them.
 
 ## Open questions (cards, one at a time)
 
@@ -51,7 +71,7 @@ So capture can reuse disable → board → printout → wake docked. Small build
 8. ~~Ransom~~ **PICKED (2026-11-25): 2,500 + 500 per downed escort**, onto the lien.
 5. ~~Time~~ **PICKED (2026-11-25): held 3 days, loan clock runs.** A payment due while held can mean a strike, and the cutter.
 6. ~~Look~~ **PICKED (2026-11-25): paper trail.** Rig goes dark, hull clangs as they board (real recordings), fade to black, hand-ticked Day 1..3, RANSOM RECEIPT with red Charter stamp, wake docked, Charlie line.
-7. Reload: allowed always, only on death, or an ironman setting?
+7. ~~Reload~~ **PICKED (2026-11-25): capture sticks.** Only death offers reload of last dock.
 
 ## Out of scope
 
