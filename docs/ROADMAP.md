@@ -19,7 +19,7 @@ Updated 2026-11-25. Edit this file when something ships or a pick changes the pl
 
 ## Next (pick order with Vishnu)
 
-1. **Merchant gate lines**: five old drafts left in `data.gd` forks (`letter`, `charlie_vouch`, `flagged`, `navy_papers`, `halloran_gate`). Everything else in the Merchant script is locked
+1. **Merchant gate lines**: four old drafts left in `data.gd` forks (`charlie_vouch`, `flagged`, `navy_papers`, `halloran_gate`). Everything else in the Merchant script is locked
 2. **Merchant playtest**: only when Vishnu says. Crew v1 waits on it
 3. **Crew v1** (all starts): scope locked, see `docs/design/combat-fitting.md`
 4. **Busy bars**: crew and captains for hire in every bar
