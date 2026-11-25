@@ -21,7 +21,7 @@ Each gap gets its own thread. When it ships, move it to "Have" here.
 
 Ranked. Each one gets a card before it's built.
 
-1. **Losing.** Player destroyed = blank screen, R dumps you to the title. No defeat scene, no reload. Design pillar says you're usually *captured*, rarely killed. Biggest gap. *(design call)*
+1. ~~**Losing.**~~ Done 2026-11-25: capture + ransom, rare death. See `losing.md`.
 2. ~~**New career overwrites your save**~~ Done 2026-11-25, see Have.
 3. ~~**Controls in Settings.**~~ Done 2026-11-25, see Have.
 4. ~~**Credits screen.**~~ Done 2026-11-25, see Have.

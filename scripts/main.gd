@@ -52,6 +52,7 @@ var story: Node
 var traffic: Traffic
 var edge: Edge
 var debt  ## Debt (scripts/debt.gd)
+var capture  ## Capture (scripts/capture.gd): losing, per docs/design/losing.md
 var docked_at := ""
 var jump_charge := -1.0      ## seconds charged, or -1 when not charging
 var jump_target: Node2D = null
@@ -153,6 +154,10 @@ func _ready() -> void:
 		debt = preload("res://scripts/debt.gd").new(self)
 		player = spawn_ship("light_freighter", 0, Vector2.ZERO)
 		player.is_player = true
+		player.capturable = true
+		capture = preload("res://scripts/capture.gd").new()
+		capture.main = self
+		hud.get_parent().add_child(capture)
 		player.controller = PlayerController.new(player, self)
 		load_system(Career.system_id, "")
 		if Career.friend_with_you():
@@ -283,6 +288,8 @@ func nearby_interactable() -> Node2D:
 
 
 func _try_interact() -> void:
+	if player.disabled:
+		return
 	var w := traffic.wreck_near(player.global_position)
 	if w:
 		traffic.loot(w)
@@ -880,6 +887,8 @@ func autopilot_on() -> bool:
 
 
 func toggle_autopilot() -> void:
+	if is_instance_valid(player) and player.disabled:
+		return
 	var pc := player.controller as PlayerController
 	if pc == null:
 		return
@@ -1054,6 +1063,59 @@ func _merchant_test_step(_delta: float) -> void:
 		_run_merchant_test()
 
 
+func _capture_test(mode: String) -> void:
+	await _wait(0.3)
+	if station_ui.visible:
+		undock()
+	await _wait(0.5)
+	Career.credits = 3000
+	Career.cargo = {"water": 20}
+	var loan0 := Career.loan_balance
+	var day0 := Career.day
+	var at := player.global_position + Vector2(900, 0)
+	var r := spawn_ship("raider", 1, at)
+	if mode == "tally":
+		story._tally.append(r)
+	print("[capture] mode=%s raider=%s hull=%d/%d" % [mode, r.display_name, int(player.hull_hp), int(player.max_hull)])
+	if mode == "driven":
+		r.queue_free()
+	player.shields = 0.0
+	player.take_damage(player.max_hull * 0.9, player.global_position)
+	print("[capture] disabled=%s alive=%s hull=%d" % [player.disabled, player.alive, int(player.hull_hp)])
+	player.take_damage(player.max_hull, player.global_position)
+	print("[capture] after overkill alive=%s hull=%d" % [player.alive, int(player.hull_hp)])
+	var w := 0.0
+	while capture.phase in ["", "adrift"] and w < 30.0:
+		await _wait(0.25)
+		w += 0.25
+	print("[capture] phase=%s after %.1fs dist=%d" % [capture.phase, w, int(r.global_position.distance_to(player.global_position)) if is_instance_valid(r) else -1])
+	_shot("capture_card")
+	if capture.phase == "card":
+		capture._choose(0 if mode == "surrender" else 1)
+	w = 0.0
+	while capture.phase != "" and capture.phase != "dead" and w < 40.0:
+		await _wait(0.25)
+		w += 0.25
+		if capture.phase == "taken" and capture._ticks == 2 and not has_meta("s1"):
+			set_meta("s1", true)
+			_shot("capture_days")
+		if capture.phase == "taken" and capture._receipt.has("stamped") and not has_meta("s2"):
+			set_meta("s2", true)
+			await _wait(0.4)
+			_shot("capture_receipt")
+			print("[capture] receipt=%s" % capture._receipt)
+		if capture.phase == "breach" and not has_meta("s3") and capture._breach and is_instance_valid(capture._breach) and capture._breach.round_n >= 2:
+			set_meta("s3", true)
+			_shot("capture_breach")
+		if capture.phase == "towing" and not has_meta("s4") and not edge.slip.is_empty() and edge.slip["t"] > 1.2:
+			set_meta("s4", true)
+			_shot("capture_tow")
+	if capture.phase == "dead":
+		await _wait(3.5)
+		_shot("capture_death")
+	print("[capture] end phase=%s docked=%s disabled=%s credits=%d cargo=%d loan +%d days +%.1f strikes=%d" % [capture.phase, docked_at, player.disabled, Career.credits, Career.cargo_used(), Career.loan_balance - loan0, Career.day - day0, Career.strikes])
+
+
 func _wait(sec: float) -> void:
 	await get_tree().create_timer(sec, true, true).timeout
 
@@ -1071,6 +1133,12 @@ func _go(station: String) -> void:
 
 
 func _run_merchant_test() -> void:
+	# --capture-test=surrender|fight|driven|tally: losing, end to end (losing.md).
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--capture-test="):
+			await _capture_test(a.substr(15))
+			get_tree().quit()
+			return
 	# --look=a,b,...: quick screenshots only (station ids, "rift", "crossroads").
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--look="):

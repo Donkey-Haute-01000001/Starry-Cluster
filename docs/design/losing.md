@@ -1,6 +1,6 @@
 # Losing (capture, ransom, rare death)
 
-Status: **SIGNED by Vishnu 2026-11-25** (incl. both fill-ins). Building. Gap #1 of `baseline-audit.md`. Thread: "Design losing and capture".
+Status: **SIGNED by Vishnu 2026-11-25** (incl. both fill-ins). **BUILT** on dev (`scripts/capture.gd`). Test: `--merchant-test --capture-test=surrender|fight|driven|tally`. Gap #1 of `baseline-audit.md`. Thread: "Design losing and capture".
 
 ## Problem
 
@@ -50,7 +50,9 @@ So capture can reuse disable → board → printout → wake docked. Small build
 - Navy: customs bust, already built. Navy doesn't fight you in the opening.
 - Tallyman: locked lore, he takes nothing. **Not covered by picks** — see below.
 
-**Lines needed (Vishnu writes, take method):** boarder hail at the SURRENDER card, Charlie on waking, death card line, Dez on waking (if aboard).
+**Lines needed (Vishnu writes, take method):** boarder hail on the card, Charlie on waking, death card line, Tallyman beat, breach-held beat. All DRAFT in `Data.capture`.
+
+**Build notes:** your side in the breach = you + any of Kessler's marines; 3 boarders; you hold the lock at 1.5x. Odds show on the card. Card times out to the airlock.
 
 **Not covered yet (flag, decide before or after build):**
 - Tallyman beats you: no take; does the Charter still bill a ransom? Rec: no ransom, he lets you go, tow home. Paint a tally mark on your hull later (parked).
@@ -67,7 +69,7 @@ So capture can reuse disable → board → printout → wake docked. Small build
 1. ~~Core~~ **PICKED (2026-11-25): Captured, Charter ransoms you.** Disabled, victor boards and robs you, Charter pays ransom onto the lien, RANSOM RECEIPT, wake docked.
 2. ~~Death~~ **PICKED (2026-11-25): only if you resist boarders.** When boarded: surrender or fight the breach. Fight and lose = death card, reload last dock.
 3. ~~Take~~ **PICKED (2026-11-25): raiders take cargo + cash on hand.** Rig and outfits stay. Tallyman takes nothing (locked lore).
-4. ~~Wing~~ **PICKED (2026-11-25): flyers flee, downed ones taken.** Escorts still flying break off and meet you at the dock. Disabled escorts are taken, their ransom on the receipt. Dez is aboard, taken with you.
+4. ~~Wing~~ **PICKED (2026-11-25): flyers flee, downed ones taken.** Escorts still flying break off and meet you at the dock. Escorts shot down since your last dock come back with you, 500 each on the receipt (Dez flies his own ship, so he counts as an escort).
 8. ~~Ransom~~ **PICKED (2026-11-25): 2,500 + 500 per downed escort**, onto the lien.
 5. ~~Time~~ **PICKED (2026-11-25): held 3 days, loan clock runs.** A payment due while held can mean a strike, and the cutter.
 6. ~~Look~~ **PICKED (2026-11-25): paper trail.** Rig goes dark, hull clangs as they board (real recordings), fade to black, hand-ticked Day 1..3, RANSOM RECEIPT with red Charter stamp, wake docked, Charlie line.

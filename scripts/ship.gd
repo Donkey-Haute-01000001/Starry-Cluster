@@ -47,6 +47,7 @@ var info := {}                ## traffic: group, owner, job, cargo
 var last_hit_team := -1       ## who fired the round that's landing now
 var player_damage := 0.0      ## damage taken from you and your fleet
 var disabled := false         ## dead in space below DISABLE_AT hull: drifts, can't fire, can be boarded
+var capturable := false       ## your rig in a career: goes dead in space instead of blowing up (losing.md)
 const DISABLE_AT := 0.15
 
 # Inputs, written by the controller.
@@ -323,6 +324,10 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		main.spawn_sparks(hit_pos, def["accent"], 4)
 		main.fx.spawn_hull_hit(hit_pos, global_position, amount)
 		Sfx.play_at("hit_hull", hit_pos, -9.0 if amount < 10.0 else -3.0)
+	# Your rig: beaten means dead in space, not dead. Whoever beat you decides the rest.
+	if capturable and not disabled and hull_hp <= max_hull * DISABLE_AT:
+		hull_floor = maxf(hull_floor, 0.05)
+		_disable()
 	if hull_floor > 0.0:
 		hull_hp = maxf(hull_hp, max_hull * hull_floor)
 	if hull_hp <= 0.0:
@@ -343,6 +348,14 @@ func _disable() -> void:
 	if team == 1:
 		Sfx.play("cue_disabled", -12.0)
 	disabled_now.emit(self)
+
+
+## Back on her feet: a tug, a berth, a patch crew.
+func recover() -> void:
+	disabled = false
+	hold_fire = false
+	max_shields = def["shields"]
+	hull_floor = 0.0
 
 
 ## An ion bolt: shields soak a little, then the engines go dead for a while.

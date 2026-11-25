@@ -11,6 +11,7 @@ Updated 2026-11-25. Edit this file when something ships or a pick changes the pl
 - Four systems, eight stations, makes/wants market, weekly prices, weekly loan
 - Living traffic: liened haulers, patrols, raids, persistent wrecks, hails
 - Beacon ring, reserve tank, Charter tow slip
+- Losing (`capture.gd`, docs/design/losing.md): rig goes dead at 15%, open the airlock (3 days, ransom receipt) or fight the breach (death card, load last dock); Tallyman/driven off = tow. Lines DRAFT
 - Debt bites: strikes, repo cutter, customs scans, weekly no-questions job
 - Merchant script complete (all lines locked, 2026-11-25)
 - Story: rig ahead (Alejandra, Hollis), Tallyman ambush + Franz, Red Stork bounty + boarding, Saltgate bar (Fay, Mersham), Navy offer + Mbeki, four forks with gate payoffs, ending + title card

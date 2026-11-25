@@ -593,6 +593,9 @@ const LOAN_WEEKLY := 1200
 const LOAN_INTEREST := 0.1   ## fraction of a missed payment added to the balance
 const REPO_FEE := 2500       ## Charter Recovery's fee when the cutter catches you
 const OBSTRUCTION_FEE := 2000 ## ...and when you drive it off
+const RANSOM_FEE := 2500     ## what the Charter pays raiders to get its rig back, onto your lien (losing.md)
+const RANSOM_PER_ESCORT := 500  ## ...plus each of your escorts shot down since your last dock
+const HELD_DAYS := 3
 
 ## The rig ahead of you, on the first water run. Drafts: the script doc wins.
 var ahead := {
@@ -657,6 +660,16 @@ var default_red := "Charter paints defaults red so no dock will touch them. Qasi
 var recovery := {
 	"hail": "Owner-operator [red]CC-40817-M[/red], your account is in default. Cut engines and prepare to be boarded. Thank you for choosing the Charter.",
 	"driven_off": "Damage to Charter property has been logged and billed to account CC-40817-M. Including the paint. Recovery will follow up.",
+}
+## Losing (docs/design/losing.md). ALL DRAFT: Vishnu writes these.
+var capture := {
+	"hail": "DRAFT  Engines are dead, trucker. Open the lock and keep your hands where we can see them.",
+	"surrender": "Open the airlock",
+	"fight": "Fight the breach",
+	"held": "DRAFT  They cut the lines and run. Your rig's still dead in the water.",
+	"tally": "DRAFT  He looks you over. He makes a mark. He leaves.",
+	"charlie_wake": "DRAFT  Three days, captain. The Charter paid them. Which means you paid them. ...I'm just glad it's you on the line.",
+	"death": "DRAFT  They came through the lock. You didn't let them have the rig.",
 }
 var customs := {
 	"scan": "Charter rig, hold your course. Routine customs scan.",

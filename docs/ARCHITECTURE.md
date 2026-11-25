@@ -27,6 +27,7 @@
 | Traffic | `traffic.gd` | Lane freighters, patrols, raids, persistent wrecks, hails (Y) |
 | System edge | `edge.gd` | Beacon ring, reserve tank, Charter tow |
 | Debt in flight | `debt.gd` | Strikes, repo cutter, customs scans |
+| Losing | `capture.gd` | Rig dead in space, airlock or breach card, ransom receipt, death card |
 | Story | `story.gd` | Rig-ahead, Tallyman ambush, Franz, bounty, forks, ending |
 | Boarding | `boarding.gd` | Plan card + live breach |
 | HUD | `hud.gd`, `neon.gd` | Quiet/fight layouts, comms + ticker, Katana Zero neon text |

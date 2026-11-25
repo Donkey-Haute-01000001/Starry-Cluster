@@ -37,6 +37,7 @@ var _bar: ColorRect
 var _loot: Array = []       ## lines revealed one by one after a win
 var _shake := 0.0
 var _grapple := Vector2.ZERO   ## target's offset from the player, locked while boarding
+var defending := false      ## they're boarding you: your side vs theirs, HELD or OVERRUN
 
 
 static func win_odds(a: int, d: int, a_pow: float, d_pow: float) -> float:
@@ -136,7 +137,8 @@ func pick(i: int) -> void:
 	_card.queue_free()
 	_card = null
 	Engine.time_scale = _base_scale
-	Career.say("You", plan["order"])
+	if plan.has("order"):
+		Career.say("You", plan["order"])
 	Sfx.play("stamp", -4.0, 0.8)
 	odds = plan["odds"]
 	_odds_shown = odds
@@ -241,8 +243,8 @@ func _draw() -> void:
 	draw_string(Data.font_type, o + Vector2(w * 0.5 - 10, 18), plan.get("name", "").to_upper(), HORIZONTAL_ALIGNMENT_RIGHT, w * 0.5, 11, UIStyle.TEXT_DIM)
 	# Pips: marines (navy blue-white) vs crew (red). Dead pips go dark, the one
 	# that just fell flashes.
-	_pips(o + Vector2(10, 30), "MARINES", m_total, marines, Color(0.75, 0.88, 1.0), "m")
-	_pips(o + Vector2(10, 50), "CREW", d_total, defenders, UIStyle.RED, "d")
+	_pips(o + Vector2(10, 30), "YOURS" if defending else "MARINES", m_total, marines, Color(0.75, 0.88, 1.0), "m")
+	_pips(o + Vector2(10, 50), "BOARDERS" if defending else "CREW", d_total, defenders, UIStyle.RED, "d")
 	# Odds bar with the swing arrow.
 	var bar := Rect2(o + Vector2(10, 72), Vector2(w - 70, 12))
 	draw_rect(bar, Color(0.15, 0.06, 0.05))
@@ -262,7 +264,7 @@ func _draw() -> void:
 	if phase == "done":
 		var k := clampf(_end_t / 0.25, 0.0, 1.0)
 		var size := int(lerpf(64.0, 40.0, k))
-		var msg := "SHIP TAKEN" if _won else "REPELLED"
+		var msg := ("HELD" if _won else "OVERRUN") if defending else ("SHIP TAKEN" if _won else "REPELLED")
 		var col: Color = UIStyle.GOLD if _won else UIStyle.RED
 		var sw := Data.font_stamp.get_string_size(msg, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 		var at := Vector2(-sw * 0.5, -190) + jolt
