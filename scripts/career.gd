@@ -472,9 +472,10 @@ func on_dock(station: String) -> void:
 		if crew[id]["down"]:
 			crew[id]["down"] = false
 			crew_joined.emit(id)
-	# The Tallyman's offer, in Amber's back room.
+	# The Tallyman's offer, in Amber's back room. Only once the Charter has a
+	# strike on you: a merchant takes his deal because they're desperate (Vishnu).
 	if station == "ambers" and flags.get("tally_done", false) and flags.get("franz_met", false) \
-			and flags.get("side", "") == "" and not flags.get("tally_offered", false):
+			and strikes >= 1 and flags.get("side", "") == "" and not flags.get("tally_offered", false):
 		flags["tally_offered"] = true
 		say("Tallyman", Data.forks["tally_offer"])
 	# Alejandra, from the rig ahead of you, working the Saltgate docks now.
