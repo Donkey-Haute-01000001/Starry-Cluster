@@ -588,10 +588,10 @@ func _show_choices() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_B and can_board():
+	if event.is_action_pressed("board") and can_board():
 		get_viewport().set_input_as_handled()
 		board()
-	elif ringing and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C:
+	elif ringing and event.is_action_pressed("answer"):
 		get_viewport().set_input_as_handled()
 		answer()
 	elif _choices and event is InputEventKey and event.pressed and not event.echo:

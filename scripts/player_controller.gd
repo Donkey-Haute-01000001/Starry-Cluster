@@ -14,6 +14,7 @@ static var music_mute := false   ## one-click mute; the level is kept
 static var sfx_mute := false
 static var fullscreen := false
 const SETTINGS_PATH := "user://settings.cfg"
+const Keys := preload("res://scripts/keys.gd")
 
 
 static func setting(key: String) -> bool:
@@ -62,6 +63,7 @@ static func save_settings() -> void:
 	c.set_value("audio", "music_mute", music_mute)
 	c.set_value("audio", "sfx_mute", sfx_mute)
 	c.set_value("video", "fullscreen", fullscreen)
+	Keys.write(c)
 	c.save(SETTINGS_PATH)
 	apply_settings()
 
@@ -94,6 +96,9 @@ static func load_settings() -> void:
 		music_mute = c.get_value("audio", "music_mute", false)
 		sfx_mute = c.get_value("audio", "sfx_mute", false)
 		fullscreen = c.get_value("video", "fullscreen", false)
+		Keys.read(c)
+	else:
+		Keys.apply()
 	apply_settings()
 
 
