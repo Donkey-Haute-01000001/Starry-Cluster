@@ -18,6 +18,9 @@ var _menu: HBoxContainer            ## the main menu: one row along the bottom
 const Neon = preload("res://scripts/neon.gd")
 var _beats: Control                 ## the start's opening, typing onto the file
 const BeatsOnPaper = preload("res://scripts/beats_on_paper.gd")
+const Keys = preload("res://scripts/keys.gd")
+var _bind_wait := ""                 ## action waiting for a key on the controls sheet
+var _bind_note := ""
 
 
 func _ready() -> void:
@@ -100,6 +103,10 @@ func _ready() -> void:
 			_pick(0)
 			print("[pick] opened file %d" % _selected)
 			get_tree().quit.call_deferred()
+		elif a.begins_with("--controls-shot="):
+			_open_board()
+			_show_controls(false)
+			_snapshot.call_deferred(a.substr(16))
 		elif a.begins_with("--settings-shot="):
 			_open_board()
 			_show_settings(false)
@@ -483,10 +490,103 @@ func _show_settings(animate := true) -> void:
 		_type_button(row, "[%s] mute" % ("x" if mute else "  "), func():
 			PlayerController.toggle_mute(key)
 			_show_settings(false), 16)
+	_rule(v)
+	_type_button(v, "Controls  ·  key list + rebinding  >", func(): _show_controls(true), 18)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(spacer)
 	_type_button(v, "back to menu", _close_board, 12)
+
+
+## Controls: every key, two columns. Click a key, press the new one.
+func _show_controls(animate := true) -> void:
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	v.add_theme_constant_override("separation", 6)
+	_type(v, "BERTH 14  ·  RIG SETUP SHEET  ·  CONTROLS", 13, true, UIStyle.INK_FADED)
+	_label(v, "Controls", Data.font_bold, 34, UIStyle.INK_TYPE)
+	_rule(v)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 22)
+	v.add_child(cols)
+	var left := VBoxContainer.new()
+	var right := VBoxContainer.new()
+	for c in [left, right]:
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		c.add_theme_constant_override("separation", 2)
+		cols.add_child(c)
+	var group := ""
+	for a in Keys.ACTIONS:
+		var col: VBoxContainer = left if a[2] == "FLIGHT" else right
+		if a[2] != group:
+			group = a[2]
+			if col.get_child_count() > 0:
+				var gap := Control.new()
+				gap.custom_minimum_size = Vector2(0, 6)
+				col.add_child(gap)
+			_type(col, group, 12, true, UIStyle.INK_FADED)
+		var row := HBoxContainer.new()
+		col.add_child(row)
+		var l := _type(row, a[1], 14)
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var id: String = a[0]
+		var waiting := _bind_wait == id
+		var b := _type_button(row, "press a key" if waiting else Keys.key_name(id), func():
+			_bind_wait = id
+			_bind_note = "Press the new key for %s.  Esc cancels." % Keys.label(id)
+			Sfx.play("tick", -6.0)
+			_show_controls(false), 14)
+		b.custom_minimum_size = Vector2(88, 0)
+		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if waiting:
+			b.add_theme_color_override("font_color", UIStyle.INK_PEN)
+	_rule(v)
+	_type(v, "FIXED", 12, true, UIStyle.INK_FADED)
+	for f in Keys.FIXED:
+		_type(v, "%s  %s" % [f[0].rpad(15), f[1]], 13, false, UIStyle.INK_FADED)
+	if _bind_note != "":
+		var n := _label(v, _bind_note, Data.font_hand, 24, UIStyle.INK_PEN)
+		n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(spacer)
+	var bottom := HBoxContainer.new()
+	bottom.add_theme_constant_override("separation", 24)
+	v.add_child(bottom)
+	_type_button(bottom, "< back to settings", func():
+		_bind_wait = ""
+		_bind_note = ""
+		_show_settings(true), 12)
+	if not Keys.is_default():
+		_type_button(bottom, "reset to defaults", func():
+			Keys.reset()
+			_bind_wait = ""
+			_bind_note = "Defaults restored."
+			_show_controls(false), 12)
+
+
+func _input(event: InputEvent) -> void:
+	if _bind_wait == "":
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_bind_wait = ""
+		_bind_note = ""
+	else:
+		var sp := Keys.spec_of(event)
+		if sp == "":
+			return
+		if sp == "reserved":
+			_bind_note = "That key is spoken for (see Fixed). Pick another."
+		else:
+			var id := _bind_wait
+			var swapped := Keys.rebind(id, sp)
+			_bind_wait = ""
+			_bind_note = "%s  →  %s." % [Keys.label(id), Keys.key_name(id)]
+			if swapped != "":
+				_bind_note += "  %s moved to %s." % [Keys.label(swapped), Keys.key_name(swapped)]
+		Sfx.play("tick", -6.0)
+	get_viewport().set_input_as_handled()
+	_show_controls(false)
 
 
 func _step_vol(key: String, d: float) -> void:

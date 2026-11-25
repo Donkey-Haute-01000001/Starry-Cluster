@@ -12,6 +12,7 @@ Each gap gets its own thread. When it ships, move it to "Have" here.
 - Autosave on every dock, Continue shows a summary
 - Career files: one save per career, New career never overwrites; Careers sheet (open / shred), .bak + damaged-file handling (`saves.md`, 2026-11-25)
 - Controls overlay (H / F1), first-flight key prompts
+- Controls page in both Settings: full key list, click-to-rebind (keys or mouse), swap on clash, reset to defaults; overlay + prompts show live keys (`controls.md`, 2026-11-25)
 - Journal log of chatter, chart, now-playing music credit
 
 ## Missing: needed before the Merchant opening is "done"
@@ -20,7 +21,7 @@ Ranked. Each one gets a card before it's built.
 
 1. **Losing.** Player destroyed = blank screen, R dumps you to the title. No defeat scene, no reload. Design pillar says you're usually *captured*, rarely killed. Biggest gap. *(design call)*
 2. ~~**New career overwrites your save**~~ Done 2026-11-25, see Have.
-3. **Controls in Settings.** No key list or rebinding there; only the H overlay.
+3. ~~**Controls in Settings.**~~ Done 2026-11-25, see Have.
 4. **Credits screen.** `CREDITS.md` exists, not reachable in game.
 5. **Dialogue controls.** Typing speed, and no way to reread a story scene after it closes. *(check journal covers it)*
 

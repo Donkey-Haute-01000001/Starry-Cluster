@@ -195,7 +195,8 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 						var glow := kd != "" and not paper
 						if f & SHINE:
 							# A glint runs along the word every couple of seconds.
-							var sweep := fmod(now * 0.9, 2.2) * float(w[1] - w[0] + 6) - 3.0
+							# One slow pass about every 5 s, then rest.
+							var sweep := (fmod(now, 5.0) / 1.4) * float(w[1] - w[0] + 6) - 3.0
 							var d := absf(float(k + ci2 - w[0]) - sweep)
 							var g := maxf(0.0, 1.0 - d / 2.5)
 							gc = col.lightened(g * 0.3)
@@ -203,8 +204,14 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 							if g > 0.0:
 								ci.draw_string_outline(rf, Vector2(cx, at.y) + off, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, rs, 6, Color(col, col.a * 0.4 * g))
 						if f & SHAKE:
-							var s := int(now * 30.0) + (k + ci2) * 7
-							off += Vector2(sin(s * 12.9898) , cos(s * 78.233)) * 1.4
+							if paper:
+								# On paper: a short rattle every few seconds, then still.
+								if fmod(now, 3.5) < 0.35:
+									var ps := int(now * 14.0) + (k + ci2) * 7
+									off += Vector2(sin(ps * 12.9898), cos(ps * 78.233)) * 0.9
+							else:
+								var s := int(now * 30.0) + (k + ci2) * 7
+								off += Vector2(sin(s * 12.9898) , cos(s * 78.233)) * 1.4
 						if f & WAVE:
 							off.y += sin(now * 5.0 + (k + ci2) * 0.6) * 2.5
 						_glyph(ci, rf, Vector2(cx, at.y) + off, ch, rs, gc, glow)

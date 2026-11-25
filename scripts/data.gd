@@ -526,11 +526,11 @@ var station_walls := {
 var starts := [
 	{"id": "merchant", "doc": {"issuer": "THE CHARTER COMPANY", "title": "Rig Financing Agreement", "office": "Aurelia Sector Office", "file": "CC-40817-M", "stamp": "APPROVED", "note": "7 years. never again."}, "name": "Merchant", "playable": true,
 		"beats": [
-			"Seven years loading freighters.\nSeven years planning routes.\nSeven years eating shit from [green][shake][shine]greedy bosses[/shine][/shake][/green].",
+			"Seven years loading freighters.\nSeven years planning routes.\nSeven years eating shit from [gold][shake][shine]greedy bosses[/shine][/shake][/gold].",
 			"Every time they made a hundred credits,\nthey tossed you one.\nAnd insisted you thank them.",
 			"You smiled in their faces.\nBehind their backs, you plotted.\n[slow]No. You designed.[/slow]",
 			"Seven years, and you bought your way out.\nThe Charter Company financed your first freighter.",
-			"It isn't freedom yet.\nJust a new master who [red]bills weekly[/red].",
+			"It isn't freedom yet.\nJust a new master who [green]bills weekly[/green].",
 			"[slow]What will your company look like?[/slow]"
 		]},
 	{"id": "scrapper", "doc": {"issuer": "REEVES SALVAGE & RECLAMATION", "title": "Debt Ledger, Minor", "office": "Wreckyard Nine", "file": "RS-0013", "stamp": "SEALED", "note": "every meal. he counted every meal."}, "name": "Scrapper", "playable": false,
