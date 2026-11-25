@@ -610,7 +610,7 @@ var forks := {
 	"flagged": "Navy report on your file. Sealed crates, Marcellus. ...Papers are papers. Cleared. I'm writing your name down anyway.",
 	"tally_heat": "Charter has you down for a hauler that went missing on your watch. They can't prove it. Cleared. Barely.",
 	"navy_papers": "Navy commission... [wave]Kessler[/wave]. Good lad. Of course they stick the only honest guy in the sector alone. ...Cleared. Fly safe, captain.",
-	"halloran_gate": "Never been through. Kessler said I'd know it when I saw it. ...He was right.",
+	"halloran_gate": "Never been through, sir. ...I'm going to have to write my mother a very long letter.",
 	"scratch_gate": "Tally always said he'd see this place. Guess I'm seeing it for him.",
 }
 
