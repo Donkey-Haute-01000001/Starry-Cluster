@@ -12,7 +12,7 @@
 | Autoload | File | Owns |
 | --- | --- | --- |
 | `Data` | `data.gd` | Fonts + theme, all stats (hulls, weapons, goods, systems, stations, traffic), cast, every line, neon colors, chart text |
-| `Career` | `career.gd` | Credits, loan, strikes, cargo, jobs, flags, crew, comms log, prices, save/load (`user://merchant_save.txt`, autosave on dock) |
+| `Career` | `career.gd` | Credits, loan, strikes, cargo, jobs, flags, crew, comms log, prices, save/load (one file per career in `user://careers/<n>.txt` + `.bak`, autosave on dock; see `docs/design/saves.md`) |
 | `Music` | `music.gd` | Shuffle Pink Bloom, now-playing tag |
 
 ## Flight scene (built by `main.gd`)

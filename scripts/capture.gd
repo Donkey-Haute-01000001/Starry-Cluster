@@ -304,7 +304,8 @@ func _release_captor() -> void:
 
 func _load_last_dock() -> void:
 	Engine.time_scale = 1.0
-	if Career.has_save() and Career.load_game():
+	# This career's own file, not just the latest one (saves.md: one file per career).
+	if Career.slot >= 0 and Career.load_game(Career.slot):
 		Data.mode = "merchant"
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
 	else:

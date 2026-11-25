@@ -63,6 +63,7 @@ func start_merchant(p_friend: Dictionary = {}, p_pilot: Dictionary = {}) -> void
 	objective = {}
 	_roll_prices(1)
 	resume_station = ""
+	slot = -1   # new career: gets its own file on the first dock
 	changed.emit()
 
 
@@ -669,48 +670,137 @@ func prize_share(keep: float) -> int:
 ## Like Endless Sky: the game saves every time you dock, and Continue puts you
 ## back at that station's counter.
 
-const SAVE_PATH := "user://merchant_save.txt"
+## One file per career (Endless Sky pilots). A new career never touches
+## another's file. Each dock keeps the previous file as .bak.
+const SAVE_DIR := "user://careers/"
+const LEGACY_PATH := "user://merchant_save.txt"
 const SAVE_KEYS := ["credits", "loan_balance", "strikes", "arrears", "cargo", "job_cargo", "cargo_capacity", "day",
 	"next_payment_day", "system_id", "jobs", "flags", "objective", "friend", "crew", "visited", "_once", "_prices", "pilot", "comms_log", "contacts"]
 var resume_station := ""
+var slot := -1
+
+
+static func _path(n: int) -> String:
+	return SAVE_DIR + "%d.txt" % n
 
 
 func save_game(station: String) -> void:
-	var d := {"version": 1, "station": station}
+	_migrate_legacy()
+	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+	if slot < 0:
+		slot = _next_slot()
+	var d := {"version": 2, "station": station, "start": "merchant", "saved_at": Time.get_unix_time_from_system()}
 	for k in SAVE_KEYS:
 		d[k] = get(k)
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var path := _path(slot)
+	if FileAccess.file_exists(path):
+		DirAccess.copy_absolute(path, path + ".bak")
+	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f:
 		f.store_string(var_to_str(d))
 
 
+static func _read(path: String):
+	if not FileAccess.file_exists(path):
+		return null
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return null
+	var d = str_to_var(f.get_as_text())
+	return d if typeof(d) == TYPE_DICTIONARY and d.has("credits") else null
+
+
+## The file, or its .bak when the file is broken. null if both are.
+static func _read_slot(n: int):
+	var d = _read(_path(n))
+	return d if d != null else _read(_path(n) + ".bak")
+
+
+static func _slots() -> Array:
+	_migrate_legacy()
+	var out := []
+	for fname in DirAccess.get_files_at(SAVE_DIR):
+		if fname.ends_with(".txt") and fname.get_basename().is_valid_int():
+			out.append(int(fname.get_basename()))
+	out.sort()
+	return out
+
+
+static func _next_slot() -> int:
+	var s := _slots()
+	return 1 if s.is_empty() else int(s[-1]) + 1
+
+
+## Pre-slots saves (one merchant_save.txt) become career 1.
+static func _migrate_legacy() -> void:
+	if not FileAccess.file_exists(LEGACY_PATH):
+		return
+	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+	var n := 1
+	while FileAccess.file_exists(_path(n)):
+		n += 1
+	DirAccess.rename_absolute(LEGACY_PATH, _path(n))
+
+
+## Every career on disk, newest played first:
+## {slot, pilot, rig, start, where, day, saved_at, damaged}.
+static func list_careers() -> Array:
+	var out := []
+	for n in _slots():
+		var d = _read_slot(n)
+		if d == null:
+			out.append({"slot": n, "damaged": true, "saved_at": FileAccess.get_modified_time(_path(n))})
+			continue
+		var st: Dictionary = Data.stations.get(d.get("station", ""), {})
+		var p: Dictionary = d.get("pilot", {})
+		out.append({"slot": n, "damaged": false, "pilot": p.get("name", "Unnamed"), "rig": p.get("rig", ""),
+			"start": d.get("start", "merchant"), "where": st.get("nick", "?"), "day": int(d.get("day", 0.0)) + 1,
+			"saved_at": float(d.get("saved_at", FileAccess.get_modified_time(_path(n))))})
+	out.sort_custom(func(a, b): return a["saved_at"] > b["saved_at"])
+	return out
+
+
 static func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	for c in list_careers():
+		if not c["damaged"]:
+			return true
+	return false
 
 
-## Short line for the Continue button: where and when.
+static func _latest() -> Dictionary:
+	for c in list_careers():
+		if not c["damaged"]:
+			return c
+	return {}
+
+
+## Short line for the Continue button: who, where and when.
 static func save_summary() -> String:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return ""
-	var d = str_to_var(f.get_as_text())
-	if typeof(d) != TYPE_DICTIONARY:
-		return ""
-	var st: Dictionary = Data.stations.get(d.get("station", ""), {})
-	return "%s, day %d" % [st.get("nick", "?"), int(d.get("day", 0.0)) + 1]
+	var c := _latest()
+	return "" if c.is_empty() else "%s · %s, day %d" % [c["pilot"], c["where"], c["day"]]
 
 
-func load_game() -> bool:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
+## Shred a career: its file and backup.
+static func delete_career(n: int) -> void:
+	for p in [_path(n), _path(n) + ".bak"]:
+		if FileAccess.file_exists(p):
+			DirAccess.remove_absolute(p)
+
+
+## Load a career by slot; -1 = the one played last.
+func load_game(n := -1) -> bool:
+	if n < 0:
+		n = int(_latest().get("slot", -1))
+	if n < 0:
 		return false
-	var d = str_to_var(f.get_as_text())
-	if typeof(d) != TYPE_DICTIONARY:
+	var d = _read_slot(n)
+	if d == null:
 		return false
 	for k in SAVE_KEYS:
 		if d.has(k):
 			set(k, d[k])
 	resume_station = d.get("station", "")
+	slot = n
 	active = true
 	changed.emit()
 	return true

@@ -13,7 +13,10 @@ static var sfx_vol := 1.0        ## 0..1, the SFX bus
 static var music_mute := false   ## one-click mute; the level is kept
 static var sfx_mute := false
 static var fullscreen := false
+static var text_speed := 1        ## index into Neon.SPEEDS (1 = Normal)
 const SETTINGS_PATH := "user://settings.cfg"
+const Keys := preload("res://scripts/keys.gd")
+const Neon := preload("res://scripts/neon.gd")
 
 
 static func setting(key: String) -> bool:
@@ -53,6 +56,16 @@ static func toggle(key: String) -> bool:
 	return setting(key)
 
 
+## Step the text speed (Slow / Normal / Fast / Instant), wrapping round.
+static func step_text_speed(d: int) -> void:
+	text_speed = posmod(text_speed + d, Neon.SPEEDS.size())
+	save_settings()
+
+
+static func text_speed_name() -> String:
+	return str(Neon.SPEEDS[text_speed][0])
+
+
 static func save_settings() -> void:
 	var c := ConfigFile.new()
 	c.set_value("flight", "assist", assist)
@@ -62,12 +75,15 @@ static func save_settings() -> void:
 	c.set_value("audio", "music_mute", music_mute)
 	c.set_value("audio", "sfx_mute", sfx_mute)
 	c.set_value("video", "fullscreen", fullscreen)
+	c.set_value("text", "speed", text_speed)
+	Keys.write(c)
 	c.save(SETTINGS_PATH)
 	apply_settings()
 
 
 ## Push audio levels and window mode to the engine. Buses are made on first use.
 static func apply_settings() -> void:
+	Neon.set_speed(text_speed)
 	for pair in [["Music", music_vol, music_mute], ["SFX", sfx_vol, sfx_mute]]:
 		var i := AudioServer.get_bus_index(pair[0])
 		if i < 0:
@@ -94,6 +110,10 @@ static func load_settings() -> void:
 		music_mute = c.get_value("audio", "music_mute", false)
 		sfx_mute = c.get_value("audio", "sfx_mute", false)
 		fullscreen = c.get_value("video", "fullscreen", false)
+		text_speed = c.get_value("text", "speed", 1)
+		Keys.read(c)
+	else:
+		Keys.apply()
 	apply_settings()
 
 

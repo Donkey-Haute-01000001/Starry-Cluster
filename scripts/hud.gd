@@ -1,6 +1,7 @@
 extends Control
 
 const Neon = preload("res://scripts/neon.gd")
+const Keys = preload("res://scripts/keys.gd")
 ## Heads-up display: flagship status, fleet roster, combat indicator, target
 ## brackets, off-screen enemy arrows, radar, and messages.
 
@@ -37,11 +38,12 @@ const COL_ENERGY := Color(0.75, 0.55, 1.0)
 
 # --- First-flight prompts ---------------------------------------------------------
 ## Each shows once per career, when it's useful, and clears once you've done it.
+## Keys are action names ("@thrust_forward") or fixed text ("MOUSE"); "@" reads the live bind.
 const TIPS := {
-	"fly": [["W", "thrust"], ["MOUSE", "steer"], ["X", "brake"]],
-	"travel": [["G", "autopilot to the job"], ["M", "chart"], ["J", "journal"]],
-	"guns": [["LMB", "turrets"], ["RMB", "ion / torpedo"], ["R", "swap"]],
-	"tactics": [["HOLD TAB", "fleet orders"]],
+	"fly": [["@thrust_forward", "thrust"], ["MOUSE", "steer"], ["@brake", "brake"]],
+	"travel": [["@autopilot", "autopilot to the job"], ["@chart", "chart"], ["@journal", "journal"]],
+	"guns": [["@fire_aimed", "turrets"], ["@fire_secondary", "ion / torpedo"], ["@swap_secondary", "swap"]],
+	"tactics": [["HOLD @tactics", "fleet orders"]],
 }
 var tip := ""          ## the prompt on screen ("" = none)
 var _tip_t := 0.0      ## how long it's been up
@@ -102,7 +104,13 @@ func _tip_finished(p: Ship) -> bool:
 func _draw_tip(vp: Vector2) -> void:
 	if _tip_a <= 0.01 or not TIPS.has(tip if tip != "" else "fly"):
 		return
-	var segs: Array = TIPS.get(tip, [])
+	var segs: Array = []
+	for sg in TIPS.get(tip, []):
+		var cap: String = sg[0]
+		var at := cap.find("@")
+		if at >= 0:
+			cap = cap.substr(0, at) + Keys.key_name(cap.substr(at + 1)).to_upper()
+		segs.append([cap, sg[1]])
 	if segs.is_empty():
 		return
 	var font: Font = ThemeDB.fallback_font
@@ -208,7 +216,7 @@ func _show_comms(speaker: String, text: String) -> void:
 	_comms_speaker = speaker
 	_comms_text = text
 	_comms_hold = hold_enabled()
-	_comms_t = 6.0 + text.length() * 0.04
+	_comms_t = maxf(6.0 + text.length() * 0.04, Neon.duration(Neon.parse(text)) + 3.0)
 	_comms_age = 0.0
 	_comms_words = 0
 
@@ -514,16 +522,21 @@ func _draw() -> void:
 	_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)
 
 	if show_help:
-		var lines := ["W / S   forward / back", "A / D   strafe", "Mouse   steer", "Q / E   turn", "V   flight assist on/off", "X   brake", "F   dock / jump",
-			"Mouse   aim turrets", "Left click   fire turrets", "Space / Enter   next comms line", "Right click   fire secondary", "R   swap secondary",
-			"G   autopilot to the job", "Y   hail the ship under the cursor", "Tab (hold)   tactics wheel", "T   attack target under cursor", "M   sector chart", "J   journal", "Wheel   zoom", "Esc   pause", "H   hide controls"]
+		var K := func(a: String) -> String: return Keys.key_name(a)
+		var lines := ["%s / %s   forward / back" % [K.call("thrust_forward"), K.call("thrust_back")], "%s / %s   strafe" % [K.call("strafe_left"), K.call("strafe_right")],
+			"Mouse   steer", "%s / %s   turn" % [K.call("turn_left"), K.call("turn_right")], "%s   flight assist on/off" % K.call("assist"), "%s   brake" % K.call("brake"),
+			"%s   dock / jump" % K.call("interact"), "Mouse   aim turrets", "%s   fire turrets" % K.call("fire_aimed"), "%s   forward guns" % K.call("fire_fixed"),
+			"Space / Enter   next comms line", "%s   fire secondary" % K.call("fire_secondary"), "%s   swap secondary" % K.call("swap_secondary"),
+			"%s   autopilot to the job" % K.call("autopilot"), "%s   hail the ship under the cursor" % K.call("hail"), "%s (hold)   tactics wheel" % K.call("tactics"),
+			"%s   attack target under cursor" % K.call("target"), "%s   sector chart" % K.call("chart"), "%s   journal" % K.call("journal"), "Wheel   zoom", "Esc   pause",
+			"%s   hide controls  ·  rebind in Settings" % K.call("toggle_help")]
 		var hr := Rect2(Vector2(vp.x - 300, 130), Vector2(284, 50 + lines.size() * 22))
 		UIStyle.draw_glass(self, hr, 1.0, 10.0)
 		_text(hr.position + Vector2(14, 24), _sp("CONTROLS"), 11, UIStyle.KICKER)
 		for i in lines.size():
 			_text(hr.position + Vector2(14, 52 + i * 22), lines[i], 14, UIStyle.TEXT)
 	else:
-		_text(Vector2(vp.x - 230, vp.y - 214), "H   controls", 13, Color(UIStyle.TEXT_DIM.r, UIStyle.TEXT_DIM.g, UIStyle.TEXT_DIM.b, 0.7))
+		_text(Vector2(vp.x - 230, vp.y - 214), Keys.key_name("toggle_help") + "   controls", 13, Color(UIStyle.TEXT_DIM.r, UIStyle.TEXT_DIM.g, UIStyle.TEXT_DIM.b, 0.7))
 
 
 ## Pixel-art brackets: chunky stepped corners on a pixel grid with a dark

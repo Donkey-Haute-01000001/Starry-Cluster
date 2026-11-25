@@ -18,6 +18,10 @@ var _menu: HBoxContainer            ## the main menu: one row along the bottom
 const Neon = preload("res://scripts/neon.gd")
 var _beats: Control                 ## the start's opening, typing onto the file
 const BeatsOnPaper = preload("res://scripts/beats_on_paper.gd")
+const Keys = preload("res://scripts/keys.gd")
+const CreditsRoll = preload("res://scripts/credits_roll.gd")
+var _bind_wait := ""                 ## action waiting for a key on the controls sheet
+var _bind_note := ""
 
 
 func _ready() -> void:
@@ -85,6 +89,10 @@ func _ready() -> void:
 	for a in args:
 		if a.begins_with("--menu-shot="):
 			_snapshot.call_deferred(a.substr(12))
+		elif a.begins_with("--careers-shot="):
+			_open_board()
+			_show_careers(false)
+			_snapshot.call_deferred(a.substr(15))
 		elif a.begins_with("--files-shot="):
 			_open_board()
 			_show_index(false)
@@ -96,6 +104,13 @@ func _ready() -> void:
 			_pick(0)
 			print("[pick] opened file %d" % _selected)
 			get_tree().quit.call_deferred()
+		elif a.begins_with("--credits-shot="):
+			_show_credits()
+			_credits_shot.call_deferred(a.substr(15))
+		elif a.begins_with("--controls-shot="):
+			_open_board()
+			_show_controls(false)
+			_snapshot.call_deferred(a.substr(16))
 		elif a.begins_with("--settings-shot="):
 			_open_board()
 			_show_settings(false)
@@ -119,6 +134,15 @@ func _ready() -> void:
 			_open_board()
 			_show_contact(false)
 			_snapshot.call_deferred(a.substr(15))
+
+
+## --credits-shot=DIR: the roll a few seconds in.
+func _credits_shot(dir: String) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	await get_tree().create_timer(9.0).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/credits.png")
+	get_tree().quit()
 
 
 ## --intro-shot=DIR: each start's file, part-typed and fully typed.
@@ -184,6 +208,10 @@ func _build_menu() -> void:
 	_menu.set_meta("strip", strip)
 	if Career.has_save():
 		_menu_button("CONTINUE", _continue, Career.save_summary())
+	if not Career.list_careers().is_empty():
+		_menu_button("CAREERS", func():
+			_open_board()
+			_show_careers(false))
 	# The clipboard slides in with the page already on it (no second page swipe).
 	_menu_button("NEW CAREER", func():
 		_open_board()
@@ -191,6 +219,7 @@ func _build_menu() -> void:
 	_menu_button("SETTINGS", func():
 		_open_board()
 		_show_settings(false))
+	_menu_button("CREDITS", _show_credits)
 	_menu_button("QUIT", func(): get_tree().quit())
 
 
@@ -289,10 +318,104 @@ func _build_bulletin() -> void:
 	slip.set_meta("tacks", tacks)
 
 
-func _continue() -> void:
-	if Career.load_game():
+func _continue(n := -1) -> void:
+	if Career.load_game(n):
 		Data.mode = "merchant"
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+## The berth register: one printed line per career, last played on top.
+## Click a line to take it up. Void stamps it out for good.
+const REG_COLS := [["PILOT", 150.0], ["RIG", 120.0], ["LAST BERTH", 104.0], ["DAY", 44.0]]
+
+
+func _show_careers(animate := true) -> void:
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	v.add_theme_constant_override("separation", 0)
+	_type(v, "AURELIA  ·  BERTH 14  ·  REGISTER", 13, true, UIStyle.INK_FADED)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 18)
+	v.add_child(gap)
+	_reg_row(v, REG_COLS.map(func(c): return c[0]), true)
+	_rule(v)
+	for c in Career.list_careers():
+		var cells: Array = ["FILE %d" % c["slot"], "unreadable", "", ""] if c["damaged"] \
+			else [c["pilot"], c["rig"], c["where"], str(c["day"])]
+		var row := _reg_row(v, cells, false, c["damaged"])
+		if not c["damaged"]:
+			row.pressed.connect(_continue.bind(c["slot"]))
+		var void_b := Button.new()
+		void_b.text = "void"
+		void_b.flat = true
+		void_b.focus_mode = Control.FOCUS_NONE
+		void_b.add_theme_font_override("font", Data.font_type)
+		void_b.add_theme_font_size_override("font_size", 11)
+		for k in ["font_color", "font_hover_color", "font_pressed_color"]:
+			void_b.add_theme_color_override(k, UIStyle.INK_FADED)
+		void_b.add_theme_color_override("font_hover_color", UIStyle.INK_STAMP)
+		row.get_child(0).add_child(void_b)
+		void_b.pressed.connect(func():
+			if not void_b.get_meta("armed", false):
+				void_b.set_meta("armed", true)
+				void_b.text = "void?"
+				void_b.add_theme_color_override("font_color", UIStyle.INK_STAMP)
+				return
+			void_b.disabled = true
+			row.disabled = true
+			var at := row.get_global_rect().position - page.get_global_rect().position
+			_stamp(page, "VOID", at + Vector2(150, -10), -4.0, true, UIStyle.INK_STAMP, 30)
+			Career.delete_career(c["slot"])
+			get_tree().create_timer(0.7).timeout.connect(func():
+				_build_menu()
+				_set_menu_shown(false)
+				if Career.list_careers().is_empty():
+					_close_board()
+				else:
+					_show_careers(false)))
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(spacer)
+	_type_button(v, "back to menu", _close_board, 12)
+
+
+## One ruled line of the register. Header lines are plain; career lines are buttons.
+func _reg_row(parent: Node, cells: Array, header := false, faded := false) -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, 22 if header else 36)
+	var none := StyleBoxFlat.new()
+	none.bg_color = Color(0, 0, 0, 0)
+	none.border_color = Color(UIStyle.INK_TYPE, 0.18)
+	none.border_width_bottom = 0 if header else 1
+	var hover := none.duplicate()
+	hover.bg_color = Color(UIStyle.INK_TYPE, 0.06)
+	for st in ["normal", "focus", "disabled"]:
+		b.add_theme_stylebox_override(st, none)
+	for st in ["hover", "pressed", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, none if header else hover)
+	if header:
+		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(b)
+	var h := HBoxContainer.new()
+	h.set_anchors_preset(Control.PRESET_FULL_RECT)
+	h.add_theme_constant_override("separation", 0)
+	h.alignment = BoxContainer.ALIGNMENT_BEGIN
+	b.add_child(h)
+	for i in REG_COLS.size():
+		var text: String = cells[i]
+		var l := _type(h, text.to_upper() if header else text, 11 if header else 15, header,
+			UIStyle.INK_FADED if header or faded else UIStyle.INK_TYPE)
+		l.custom_minimum_size = Vector2(REG_COLS[i][1], 0)
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		l.clip_text = true
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(fill)
+	return b
+
 
 
 func _open_board() -> void:
@@ -381,10 +504,119 @@ func _show_settings(animate := true) -> void:
 		_type_button(row, "[%s] mute" % ("x" if mute else "  "), func():
 			PlayerController.toggle_mute(key)
 			_show_settings(false), 16)
+	_rule(v)
+	# Text speed: the four marks typed in a row, the live one bracketed.
+	var ts := HBoxContainer.new()
+	ts.add_theme_constant_override("separation", 10)
+	v.add_child(ts)
+	var ts_l := _type(ts, "Text", 18, true)
+	ts_l.custom_minimum_size = Vector2(110, 0)
+	for k in Neon.SPEEDS.size():
+		var nm: String = Neon.SPEEDS[k][0]
+		var on := k == PlayerController.text_speed
+		_type_button(ts, ("[%s]" % nm) if on else nm, func():
+			PlayerController.text_speed = k
+			PlayerController.save_settings()
+			_show_settings(false), 16)
+	var tn := _type(v, "       How fast story lines and comms type out. Click or Space finishes a line.", 13, false, UIStyle.INK_FADED)
+	tn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_rule(v)
+	_type_button(v, "Controls  ·  key list + rebinding  >", func(): _show_controls(true), 18)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(spacer)
 	_type_button(v, "back to menu", _close_board, 12)
+
+
+## Controls: every key, two columns. Click a key, press the new one.
+func _show_controls(animate := true) -> void:
+	var page := _new_page(animate)
+	var v := _sheet_body(page)
+	v.add_theme_constant_override("separation", 6)
+	_type(v, "BERTH 14  ·  RIG SETUP SHEET  ·  CONTROLS", 13, true, UIStyle.INK_FADED)
+	_label(v, "Controls", Data.font_bold, 34, UIStyle.INK_TYPE)
+	_rule(v)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 22)
+	v.add_child(cols)
+	var left := VBoxContainer.new()
+	var right := VBoxContainer.new()
+	for c in [left, right]:
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		c.add_theme_constant_override("separation", 2)
+		cols.add_child(c)
+	var group := ""
+	for a in Keys.ACTIONS:
+		var col: VBoxContainer = left if a[2] == "FLIGHT" else right
+		if a[2] != group:
+			group = a[2]
+			if col.get_child_count() > 0:
+				var gap := Control.new()
+				gap.custom_minimum_size = Vector2(0, 6)
+				col.add_child(gap)
+			_type(col, group, 12, true, UIStyle.INK_FADED)
+		var row := HBoxContainer.new()
+		col.add_child(row)
+		var l := _type(row, a[1], 14)
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var id: String = a[0]
+		var waiting := _bind_wait == id
+		var b := _type_button(row, "press a key" if waiting else Keys.key_name(id), func():
+			_bind_wait = id
+			_bind_note = "Press the new key for %s.  Esc cancels." % Keys.label(id)
+			Sfx.play("tick", -6.0)
+			_show_controls(false), 14)
+		b.custom_minimum_size = Vector2(88, 0)
+		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if waiting:
+			b.add_theme_color_override("font_color", UIStyle.INK_PEN)
+	_rule(v)
+	_type(v, "FIXED", 12, true, UIStyle.INK_FADED)
+	for f in Keys.FIXED:
+		_type(v, "%s  %s" % [f[0].rpad(15), f[1]], 13, false, UIStyle.INK_FADED)
+	if _bind_note != "":
+		var n := _label(v, _bind_note, Data.font_hand, 24, UIStyle.INK_PEN)
+		n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(spacer)
+	var bottom := HBoxContainer.new()
+	bottom.add_theme_constant_override("separation", 24)
+	v.add_child(bottom)
+	_type_button(bottom, "< back to settings", func():
+		_bind_wait = ""
+		_bind_note = ""
+		_show_settings(true), 12)
+	if not Keys.is_default():
+		_type_button(bottom, "reset to defaults", func():
+			Keys.reset()
+			_bind_wait = ""
+			_bind_note = "Defaults restored."
+			_show_controls(false), 12)
+
+
+func _input(event: InputEvent) -> void:
+	if _bind_wait == "":
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_bind_wait = ""
+		_bind_note = ""
+	else:
+		var sp := Keys.spec_of(event)
+		if sp == "":
+			return
+		if sp == "reserved":
+			_bind_note = "That key is spoken for (see Fixed). Pick another."
+		else:
+			var id := _bind_wait
+			var swapped := Keys.rebind(id, sp)
+			_bind_wait = ""
+			_bind_note = "%s  →  %s." % [Keys.label(id), Keys.key_name(id)]
+			if swapped != "":
+				_bind_note += "  %s moved to %s." % [Keys.label(swapped), Keys.key_name(swapped)]
+		Sfx.play("tick", -6.0)
+	get_viewport().set_input_as_handled()
+	_show_controls(false)
 
 
 func _step_vol(key: String, d: float) -> void:
@@ -402,6 +634,14 @@ func _close_board() -> void:
 		_board.position = home
 		_set_menu_shown(true))
 	Sfx.play("paper", -6.0)
+
+
+## Credits roll over the station; the menu steps aside till it's closed.
+func _show_credits() -> void:
+	_set_menu_shown(false)
+	var roll := CreditsRoll.new()
+	add_child(roll)
+	roll.closed.connect(func(): _set_menu_shown(true))
 
 
 ## The menu strip and bulletin step aside while the clipboard is out.

@@ -5,6 +5,7 @@ const ShipScript := preload("res://scripts/ship.gd")
 const FxScript := preload("res://scripts/fx.gd")
 const StarfieldScript := preload("res://scripts/starfield.gd")
 const HudScript := preload("res://scripts/hud.gd")
+const Keys := preload("res://scripts/keys.gd")
 const WheelScript := preload("res://scripts/tactics_wheel.gd")
 const BodyScript := preload("res://scripts/body.gd")
 const StationUIScript := preload("res://scripts/station_ui.gd")
@@ -456,30 +457,12 @@ func objective_target() -> Node2D:
 
 
 func _setup_input() -> void:
-	var keys := {
-		"thrust_forward": [KEY_W, KEY_UP], "thrust_back": [KEY_S, KEY_DOWN],
-		"strafe_left": [KEY_A], "strafe_right": [KEY_D],
-		"turn_left": [KEY_Q, KEY_LEFT], "turn_right": [KEY_E, KEY_RIGHT],
-		"brake": [KEY_X], "fire_fixed": [KEY_SPACE], "tactics": [KEY_TAB], "target": [KEY_T],
-		"restart": [KEY_R], "toggle_help": [KEY_H, KEY_F1], "interact": [KEY_F],
-	}
-	for action in keys:
-		if not InputMap.has_action(action):
-			InputMap.add_action(action)
-		for k in keys[action]:
-			var ev := InputEventKey.new()
-			ev.physical_keycode = k
-			InputMap.action_add_event(action, ev)
-	if not InputMap.has_action("fire_aimed"):
-		InputMap.add_action("fire_aimed")
-	var mb := InputEventMouseButton.new()
-	mb.button_index = MOUSE_BUTTON_LEFT
-	InputMap.action_add_event("fire_aimed", mb)
-	if not InputMap.has_action("fire_secondary"):
-		InputMap.add_action("fire_secondary")
-	var rb := InputEventMouseButton.new()
-	rb.button_index = MOUSE_BUTTON_RIGHT
-	InputMap.action_add_event("fire_secondary", rb)
+	Keys.apply()
+	if not InputMap.has_action("restart"):
+		InputMap.add_action("restart")
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_R
+		InputMap.action_add_event("restart", ev)
 
 
 # --- Spawning ------------------------------------------------------------
@@ -810,23 +793,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().change_scene_to_file("res://scenes/start.tscn")
 		else:
 			get_tree().reload_current_scene()
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R and is_instance_valid(player):
+	elif event.is_action_pressed("swap_secondary") and is_instance_valid(player):
 		var nm: String = player.cycle_secondary()
 		if nm != "":
 			show_message("Secondary: %s" % nm, 1.5)
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
+	elif event.is_action_pressed("assist"):
 		PlayerController.toggle("assist")
 		show_message("Flight assist %s" % ("ON: drift damped" if PlayerController.assist else "OFF: pure drift"), 2.0)
 	elif not merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
 		PlayerController.toggle("mouse_steer")
 		show_message("Mouse steering %s" % ("ON: ship faces the cursor" if PlayerController.mouse_steer else "OFF: Q/E to turn"), 2.0)
-	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Y and is_instance_valid(player):
+	elif merchant and event.is_action_pressed("hail") and is_instance_valid(player):
 		var hs := ship_under_mouse()
 		if hs and hs.team != 0 and hs.global_position.distance_to(player.global_position) < 3000.0:
 			traffic.hail(hs)
 		else:
 			show_message("Hover a ship to hail it.", 1.5)
-	elif merchant and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G and is_instance_valid(player):
+	elif merchant and event.is_action_pressed("autopilot") and is_instance_valid(player):
 		toggle_autopilot()
 	elif merchant and event.is_action_pressed("interact") and is_instance_valid(player):
 		_try_interact()
@@ -1744,7 +1727,7 @@ func _run_merchant_test() -> void:
 	var loaded := Career.load_game()
 	var save_after := [Career.credits, Career.loan_balance, snappedf(Career.day, 0.01), Career.crew.keys(), Career.flags.get("bounty_paid"), Career.friend.get("role")]
 	print("[save] loaded=%s match=%s resume=%s summary=%s\n  before=%s\n  after=%s" % [loaded, str(save_before) == str(save_after), Career.resume_station, Career.save_summary(), save_before, save_after])
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(Career.SAVE_PATH))
+	Career.delete_career(Career.slot)
 	await _wait(0.05)
 	_shot("m_saltgate")
 	undock()

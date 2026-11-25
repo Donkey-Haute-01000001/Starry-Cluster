@@ -2,16 +2,17 @@ extends Control
 
 const Neon = preload("res://scripts/neon.gd")
 ## J: your logbook, laid out like an encyclopedia. Tabs across the top (Jobs,
-## People, Places, Powers, Accounts); the left page lists entries, the right
+## People, Places, Powers, Accounts, Radio); the left page lists entries, the right
 ## page shows the one you picked. Stops the clock while it's open.
 
 var main: Node
 var _was_paused := false
 var _tab := 0
-var _sel := [0, 0, 0, 0, 0]       ## selected entry per tab
+var _sel := [0, 0, 0, 0, 0, 0]       ## selected entry per tab
 var _hit: Array = []              ## [Rect2, kind, index] clickable areas this frame
 
-const TABS := ["JOBS", "PEOPLE", "PLACES", "POWERS", "ACCOUNTS"]
+const TABS := ["JOBS", "PEOPLE", "PLACES", "POWERS", "ACCOUNTS", "RADIO"]
+const RADIO_PAGE := 10            ## lines per Radio entry (a long day runs over pages)
 
 var _t := 0.0
 var _flip := 1.0                  ## page-turn progress after a tab change
@@ -108,14 +109,12 @@ func close(keep_paused := false) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.pressed and not event.echo):
-		return
-	if event.keycode == KEY_J:
+	if event.is_action_pressed("journal"):
 		if not main.merchant or main.pause_menu.visible:
 			return
 		toggle()
 		get_viewport().set_input_as_handled()
-	elif not visible:
+	elif not visible or not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	elif event.keycode == KEY_ESCAPE:
 		close()
@@ -132,7 +131,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.keycode in [KEY_UP, KEY_W]:
 		_step_sel(-1)
 		get_viewport().set_input_as_handled()
-	elif event.keycode >= KEY_1 and event.keycode <= KEY_5:
+	elif event.keycode >= KEY_1 and event.keycode <= KEY_6:
 		_set_tab(event.keycode - KEY_1)
 		get_viewport().set_input_as_handled()
 
@@ -184,7 +183,36 @@ func _entries() -> Array:
 		1: return _people_entries()
 		2: return _place_entries()
 		3: return _power_entries()
+		5: return _radio_entries()
 	return []
+
+
+## Every line heard, a day per entry (long days split over pages), newest day first.
+## Each: ["Day N", who spoke, false, [lines]].
+func _radio_entries() -> Array:
+	var days := {}
+	var order: Array = []
+	for l in Career.comms_log:
+		var d := int(l[0])
+		if not days.has(d):
+			days[d] = []
+			order.append(d)
+		days[d].append(l)
+	var out: Array = []
+	for i in range(order.size() - 1, -1, -1):
+		var lines: Array = days[order[i]]
+		var pages := ceili(lines.size() / float(RADIO_PAGE))
+		for pg in range(pages - 1, -1, -1):
+			var chunk := lines.slice(pg * RADIO_PAGE, (pg + 1) * RADIO_PAGE)
+			var who: Array = []
+			for l in chunk:
+				if not who.has(l[1]):
+					who.append(l[1])
+			var title := "Day %d" % (order[i] + 1)
+			if pages > 1:
+				title += "  ·  %d of %d" % [pg + 1, pages]
+			out.append([title, ", ".join(who), false, chunk])
+	return out
 
 
 func _flag(k: String) -> bool:
@@ -312,7 +340,7 @@ func _role_of(who: String) -> String:
 
 # --- Drawing ------------------------------------------------------------------------
 
-const TAB_TINTS := [Color(0.87, 0.79, 0.56), Color(0.68, 0.75, 0.6), Color(0.64, 0.71, 0.8), Color(0.83, 0.63, 0.58), Color(0.86, 0.71, 0.44)]
+const TAB_TINTS := [Color(0.87, 0.79, 0.56), Color(0.68, 0.75, 0.6), Color(0.64, 0.71, 0.8), Color(0.83, 0.63, 0.58), Color(0.86, 0.71, 0.44), Color(0.74, 0.7, 0.66)]
 const LEATHER := Color(0.33, 0.17, 0.11)
 const GOLD_FOIL := Color(0.8, 0.66, 0.38)
 const HIGHLIGHT := Color(1.0, 0.86, 0.25, 0.38)
@@ -380,7 +408,7 @@ func _draw() -> void:
 	var name_s := str(Career.pilot.get("name", ""))
 	draw_string(Data.font_type, Vector2(lp.position.x + 30, pr.end.y - 14), "%s  ·  day %d  ·  p. %d" % [name_s, int(Career.day) + 1, _tab * 12 + _sel[_tab] * 2 + 1], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
 	draw_string(Data.font_type, Vector2(rp.end.x - 70, pr.end.y - 14), "p. %d" % (_tab * 12 + _sel[_tab] * 2 + 2), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
-	var hint := "Tab / 1-5 sections   ·   wheel or click entries   ·   J or Esc closes"
+	var hint := "Tab / 1-6 sections   ·   wheel or click entries   ·   J or Esc closes"
 	var hw := Data.font_type.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 	draw_string(Data.font_type, Vector2(pr.get_center().x - hw * 0.5, cover.end.y + 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.45))
 
@@ -400,6 +428,7 @@ func _draw() -> void:
 				1: _person_page(r, e[3])
 				2: _place_page(r, e[3])
 				3: _power_page(r, e[3])
+				5: _radio_page(r, e)
 	if _flip < 1.0:
 		_turning_page(lp, rp, _flip)
 
@@ -555,6 +584,22 @@ func _person_page(r: Rect2, who: String) -> void:
 		draw_line(Vector2(r.position.x + 52, y - 10), Vector2(r.position.x + 52, y + 2), Color(UIStyle.INK_STAMP, 0.4), 1.0)
 		var np := Neon.parse(s[1])
 		y += Neon.draw(self, Data.font_type, Vector2(r.position.x + 64, y - Data.font_type.get_ascent(12)), np, r.size.x - 64, 12, UIStyle.INK_TYPE, 1.0, 1e9, true) + 10.0
+
+
+## One day's radio, in the order it was said: who, then the line.
+func _radio_page(r: Rect2, e: Array) -> void:
+	var y := _title(r, str(e[0]), "%d lines  ·  in the order heard" % (e[3] as Array).size())
+	var name_w := 96.0
+	for l in e[3]:
+		var who := str(l[1])
+		var np := Neon.parse(str(l[2]))
+		var tw := r.size.x - name_w
+		var h := Neon.height(Data.font_type, np, tw, 12)
+		if y + h > r.end.y:
+			draw_string(Data.font_hand, Vector2(r.position.x, r.end.y), "continued over the page...", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIStyle.INK_PEN)
+			break
+		draw_string(Data.font_type_bold, Vector2(r.position.x, y + Data.font_type.get_ascent(12)), who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, name_w - 10, 11, UIStyle.INK_FADED)
+		y += Neon.draw(self, Data.font_type, Vector2(r.position.x + name_w, y), np, tw, 12, UIStyle.INK_TYPE, 1.0, 1e9, true) + 10.0
 
 
 func _place_page(r: Rect2, st_id: String) -> void:
