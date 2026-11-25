@@ -1676,7 +1676,7 @@ func _run_merchant_test() -> void:
 	var loaded := Career.load_game()
 	var save_after := [Career.credits, Career.loan_balance, snappedf(Career.day, 0.01), Career.crew.keys(), Career.flags.get("bounty_paid"), Career.friend.get("role")]
 	print("[save] loaded=%s match=%s resume=%s summary=%s\n  before=%s\n  after=%s" % [loaded, str(save_before) == str(save_after), Career.resume_station, Career.save_summary(), save_before, save_after])
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(Career.SAVE_PATH))
+	Career.delete_career(Career.slot)
 	await _wait(0.05)
 	_shot("m_saltgate")
 	undock()
