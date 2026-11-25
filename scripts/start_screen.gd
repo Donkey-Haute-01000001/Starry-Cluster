@@ -351,6 +351,10 @@ func _show_settings(animate := true) -> void:
 		_type(row, "|".repeat(n) + ".".repeat(10 - n), 18, true, UIStyle.INK_TYPE)
 		_type_button(row, " + ", _step_vol.bind(key, 0.1), 18)
 		_type(row, "%d%%" % (n * 10), 14, false, UIStyle.INK_FADED)
+		var mute := PlayerController.muted(key)
+		_type_button(row, "[%s] mute" % ("x" if mute else "  "), func():
+			PlayerController.toggle_mute(key)
+			_show_settings(false), 16)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(spacer)

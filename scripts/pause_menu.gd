@@ -213,6 +213,13 @@ func _show_settings() -> void:
 				gauge.add_theme_font_size_override("font_size", 18)
 				gauge.custom_minimum_size = Vector2(190, 0)
 				row.add_child(gauge)
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(28, 0)
+		row.add_child(gap)
+		var mb := _button("MUTED" if PlayerController.muted(key) else "MUTE", func():
+			PlayerController.toggle_mute(key)
+			_show_settings(), 20)
+		mb.get_parent().reparent(row)
 	_small("V also toggles flight assist in flight.")
 	_button("BACK", _show_main, 20)
 
