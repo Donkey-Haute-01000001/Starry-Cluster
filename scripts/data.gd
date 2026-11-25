@@ -607,7 +607,7 @@ var forks := {
 	# The crates.
 	"letter": "From the paymaster at Amber's, under his own seal. Show it at any Dynasty dock. ...He asked me to tell you that you never once looked inside. He noticed.",
 	"charlie_vouch": "There's a sticky note on your file. Dispatch. 'Honest. Please don't make it weird.' ...I'm not going to make it weird. Cleared.",
-	"flagged": "Flagged, captain. Contraband, Marcellus patrol report. Papers are papers, so you're cleared. But the Wall will remember your face.",
+	"flagged": "Navy report on your file. Sealed crates, Marcellus. ...Papers are papers. Cleared. I'm writing your name down anyway.",
 	"tally_heat": "Charter has you down for a hauler that went missing on your watch. They can't prove it. Cleared. Barely.",
 	"navy_papers": "Navy commission, Lieutenant Kessler's signature. Wall's yours, captain. Fly safe.",
 	"halloran_gate": "Never been through. Kessler said I'd know it when I saw it. ...He was right.",
