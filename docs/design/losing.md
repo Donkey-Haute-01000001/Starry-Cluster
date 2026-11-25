@@ -50,7 +50,7 @@ So capture can reuse disable → board → printout → wake docked. Small build
 4. ~~Wing~~ **PICKED (2026-11-25): flyers flee, downed ones taken.** Escorts still flying break off and meet you at the dock. Disabled escorts are taken, their ransom on the receipt. Dez is aboard, taken with you.
 8. ~~Ransom~~ **PICKED (2026-11-25): 2,500 + 500 per downed escort**, onto the lien.
 5. ~~Time~~ **PICKED (2026-11-25): held 3 days, loan clock runs.** A payment due while held can mean a strike, and the cutter.
-6. The defeat moment: look and sound (printout, stamp, Katana Zero-style line).
+6. ~~Look~~ **PICKED (2026-11-25): paper trail.** Rig goes dark, hull clangs as they board (real recordings), fade to black, hand-ticked Day 1..3, RANSOM RECEIPT with red Charter stamp, wake docked, Charlie line.
 7. Reload: allowed always, only on death, or an ironman setting?
 
 ## Out of scope
