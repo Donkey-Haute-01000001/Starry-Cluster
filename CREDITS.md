@@ -9,3 +9,6 @@
 - Remaining foley: synthesized in `tools/make_sounds.py`. `tools/make_combat_sounds.py` keeps synthesized placeholders in `sounds/synth/`.
 - Dialogue key ticks and neon buzz: Kenney's "Interface Sounds" clicks and "Sci-fi Sounds" computer noise (CC0), in `sounds/key*.wav` and `sounds/neon*.wav`.
 - Dialogue font: VT323 by Peter Hull (SIL Open Font License, `fonts/VT323-OFL.txt`).
+- UI fonts: Big Shoulders and Big Shoulders Stencil (The Big Shoulders Project Authors), Courier Prime (The Courier Prime Project Authors), Nanum Pen Script (NAVER Corporation), all SIL Open Font License, licenses in `fonts/`.
+- Engine: Godot Engine (MIT, godotengine.org).
+- The in-game credits roll (`scripts/credits_roll.gd`) mirrors this file; keep them in step.

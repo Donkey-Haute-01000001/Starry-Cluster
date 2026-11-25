@@ -19,6 +19,7 @@ const Neon = preload("res://scripts/neon.gd")
 var _beats: Control                 ## the start's opening, typing onto the file
 const BeatsOnPaper = preload("res://scripts/beats_on_paper.gd")
 const Keys = preload("res://scripts/keys.gd")
+const CreditsRoll = preload("res://scripts/credits_roll.gd")
 var _bind_wait := ""                 ## action waiting for a key on the controls sheet
 var _bind_note := ""
 
@@ -103,6 +104,9 @@ func _ready() -> void:
 			_pick(0)
 			print("[pick] opened file %d" % _selected)
 			get_tree().quit.call_deferred()
+		elif a.begins_with("--credits-shot="):
+			_show_credits()
+			_credits_shot.call_deferred(a.substr(15))
 		elif a.begins_with("--controls-shot="):
 			_open_board()
 			_show_controls(false)
@@ -130,6 +134,15 @@ func _ready() -> void:
 			_open_board()
 			_show_contact(false)
 			_snapshot.call_deferred(a.substr(15))
+
+
+## --credits-shot=DIR: the roll a few seconds in.
+func _credits_shot(dir: String) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	await get_tree().create_timer(9.0).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/credits.png")
+	get_tree().quit()
 
 
 ## --intro-shot=DIR: each start's file, part-typed and fully typed.
@@ -206,6 +219,7 @@ func _build_menu() -> void:
 	_menu_button("SETTINGS", func():
 		_open_board()
 		_show_settings(false))
+	_menu_button("CREDITS", _show_credits)
 	_menu_button("QUIT", func(): get_tree().quit())
 
 
@@ -583,6 +597,14 @@ func _close_board() -> void:
 		_board.position = home
 		_set_menu_shown(true))
 	Sfx.play("paper", -6.0)
+
+
+## Credits roll over the station; the menu steps aside till it's closed.
+func _show_credits() -> void:
+	_set_menu_shown(false)
+	var roll := CreditsRoll.new()
+	add_child(roll)
+	roll.closed.connect(func(): _set_menu_shown(true))
 
 
 ## The menu strip and bulletin step aside while the clipboard is out.
