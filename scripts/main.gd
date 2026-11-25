@@ -378,6 +378,10 @@ func undock() -> void:
 	Sfx.play("undock", -3.0)
 	station_ui.visible = false
 	get_tree().paused = false
+	if Career.flags.get("mbeki_intro", false):
+		Career.flags.erase("mbeki_intro")
+		await get_tree().create_timer(2.0).timeout
+		Career.say(Data.captains["navy_wing"]["name"], Data.captains["navy_wing"]["hired"])
 
 
 func _merchant_step(delta: float) -> void:
@@ -527,7 +531,9 @@ func spawn_captain(id: String) -> void:
 		if is_instance_valid(e) and e.captain_id == id:
 			return
 	var c: Dictionary = Data.captains[id]
-	var s := add_escort(c["hull"], Vector2(-150, -80).rotated(player.rotation))
+	# Mbeki joins from behind and comes up on your port side while he reports.
+	var at := Vector2(-1100, -520) if id == "navy_wing" else Vector2(-150, -80)
+	var s := add_escort(c["hull"], at.rotated(player.rotation))
 	s.captain_id = id
 	s.display_name = "%s (%s)" % [c["name"], c["ship"]]
 	s.ace = c.get("ace", false)

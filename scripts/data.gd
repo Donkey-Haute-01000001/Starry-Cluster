@@ -544,10 +544,10 @@ var charlie := {
 	"paid": "Payment's through. %s down, %s to go. You're doing great, captain.",
 	"missed": "Payment bounced, hon. They added interest. Get me something by next week, okay? I can only lose the paperwork so many times.",
 	"paid_off": "...That's it. That's the last one. Paid in full. I'm stamping it myself. And your papers came through. Go see the gate, captain. Send me a postcard.",
-	"strike1": "Payment bounced, hon. That's [red]one strike[/red] on your file. One more and Recovery sends a cutter for the rig. [slow]Please don't make me watch that.[/slow]",
-	"strike2": "Second strike. Recovery's sending a [shake]repo cutter[/shake]. [slow]Officially, I can't help you.[/slow] Unofficially? Pay the overdue at the Counter and they let me call it off. I'll have the form ready.",
-	"called_off": "Overdue's paid and the cutter's turning around. [slow]Officially[/slow], your account is in good standing. Unofficially, I owe the filing clerk a coffee.",
-	"cutter_inbound": "Captain, [shake]a Recovery cutter just jumped in.[/shake] Boarding crew and all. I'm not supposed to tell you that. Run. [slow]Be careful.[/slow] ...I'm going to stay on this channel till you're clear. [wave]So you're not alone out there. And so I can stop worrying. Mostly the second one.[/wave]",
+	"strike1": "Hey. So... your payment bounced. That's a [red]strike[/red] on your file. One more and Recovery sends a cutter, and I really don't want to be the one reading you that, hon.",
+	"strike2": "Captain, that's the second one. Recovery's put a cutter on your file. Officially, I can't help you. Unofficially, pay the overdue at the Counter and they'll let me call it off. I already printed the form. Don't ask why.",
+	"called_off": "Okay. Overdue's in, cutter's turning around. Officially, you're in good standing. Unofficially, I owe the filing clerk a coffee. He takes four sugars, so.",
+	"cutter_inbound": "Captain? [shake]Recovery cutter just jumped into your system[/shake], boarding crew and everything. I'm not supposed to tell you that. Just... run. Be careful. I'm staying on this channel till you're clear.",
 	"repossessed": "They took the cargo, and the fee's on the lien. ...I'm so sorry, captain.",
 	"job_done": "Greenhouse says the water's in. Nice flying, captain. The board's open: pick your own runs from here. Watch the belt, though. Marcellus pays well for a reason.",
 }
@@ -565,20 +565,20 @@ var ahead := {
 	"owner": "Alejandra",
 	"owner_tag": "Alejandra Vargas, owner-operator",
 	"hello": "Sweet Margaret hailing %s. Grye, hauler. Welcome, family. Let's mint.",  ## %s = your rig's name (Vishnu)
-	"robbed": "Oh, sure, everybody just [wave]watches[/wave]. Great. Love that. ...Forty tons. That's my week. [slow]Somebody tell the Greenhouse I'm gonna be late. Real late.[/slow]",  ## Hollis (Vishnu)
+	"robbed": "Oh, great, everybody just watched. Love that. ...Forty tons. That was my whole week. Somebody tell the Greenhouse I'm gonna be late. Real late.",  ## Hollis (Vishnu)
 	"charlie_after": "...Greenhouse says the water's in. Board's open from here, captain. Pick your own runs.",
 	## Alejandra at the Saltgate bar (Vishnu 2026-11-24): held back / went in after Hollis.
-	"bar": "Grye. Sit. Hollis already gave his speech, you missed it. [wave]Very moving.[/wave] ...You did right out there. [slow]Doesn't feel like it. It never does.[/slow]",
-	"bar_saved": "Grye. ...You didn't listen. [slow]Good.[/slow] Don't tell anyone I said that.",
+	"bar": "Grye. Sit down. You missed Hollis's speech, it was very moving. ...You did right out there. Doesn't feel like it, I know. It never does.",
+	"bar_saved": "Grye. ...You didn't listen to me. Good. Don't tell anyone I said that.",
 	"hail": "Go on, deliver yours. Somebody should get paid today.",
 	## Restage (Vishnu 2026-11-24): Alejandra flies with you; a stranger, Hollis Gray
 	## in Hollis' Girl, is the one raided. Alejandra coaches in two beats.
 	"victim_rig": "Hollis' Girl",
 	"victim": "Hollis Gray",
-	"coach_1": "That's Hollis. Named his rig after himself. [slow]Still family.[/slow] Three on one, over a tank of water? Somebody's got a beef with who he hauls for.",
-	"hollis_bar": "Hey. Lane-watcher. [slow]Relax, I'm not mad.[/slow] I'm a little mad. Charter fined me for the late delivery, can you believe that? Robbed, then billed. Buy me a water and we're square.",
-	"hollis_bar_saved": "You came in. Nobody comes in. [slow]I don't know what to do with that.[/slow] ...Here. Hollis' Girl's channel. You ever need anything hauled, I owe you one. Just the one, though.",
-	"coach_2": "[shake]Back off![/shake] You go in, they strip you too. They'll take his water and let him limp home. [slow]That's how it goes.[/slow]",
+	"coach_1": "That's Hollis. Man named his rig after himself, so. ...Three on one, though? Over water? Somebody's got a beef with whoever he hauls for.",
+	"hollis_bar": "Hey, it's the lane-watcher. Relax, I'm not mad. ...I'm a little mad. Charter fined me for the late delivery. Robbed, and then fined. Buy me something that burns and we're even.",
+	"hollis_bar_saved": "You came in. Nobody ever comes in. ...I don't know what to do with that. Here, that's my channel. You need something hauled, I owe you one.",
+	"coach_2": "[shake]Back off.[/shake] You go in there, they strip you too. They take his water, he limps home. That's how it goes.",
 }
 
 ## The forks: what the March remembers of you, and how it pays off at the gate.
@@ -620,8 +620,8 @@ var default_red := "Charter paints defaults red so no dock will touch them. Qasi
 
 ## Charter Recovery and navy customs. Drafts: the script doc wins.
 var recovery := {
-	"hail": "Owner-operator [red]CC-40817-M[/red], you are in default. Cut engines and stand by for boarding. [slow]Thank you for choosing the Charter.[/slow]",
-	"driven_off": "Damage logged and billed to your account, [red]CC-40817-M[/red]. [slow]Including the paint.[/slow] Recovery will follow up.",
+	"hail": "Owner-operator [red]CC-40817-M[/red], your account is in default. Cut engines and prepare to be boarded. Thank you for choosing the Charter.",
+	"driven_off": "Damage to Charter property has been logged and billed to account CC-40817-M. Including the paint. Recovery will follow up.",
 }
 var customs := {
 	"scan": "Charter rig, hold your course. Routine customs scan.",
@@ -808,7 +808,7 @@ var captains := {
 		"note": "Clan Karabey ace. Expensive. Flies point."},
 	# Fork wingmen: they come with a side you picked, not from the bar. Drafts.
 	"navy_wing": {"name": "Mbeki", "full": "Petty Officer Mbeki, FNS Ulysses", "hull": "navy_wing", "ship": "FNS Ulysses", "wage": 0, "temper": "steady",
-		"pitch": "", "hired": "Petty Officer Mbeki, FNS Ulysses, reporting. [slow]...Sir, the channel was open. Everyone heard the part about my mother.[/slow] Formation on your port side, sir.", "note": "Navy interceptor on loan. Goes where you go, reports to Kessler."},
+		"pitch": "", "hired": "Petty Officer Mbeki, FNS Ulysses, reporting, sir. Taking your port side. ...Sir, the channel was open. Everyone heard the part about my mother.", "note": "Navy interceptor on loan. Goes where you go, reports to Kessler."},
 	"tally_wing": {"name": "Notch", "full": "\"Notch\", Tally's crew", "hull": "tally_escort", "ship": "raider", "wage": 0, "temper": "presses",
 		"pitch": "", "hired": "Tally says you're on the list now. The good list. Don't make him cross you off.", "note": "One of the Tallyman's raiders. Flies with you because Tally said so."},
 }

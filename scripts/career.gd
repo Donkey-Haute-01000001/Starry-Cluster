@@ -250,11 +250,12 @@ func hire(id: String) -> bool:
 
 
 ## A wingman who comes with a side, not a contract.
-func join(id: String) -> void:
+func join(id: String, quiet := false) -> void:
 	if crew.has(id):
 		return
 	crew[id] = {"down": false}
-	say(Data.captains[id]["name"], Data.captains[id]["hired"])
+	if not quiet:
+		say(Data.captains[id]["name"], Data.captains[id]["hired"])
 	crew_joined.emit(id)
 	changed.emit()
 
@@ -278,7 +279,9 @@ func sign_navy() -> void:
 		return
 	flags["side"] = "navy"
 	say("Franz", Data.forks["navy_signed"])
-	join("navy_wing")
+	# Mbeki reports in flight, not on the dock board: he flies up on your port side as you undock.
+	flags["mbeki_intro"] = true
+	join("navy_wing", true)
 
 
 func take_tally_job() -> void:
