@@ -605,7 +605,7 @@ var forks := {
 	"hunter_crates": "You carried our crates. Clean work. Then you killed our man. The paymaster does not do business twice.",
 	"hunter_gone": "...Keep running, trucker. The paymaster is old, and he has nothing else to do.",
 	# The crates.
-	"letter": "Captain. A letter for you, from a friend at Amber's. Any house on the Dynasty side will honor it. He says you deliver.",
+	"letter": "From the paymaster at Amber's, under his own seal. Show it at any Dynasty dock. ...He asked me to tell you that you never once looked inside. He noticed.",
 	"charlie_vouch": "One more thing on your file, from Charter dispatch. Handwritten. 'Honest. Mostly.' ...Cleared.",
 	"flagged": "Flagged, captain. Contraband, Marcellus patrol report. Papers are papers, so you're cleared. But the Wall will remember your face.",
 	"tally_heat": "Charter has you down for a hauler that went missing on your watch. They can't prove it. Cleared. Barely.",
