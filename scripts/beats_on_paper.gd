@@ -6,7 +6,8 @@ const Neon = preload("res://scripts/neon.gd")
 
 const SIZE := 14
 const BEAT_GAP := 9.0      ## px between beats
-const BEAT_PAUSE := 0.55    ## s of quiet between beats
+const SPEED := 0.45         ## typing pace vs. comms (1.0 = comms speed, ~55 chars/s)
+const BEAT_PAUSE := 0.7     ## quiet between beats, in typing time (~1.5 s real)
 
 var beats: Array = []
 var width := 440.0
@@ -47,7 +48,7 @@ func finish() -> void:
 
 
 func _process(delta: float) -> void:
-	_age += delta
+	_age += delta * SPEED
 	_tick()
 	queue_redraw()   # shake / wave keep moving after the type-in
 
