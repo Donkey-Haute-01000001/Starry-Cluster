@@ -48,7 +48,7 @@ So capture can reuse disable → board → printout → wake docked. Small build
 2. ~~Death~~ **PICKED (2026-11-25): only if you resist boarders.** When boarded: surrender or fight the breach. Fight and lose = death card, reload last dock.
 3. ~~Take~~ **PICKED (2026-11-25): raiders take cargo + cash on hand.** Rig and outfits stay. Tallyman takes nothing (locked lore).
 4. ~~Wing~~ **PICKED (2026-11-25): flyers flee, downed ones taken.** Escorts still flying break off and meet you at the dock. Disabled escorts are taken, their ransom on the receipt. Dez is aboard, taken with you.
-8. Ransom amount (flat, or scales with rig/wing?).
+8. ~~Ransom~~ **PICKED (2026-11-25): 2,500 + 500 per downed escort**, onto the lien.
 5. ~~Time~~ **PICKED (2026-11-25): held 3 days, loan clock runs.** A payment due while held can mean a strike, and the cutter.
 6. The defeat moment: look and sound (printout, stamp, Katana Zero-style line).
 7. Reload: allowed always, only on death, or an ironman setting?
