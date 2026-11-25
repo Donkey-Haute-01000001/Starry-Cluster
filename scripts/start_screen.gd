@@ -103,6 +103,10 @@ func _ready() -> void:
 		elif a.begins_with("--intro-shot="):
 			# --intro-shot=DIR: each start's opening, a beat in, plus the Merchant file after.
 			_intro_shots.call_deferred(a.substr(13))
+		elif a.begins_with("--file-open="):
+			# --file-open=N: open start N's file and let it type (for recordings).
+			_open_board()
+			_show_file(int(a.substr(12)), true)
 		elif a.begins_with("--start-shot="):
 			_open_board()
 			_show_file(0, false)

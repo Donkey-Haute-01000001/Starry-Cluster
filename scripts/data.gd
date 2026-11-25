@@ -522,11 +522,11 @@ var station_walls := {
 
 ## Start screen. Only the Merchant start is playable in the demo.
 ## beats: the opening, read over the berth one beat at a time (Space).
-## Vishnu's text, cut into beats. Neon tags work: [red] [slow] [wave] [shake].
+## Vishnu's text, cut into beats. Neon tags work: [red] [gold] [green] [slow] [wave] [shake] [shine].
 var starts := [
 	{"id": "merchant", "doc": {"issuer": "THE CHARTER COMPANY", "title": "Rig Financing Agreement", "office": "Aurelia Sector Office", "file": "CC-40817-M", "stamp": "APPROVED", "note": "7 years. never again."}, "name": "Merchant", "playable": true,
 		"beats": [
-			"Seven years loading freighters.\nSeven years planning routes.\nSeven years eating shit from [red]greedy bosses[/red].",
+			"Seven years loading freighters.\nSeven years planning routes.\nSeven years eating shit from [green][shake][shine]greedy bosses[/shine][/shake][/green].",
 			"Every time they made a hundred credits,\nthey tossed you one.\nAnd insisted you thank them.",
 			"You smiled in their faces.\nBehind their backs, you plotted.\n[slow]No. You designed.[/slow]",
 			"Seven years, and you bought your way out.\nThe Charter Company financed your first freighter.",
@@ -900,6 +900,7 @@ var neon := {
 		"people": Color("#FFFFFF"), "places": Color("#FF4FD8"), "threats": Color("#FF2E4D"),
 		"charter": Color("#FFB23A"), "navy": Color("#4D6BFF"), "dynasty": Color("#0FB866"),
 		"tally": Color("#9B6BFF"), "credits": Color("#FFE27A"),
+		"gold": Color("#E8B21C"), "envy": Color("#2FE36B"),   ## hand tags [gold] [green]
 	},
 	"people": ["Charlotte Hansen", "Charlie", "Desmond Okafor", "Dez", "Phaedra Andreou", "Fay",
 		"Mersham Ali", "Mersham", "Lt. Franz Kessler", "Franz Kessler", "Lt. Kessler", "Kessler", "Franz",

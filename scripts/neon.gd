@@ -1,6 +1,6 @@
 extends RefCounted
 ## Katana Zero-style lines: people, places, powers, money and threats light up
-## in neon as you read; writers add [shake] [wave] [red] [slow] by hand.
+## in neon as you read; writers add [shake] [wave] [slow] [shine], [red] [gold] [green] by hand.
 ## Lines type out a word at a time, with a beat after each sentence.
 ## Use: var p := Neon.parse(text); Neon.draw(self, font, pos, p, width, size, col, a, age)
 
@@ -10,6 +10,7 @@ const COMMA_PAUSE := 0.1
 const SHAKE := 1
 const WAVE := 2
 const SLOW := 4
+const SHINE := 8              ## a glint sweeps the word, and it glows even on paper
 
 static var _cache := {}
 static var _rules: Array = []
@@ -32,32 +33,35 @@ static func parse(text: String) -> Dictionary:
 	if _cache.size() > 400:
 		_cache.clear()
 	if _tag_re == null:
-		_tag_re = RegEx.create_from_string("\\[(/?)(shake|wave|red|slow)\\]")
+		_tag_re = RegEx.create_from_string("\\[(/?)(shake|wave|red|gold|green|slow|shine)\\]")
 		_cr_re = RegEx.create_from_string("\\d[\\d,]*\\s(?:cr|credits)\\b|\\b\\d{1,3}(?:,\\d{3})+\\b")
 	# Tags first: strip them, remember which characters they cover.
 	var out := ""
 	var fx := PackedInt32Array()
 	var kind: Array = []
 	var cur_fx := 0
-	var red := false
+	var tag_kind := ""
 	var i := 0
 	for m in _tag_re.search_all(text):
 		var chunk := text.substr(i, m.get_start() - i)
 		for c in chunk:
 			out += c
 			fx.append(cur_fx)
-			kind.append("threats" if red else "")
+			kind.append(tag_kind)
 		var close := m.get_string(1) == "/"
 		match m.get_string(2):
 			"shake": cur_fx = (cur_fx & ~SHAKE) if close else (cur_fx | SHAKE)
 			"wave": cur_fx = (cur_fx & ~WAVE) if close else (cur_fx | WAVE)
 			"slow": cur_fx = (cur_fx & ~SLOW) if close else (cur_fx | SLOW)
-			"red": red = not close
+			"shine": cur_fx = (cur_fx & ~SHINE) if close else (cur_fx | SHINE)
+			"red": tag_kind = "" if close else "threats"
+			"gold": tag_kind = "" if close else "gold"
+			"green": tag_kind = "" if close else "envy"
 		i = m.get_end()
 	for c in text.substr(i):
 		out += c
 		fx.append(cur_fx)
-		kind.append("threats" if red else "")
+		kind.append(tag_kind)
 	# Then the world's words, longest first, never overlapping.
 	for r in _rules:
 		_mark(out, kind, r[0], r[1], r[2])
@@ -170,10 +174,10 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 				if kd != "":
 					col = color(kd)
 					if paper:
-						col = col.darkened(0.55)
+						col = col.darkened(0.38 if kd in ["gold", "envy"] else 0.55)
 				var a := alpha
 				# A neon tube kicking on: a stutter as the word lands.
-				if kd != "" and not paper and dt < 0.3 and int(dt * 40.0) % 3 == 0:
+				if kd != "" and dt < 0.3 and int(dt * 40.0) % 3 == 0:
 					a *= 0.3
 				col.a *= a
 				var at := Vector2(pos.x + x, y)
@@ -182,17 +186,28 @@ static func draw(ci: CanvasItem, font: Font, pos: Vector2, p: Dictionary, width:
 				if hits != null and kd != "":
 					var rw := rf.get_string_size(seg, HORIZONTAL_ALIGNMENT_LEFT, -1, rs).x
 					hits.append([Rect2(at + Vector2(0, -asc), Vector2(rw, lh)), kd, span(p, k)])
-				if f & (SHAKE | WAVE):
+				if f & (SHAKE | WAVE | SHINE):
 					var cx := at.x
 					for ci2 in seg.length():
 						var ch := seg[ci2]
 						var off := Vector2.ZERO
+						var gc := col
+						var glow := kd != "" and not paper
+						if f & SHINE:
+							# A glint runs along the word every couple of seconds.
+							var sweep := fmod(now * 0.9, 2.2) * float(w[1] - w[0] + 6) - 3.0
+							var d := absf(float(k + ci2 - w[0]) - sweep)
+							var g := maxf(0.0, 1.0 - d / 2.5)
+							gc = col.lightened(g * 0.3)
+							glow = true
+							if g > 0.0:
+								ci.draw_string_outline(rf, Vector2(cx, at.y) + off, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, rs, 6, Color(col, col.a * 0.4 * g))
 						if f & SHAKE:
 							var s := int(now * 30.0) + (k + ci2) * 7
 							off += Vector2(sin(s * 12.9898) , cos(s * 78.233)) * 1.4
 						if f & WAVE:
 							off.y += sin(now * 5.0 + (k + ci2) * 0.6) * 2.5
-						_glyph(ci, rf, Vector2(cx, at.y) + off, ch, rs, col, kd != "" and not paper)
+						_glyph(ci, rf, Vector2(cx, at.y) + off, ch, rs, gc, glow)
 						cx += rf.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, rs).x
 				else:
 					if kd in ["credits", "dynasty"] and not paper:
