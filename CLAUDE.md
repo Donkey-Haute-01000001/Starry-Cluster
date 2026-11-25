@@ -7,6 +7,7 @@ Vishnu writes and directs; Claude designs systems and builds. Read this file, th
 
 - **Branch:** all work on `dev`. Vishnu pulls `dev` with GitHub Desktop and tests there. "Merge" = fold `dev` into `main`.
 - **Scaffold first.** Design changes (content, mechanics, names, geography) go on a decision card with options + a recommendation. Wait for the pick. One question at a time. Bug fixes and polish he asked for can go straight in.
+- **Plan before build.** Every new system: (1) one-page spec in `docs/design`, (2) how 2-3 reference games solve it, (3) genre-baseline check (what every game like this has that we lack; flag it, don't wait to be asked), (4) open questions on cards one at a time, (5) Vishnu signs the spec, then build small.
 - **Don't overdo.** Build only what the pick said. No new named characters, fees or sub-mechanics without asking. Build small, show, expand.
 - **No playtest asks.** Don't ask Vishnu to playtest until he says so.
 - **Talk to Vishnu tersely.** Short lines, whitespace, no filler. In-game dialogue is the opposite: real writing, rhythm, subtext. Check lines against the voice bible.
