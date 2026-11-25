@@ -14,6 +14,8 @@ Each gap gets its own thread. When it ships, move it to "Have" here.
 - Controls overlay (H / F1), first-flight key prompts
 - Controls page in both Settings: full key list, click-to-rebind (keys or mouse), swap on clash, reset to defaults; overlay + prompts show live keys (`controls.md`, 2026-11-25)
 - Journal log of chatter, chart, now-playing music credit
+- Credits roll from the title menu (`dialogue-credits.md`, 2026-11-25)
+- Text speed setting (Slow / Normal / Fast / Instant, calm default), intro beats wait for a click, journal Radio tab rereads every line (`dialogue-credits.md`, 2026-11-25)
 
 ## Missing: needed before the Merchant opening is "done"
 
@@ -22,8 +24,8 @@ Ranked. Each one gets a card before it's built.
 1. **Losing.** Player destroyed = blank screen, R dumps you to the title. No defeat scene, no reload. Design pillar says you're usually *captured*, rarely killed. Biggest gap. *(design call)*
 2. ~~**New career overwrites your save**~~ Done 2026-11-25, see Have.
 3. ~~**Controls in Settings.**~~ Done 2026-11-25, see Have.
-4. **Credits screen.** `CREDITS.md` exists, not reachable in game.
-5. **Dialogue controls.** Typing speed, and no way to reread a story scene after it closes. *(check journal covers it)*
+4. ~~**Credits screen.**~~ Done 2026-11-25, see Have.
+5. ~~**Dialogue controls.**~~ Done 2026-11-25, see Have.
 
 ## Missing: standard, lower priority
 
