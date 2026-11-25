@@ -600,7 +600,7 @@ var forks := {
 	"tally_hauler_hail": "Unidentified rig, you are interfering with Charter property. Break off.",
 	"charter_heat": "Captain, Recovery just put a security surcharge on your account. Fifteen hundred. They wouldn't say why. ...I think I know why.",
 	# The Red Stork.
-	"lark_alive": "You could have finished it. Most would have, for the same money. [slow]...I won't forget that.[/slow] When you get past the Wall, ask at the Karabey docks for Qasim. They'll know the name.",
+	"lark_alive": "They painted her red and called her theirs. I only took back what I paid for. ...You brought me in breathing. That is a debt, and Karabey pays its debts. Ask for Qasim on the other side of the Wall.",
 	"hunter": "For the Red Stork. The paymaster sends his regards.",
 	"hunter_crates": "You carried his crates and then you killed his dog. The paymaster sends his regards.",
 	"hunter_gone": "...Tell the paymaster his horse came back lame.",
