@@ -24,7 +24,7 @@ Each screen is mocked, shown, and built only after Vishnu OKs it.
 | Title menu row | **unchanged** (locked) |
 | Form ID-1 (name, rig, photo) | built |
 | Form NK-2 (Dez contact) | built |
-| Launch ID card | next |
+| Launch ID card | built |
 | Ransom receipt, sector bulletin, dispatch slip | then |
 | Journal and chart | last (biggest) |
 
