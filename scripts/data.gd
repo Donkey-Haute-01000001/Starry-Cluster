@@ -586,6 +586,8 @@ var charlie := {
 	"called_off": "Okay. Overdue's in, cutter's turning around. Officially, you're in good standing. Unofficially, I owe the filing clerk a coffee. He takes four sugars, so.",
 	"cutter_inbound": "Captain? [shake]Recovery cutter just jumped into your system[/shake], boarding crew and everything. I'm not supposed to tell you that. Just... run. Be careful. I'm staying on this channel till you're clear.",
 	"repossessed": "They took the cargo, and the fee's on the lien. ...I'm so sorry, captain.",
+	"walk_loaded": "Water's aboard. The Bones is right next door if you want parts. Then take the jump to Tiberine. [G] puts you on autopilot.",  ## DRAFT (walkthrough, playtest 11-26)
+	"walk_tiberine": "That's Tiberine. The Greenhouse is your green marker. Dock and the water comes off on its own.",  ## DRAFT (walkthrough, playtest 11-26)
 	"job_done": "Greenhouse says the water's in. Nice flying, captain. The board's open: pick your own runs from here. Watch the belt, though. Marcellus pays well for a reason.",
 }
 

@@ -458,6 +458,15 @@ func first_job() -> void:
 	_set_objective("Fly to the Drip and pick up 20 tons of water. Dock with F.", "drip")
 
 
+## Called on every arrival in a system: Charlie walks the first run.
+func on_arrive(system: String) -> void:
+	if system == "tiberine" and job_cargo.has("water") and not flags.get("walk_tiberine", false):
+		for j in jobs:
+			if j["id"] == "starter_water" and j["loaded"]:
+				flags["walk_tiberine"] = true
+				say("Charlie", Data.charlie["walk_tiberine"])
+
+
 ## Called every time the player docks.
 func on_dock(station: String) -> void:
 	if station == "counter":
@@ -471,7 +480,8 @@ func on_dock(station: String) -> void:
 			job_cargo[j["good"]] = job_cargo.get(j["good"], 0) + j["tons"]
 			say("Dock crew", "%d tons of %s loaded for %s." % [j["tons"], Data.goods[j["good"]]["name"].to_lower(), Data.stations[j["to"]]["nick"]], true)
 			if j["id"] == "starter_water":
-				_set_objective("Jump to Tiberine and deliver the water to the Greenhouse. Spare room? Buy machine parts at the Bones first.", "greenhouse")
+				say("Charlie", Data.charlie["walk_loaded"])
+				_set_objective("Water to the Greenhouse, in Tiberine. Spare room? Buy parts at the Bones.", "greenhouse")
 		elif j["to"] == station and j["loaded"]:
 			job_cargo[j["good"]] -= j["tons"]
 			if job_cargo[j["good"]] <= 0:
@@ -591,6 +601,7 @@ func friend_shot_down() -> void:
 
 ## Called on arriving in a system.
 func on_enter_system(id: String) -> void:
+	on_arrive(id)
 	if visited.has(id):
 		return
 	visited[id] = true

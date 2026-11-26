@@ -1650,6 +1650,7 @@ func _run_merchant_test() -> void:
 	_shot("m_arrival")
 	print("[merchant] after jump: system=%s" % system_id)
 	Checks.check(system_id == "tiberine", "jump: arrived in Tiberine")
+	Checks.check(Career.flags.get("walk_tiberine", false), "Charlie walks you into Tiberine")
 	_go("greenhouse")
 	var before := Career.credits
 	Career.sell("greenhouse", "parts", 99)
