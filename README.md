@@ -4,13 +4,13 @@ A top-down space fleet RPG built in Godot 4. You captain a flagship, build a fle
 
 ## Play it
 
-1. Install **Godot 4.3 or newer** (standard, not .NET; Vishnu uses 4.7.2) from https://godotengine.org/download.
+1. Install **Godot 4.7.2** (standard, not .NET; the version the game is tested on) from https://godotengine.org/download.
 2. Open Godot, click **Import**, and choose this folder's `project.godot`.
 3. Press **F5** (or the ▶ button) to play.
 
 ## Fonts
 
-UI text uses Big Shoulders (dock signage). The paperwork uses Courier Prime (typed forms), Nanum Pen Script (handwriting) and Big Shoulders Stencil (rubber stamps, hull marks). All are in `fonts/` under the SIL Open Font License, free to ship.
+UI text uses Big Shoulders (dock signage). Typed text and dialogue use VT323, handwriting Nanum Pen Script, stamps and hull marks Big Shoulders Stencil. Courier Prime remains on screens not yet redone in neon. All are in `fonts/` under the SIL Open Font License, free to ship.
 
 ## Sounds
 

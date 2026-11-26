@@ -215,7 +215,7 @@ func _show_card() -> void:
 	_bar.color = UIStyle.RED
 	_bar.size = Vector2(420, 4)
 	track.add_child(_bar)
-	Sfx.play("radio", -8.0)
+	Sfx.play("disabled", -8.0)
 
 
 ## You, plus any of Kessler's marines still aboard.

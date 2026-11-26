@@ -325,7 +325,9 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		main.fx.spawn_hull_hit(hit_pos, global_position, amount)
 		Sfx.play_at("hit_hull", hit_pos, -9.0 if amount < 10.0 else -3.0)
 	# Your rig: beaten means dead in space, not dead. Whoever beat you decides the rest.
-	if capturable and not disabled and hull_hp <= max_hull * DISABLE_AT:
+	# A story hull floor (the Tallyman ambush, the rig ahead) means the scene
+	# decides instead: no capture, no tow, so the scripted beat can play out.
+	if capturable and not disabled and hull_floor <= 0.0 and hull_hp <= max_hull * DISABLE_AT:
 		hull_floor = maxf(hull_floor, 0.05)
 		_disable()
 	if hull_floor > 0.0:

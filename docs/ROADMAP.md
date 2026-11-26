@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-11-25. Edit this file when something ships or a pick changes the plan.
+Updated 2026-11-26. Edit this file when something ships or a pick changes the plan.
 
 ## Done (Merchant opening, playable end to end on `dev`)
 
@@ -22,12 +22,12 @@ Updated 2026-11-25. Edit this file when something ships or a pick changes the pl
 
 ## Next (pick order with Vishnu)
 
-1. **Merchant playtest**: only when Vishnu says. Crew v1 waits on it
-2. **Crew v1** (all starts): scope locked, see `docs/design/combat-fitting.md`
-3. **Busy bars**: crew and captains for hire in every bar
-4. **Scrapper start**: decisions locked, see `docs/design/story-cast.md`
-5. **Open-world piracy + fence**: board, rob, sell. Tally is a contact, not a quest
-6. Code cleanup: split `main.gd` and `data.gd` (see `docs/ARCHITECTURE.md`)
+1. **Merchant playtest**: Vishnu playing 2026-11-26 (`docs/playtest/merchant.md`). Crew v1 waits on it
+2. **Code split** right after the playtest notes, before Crew: `main.gd` and `data.gd` (see `docs/ARCHITECTURE.md`)
+3. **Crew v1** (all starts): scope locked, see `docs/design/combat-fitting.md`
+4. **Busy bars**: crew and captains for hire in every bar
+5. **Scrapper start**: decisions locked, see `docs/design/story-cast.md`
+6. **Open-world piracy + fence**: board, rob, sell. Tally is a contact, not a quest
 
 ## Open questions (raise when relevant)
 
