@@ -469,7 +469,7 @@ func _draw() -> void:
 		if onscreen:
 			var r: float = ship.radius * main.camera.zoom.x + 8.0
 			_brackets(sp, r, Color(col.r, col.g, col.b, 0.9 if hov else (0.3 if ship.team == 2 else 0.55)))
-			if hov or (ship.team == 2 and ship.controller is Traffic.Pilot and ship.controller.flee):
+			if hov or ship.has_meta("tagged") or (ship.team == 2 and ship.controller is Traffic.Pilot and ship.controller.flee):
 				_ship_tag(sp + Vector2(r * 1.5 + 14, -r * 0.6), ship, hov)
 			var hw := roundf(r)
 			if ship.team == 2 and not hov and ship.hull_hp >= ship.max_hull:
@@ -587,7 +587,7 @@ func _draw() -> void:
 		if main.autopilot_on():
 			_text(Vector2(vp.x * 0.5, 160), _sp("AUTOPILOT") + "   →   " + str(main.player.controller.autopilot.label), 13, Color(0.55, 0.9, 1.0, 0.9), true, true)
 	if main.message_t > 0:
-		_text(Vector2(vp.x * 0.5, vp.y * 0.25), main.message, 20, Color(0.92, 0.97, 1.0, minf(1.0, main.message_t)), true, true)
+		_text(Vector2(vp.x * 0.5, vp.y * 0.25), main.message, 20, Color(main.message_col, minf(1.0, main.message_t)), true, true)
 
 	if shown("radar"):
 		_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)

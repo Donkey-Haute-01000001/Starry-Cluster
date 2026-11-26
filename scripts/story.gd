@@ -341,12 +341,14 @@ func _start_ambush() -> void:
 	var ahead := p.global_position + p.forward() * 700.0
 	var facing := p.rotation + PI
 	var g: Ship = main.spawn_ship("tally_gunboat", 1, ahead, facing)
-	g.display_name = "The Tallyman"
+	g.display_name = "Unknown gunboat"  # he gives his name at the signoff
 	_tally.append(g)
 	for k in [-1, 1]:
 		var e: Ship = main.spawn_ship("tally_escort", 1, ahead + Vector2(-80, 220 * k).rotated(p.rotation), facing)
+		e.display_name = "Raider"
 		_tally.append(e)
 	for s in _tally:
+		s.set_meta("tagged", true)  # named on screen the whole scene
 		s.hull_floor = 0.3
 		s.hold_fire = true
 		var pilot := ScriptedPilot.new(s, main)
@@ -371,7 +373,7 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(main) or not main.merchant:
 		return
 	# Talky beats wait while you read: the clock stops until the comms are clear.
-	if scene == "ambush" and _phase in ["talk", "gone", "navy"] and main.hud.comms_waiting():
+	if scene == "ambush" and _phase in ["approach", "talk", "gone", "navy"] and main.hud.comms_waiting():
 		return
 	_t += delta
 	if _choices:
@@ -395,7 +397,12 @@ func _ambush_step() -> void:
 	var g: Ship = _tally[0] if not _tally.is_empty() and is_instance_valid(_tally[0]) else null
 	match _phase:
 		"approach":
-			if _t > 1.4 and g:
+			# He talks first, so you know it's you he wants.
+			if _t > 0.4 and not Career.flags.has("tally_warned"):
+				Career.flags["tally_warned"] = true
+				main.hud.force_talk = true
+				Career.say("Tallyman", Data.tally["warning"])
+			if _t > 1.4 and g and Career.flags.has("tally_warned"):
 				# The ion shot, then the engines go dark.
 				var w: Dictionary = Data.weapons["ion_bolt"]
 				main.spawn_projectile(g.global_position + g.forward() * 30.0, (p.global_position - g.global_position).angle(), w, g)
@@ -406,7 +413,10 @@ func _ambush_step() -> void:
 				p.ion_hit(14.0)
 			if p.ion_t > 0.0 and _t > 0.6:
 				p.ion_t = 999.0  # dead until the navy patches you
-				main.show_message("ENGINES DOWN. Ion hit. Turrets still work.", 3.5)
+				main.show_message("UNDER ATTACK. ENGINES DOWN. Turrets still work.", 4.0, Color(1.0, 0.45, 0.35))
+				_slow_mo()
+				main.hud.force_talk = true
+				Career.say("Charlie", Data.charlie["raider"])
 				for s in _tally:
 					if is_instance_valid(s):
 						s.hold_fire = false
@@ -447,6 +457,8 @@ func _ambush_step() -> void:
 			_say_at(8.0, "Tallyman", Data.tally[fought])
 			_say_at(13.0, "Tallyman", Data.tally["spare"])
 			_say_at(18.5, "Tallyman", Data.tally["signoff"])
+			if g and _t >= 18.5:
+				g.display_name = "The Tallyman"
 			if _t > 22.0:
 				_tally_leaves()
 				_next("gone")
@@ -487,6 +499,16 @@ func _ambush_step() -> void:
 						s.queue_free()
 				_navy.clear()
 				scene = ""
+
+
+## A beat of slow motion on the ion hit, so you see what just happened.
+func _slow_mo() -> void:
+	if not main.hud.hold_enabled():
+		return  # headless tests keep their clock
+	Engine.time_scale = 0.3
+	await get_tree().create_timer(1.2, true, false, true).timeout
+	if Engine.time_scale == 0.3:
+		Engine.time_scale = 1.0
 
 
 func _next(phase: String) -> void:

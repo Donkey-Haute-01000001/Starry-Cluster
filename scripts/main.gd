@@ -43,6 +43,7 @@ var next_wave_t := 3.0
 var kills := 0
 var message := ""
 var message_t := 0.0
+var message_col := Color(0.92, 0.97, 1.0)
 
 # Merchant mode: the Hesper March, one system loaded at a time.
 var merchant := false
@@ -709,9 +710,10 @@ func wheel_open() -> bool:
 	return wheel.visible
 
 
-func show_message(text: String, duration: float) -> void:
+func show_message(text: String, duration: float, col := Color(0.92, 0.97, 1.0)) -> void:
 	message = text
 	message_t = duration
+	message_col = col
 
 
 func apply_tactic(id: String) -> void:
@@ -1406,6 +1408,14 @@ func _run_merchant_test() -> void:
 						if traffic.incident.is_empty():
 							break
 					print("[raid] over after %ds; wrecks=%s; credits=%d" % [int(traffic.incident.get("t", 0.0)), traffic._wrecks, Career.credits])
+				elif what == "ambush":
+					# The Tallyman's ambush: his warning, the ion hit, tags and banner.
+					if station_ui.visible:
+						undock()
+					load_system("marcellus", "tiberine")
+					for i in 8:
+						await _wait(1.0)
+						_shot("look_ambush_%d" % i)
 				elif what == "ahead":
 					if station_ui.visible:
 						undock()
@@ -1719,6 +1729,8 @@ func _run_merchant_test() -> void:
 	Checks.check(Career.flags.get("tally_done", false) and Career.flags.get("franz_met", false), "Tallyman ambush resolved, Franz met")
 	Checks.check(story._tally.all(func(x): return not is_instance_valid(x) or x.team == 2), "Tallyman's ships stand down after the hail (nobody keeps shooting)")
 	Checks.check(is_instance_valid(player) and player.alive, "player survives the ambush")
+	Checks.check(Career.flags.has("tally_warned") and Career.comms_log.any(func(l): return l[2] == Data.charlie["raider"]), "ambush: he hails first and Charlie calls the raider")
+	Checks.check(story._tally.is_empty() or not is_instance_valid(story._tally[0]) or story._tally[0].display_name == "The Tallyman", "ambush: his tag turns to his name at the signoff")
 
 	# Kessler's board at Four, then the Red Stork near Amber's.
 	_go("four")
