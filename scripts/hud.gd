@@ -836,27 +836,43 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	_text(Vector2(262, 112), loan, 15, UIStyle.RED if Career.loan_balance > 0 else UIStyle.GREEN)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
-	# Objective line and a marker toward where to go next.
+	# Every station and jump in the system, named at the screen edge, so you
+	# always know where home is. The job's stop gets the bright arrow below.
+	if main.merchant and is_instance_valid(main.player) and main.docked_at == "":
+		_draw_nav_pips(vp)
+
+	# Objective line and a marker toward where to go next. The full slip
+	# fades when nothing changes; a short line stays pinned (playtest 11-26).
+	var fight: bool = main.in_combat
 	if not Career.objective.is_empty():
 		var ot: String = Career.objective["text"]
 		var sk := 1.0 - pow(1.0 - _slip_k, 3.0)
 		if sk > 0.01:
 			_draw_dispatch_slip(vp, ot, sk)
+		if sk < 0.99 and not fight:
+			_pinned_line(vp, "JOB", str(Neon.parse(ot)["text"]), 1.0 - sk)
 		var target: Node2D = main.objective_target()
 		if target and is_instance_valid(main.player):
 			var sp := _to_screen(target.global_position)
 			var col := Color(0.5, 1.0, 0.6, 0.85)
+			var dist := int(main.player.global_position.distance_to(target.global_position))
+			var name := _stop_name(target)
+			var hint := "" if fight or main.autopilot_on() else "[%s] autopilot" % Keys.key_name("autopilot")
 			if Rect2(Vector2.ZERO, vp).grow(-40).has_point(sp):
 				_brackets(sp, 62.0 + 4.0 * sin(t * 4.0), col, 2.5)
+				_text(sp + Vector2(0, 86), name, 14, col, true, true)
 			else:
 				# Ride the edge of the clear middle, inside the HUD panels.
-				var lane := Rect2(Vector2(60, 150), vp - Vector2(120, 150 + 240))
-				var center := lane.get_center()
-				var dir := (sp - center).normalized()
-				var edge := center + dir * minf(absf(lane.size.x * 0.5 / dir.x) if dir.x != 0 else 1e9, absf(lane.size.y * 0.5 / dir.y) if dir.y != 0 else 1e9)
+				var edge := _lane_edge(vp, sp)
+				var dir := (sp - _nav_lane(vp).get_center()).normalized()
 				draw_colored_polygon(PackedVector2Array([edge + dir * 18, edge + dir.rotated(2.5) * 13, edge + dir.rotated(-2.5) * 13]), col)
-				var dist := int(main.player.global_position.distance_to(target.global_position))
-				_text(edge - dir * 30 + Vector2(0, 5), "%d" % dist, 13, col, true)
+				var lp := edge - dir * 34
+				_text(lp + Vector2(0, -4), name, 14, col, true, true)
+				_text(lp + Vector2(0, 12), "%s km" % _km(dist), 13, col, true)
+				if hint != "":
+					_text(lp + Vector2(0, 27), hint, 12, UIStyle.GOLD, true)
+	elif main.merchant and main.docked_at == "" and not fight and not (main.story and main.story.scene in ["ambush", "ending"]):
+		_pinned_line(vp, "TRADE", _trade_hint(), 1.0)
 
 	if main.edge and not main.edge.slip.is_empty():
 		_draw_tow_slip(vp, main.edge.slip)
@@ -987,3 +1003,78 @@ func _draw_comms(vp: Vector2) -> void:
 	if not hov.is_empty():
 		var hr: Rect2 = hov[0]
 		draw_line(Vector2(hr.position.x, hr.end.y - 2), Vector2(hr.end.x, hr.end.y - 2), Color(Neon.color(hov[1]), 0.8 * a), 1.0)
+
+
+## The clear middle of the screen that edge markers ride, inside the HUD panels.
+func _nav_lane(vp: Vector2) -> Rect2:
+	return Rect2(Vector2(60, 150), vp - Vector2(120, 150 + 240))
+
+
+## Where a line from the middle toward an off-screen point meets the lane edge.
+func _lane_edge(vp: Vector2, sp: Vector2) -> Vector2:
+	var lane := _nav_lane(vp)
+	var center := lane.get_center()
+	var dir := (sp - center).normalized()
+	return center + dir * minf(absf(lane.size.x * 0.5 / dir.x) if dir.x != 0 else 1e9, absf(lane.size.y * 0.5 / dir.y) if dir.y != 0 else 1e9)
+
+
+func _stop_name(b: Node2D) -> String:
+	var n: String = b.label if b.label != "" else b.id
+	return n.replace("Jump point: ", "JUMP  ").to_upper()
+
+
+## No job: say what's in the hold and where it sells, or how trading works.
+func _trade_hint() -> String:
+	var best := ""
+	var tons := 0
+	for g in Career.cargo:
+		if int(Career.cargo[g]) > tons:
+			tons = int(Career.cargo[g])
+			best = g
+	if best == "":
+		return "Hold's empty. Buy what a station makes, sell where it's needed."
+	var where: Array = []
+	for sid in Data.stations:
+		if best in Data.stations[sid].get("wants", []):
+			where.append(Data.stations[sid]["nick"])
+	var gname: String = Data.goods[best]["name"].to_lower()
+	if where.is_empty():
+		return "%d t %s in the hold." % [tons, gname]
+	return "%d t %s in the hold. Needed at %s." % [tons, gname, ", ".join(where.slice(0, 3))]
+
+
+func _km(d: int) -> String:
+	return "%.1f" % (d / 1000.0) if d < 10000 else "%d" % (d / 1000)
+
+
+## A short job line that stays up after the full dispatch slip fades.
+func _pinned_line(vp: Vector2, tag: String, text: String, a: float) -> void:
+	var f: Font = Data.font_talk
+	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+	var gw := f.get_string_size(tag + "   ", HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+	var x := roundf(vp.x * 0.5 - (tw + gw) * 0.5)
+	for k in 6:
+		var g := 24.0 - k * 4.0
+		draw_rect(Rect2(x - g, 70 - g * 0.4, tw + gw + g * 2.0, 30 + g * 0.8), Color(0.016, 0.02, 0.047, 0.14 * a))
+	draw_string(f, Vector2(x, 92), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(UIStyle.GOLD, a))
+	draw_string(f, Vector2(x + gw, 92), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.9, 0.9, 0.94, a * 0.9))
+
+
+## Off-screen stations and jumps: a small mark and the name at the edge.
+func _draw_nav_pips(vp: Vector2) -> void:
+	var target: Node2D = main.objective_target()
+	var col := Color(COL_NEUTRAL, 0.75)
+	for b in main.bodies:
+		if not is_instance_valid(b) or b == target or not (b.kind == "station" or b.kind == "jump"):
+			continue
+		var sp := _to_screen(b.global_position)
+		if Rect2(Vector2.ZERO, vp).grow(-40).has_point(sp):
+			continue
+		var edge := _lane_edge(vp, sp)
+		var dir := (sp - _nav_lane(vp).get_center()).normalized()
+		draw_colored_polygon(PackedVector2Array([edge + dir * 7, edge + dir.rotated(PI * 0.5) * 5, edge - dir * 5, edge + dir.rotated(-PI * 0.5) * 5]), col)
+		var nm := _stop_name(b)
+		var half := ThemeDB.fallback_font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x * 0.5 + 8.0
+		var lp := edge - dir * 22 + Vector2(0, 4)
+		lp.x = clampf(lp.x, half, vp.x - half)
+		_text(lp, nm, 12, col, true)
