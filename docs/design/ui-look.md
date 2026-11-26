@@ -1,6 +1,6 @@
-# UI look: neon menus, pixel paper
+# UI look: neon everywhere
 
-Status: **signed by Vishnu 2026-11-25.** Pick 2026-11-25: "A + B mix".
+Status: **signed by Vishnu 2026-11-25.** Pick 2026-11-25: "A + B mix". **Changed 2026-11-26: all neon.** The pixel-paper contract mock was rejected ("way too illegible and ugly"); the neon contract was approved ("this is perfect"), then "Build it, all neon".
 Mocks: `/mnt/project-files/sector-secundus/ui-look/` (A, B, C, now).
 
 ## Why the old look read as slop
@@ -14,25 +14,19 @@ Mocks: `/mnt/project-files/sector-secundus/ui-look/` (A, B, C, now).
 
 ## The split
 
-**Menus are neon (B).** These are things you operate, not things in the world.
+Everything is neon: menus and documents alike. No paper, no clipboard.
+Each screen is mocked, shown, and built only after Vishnu OKs it.
 
-| Screen | Now | Becomes |
-| --- | --- | --- |
-| Careers register | clipboard sheet | neon list |
-| New career: pick a start | clipboard "Who were you?" | neon list of starts |
-| Settings, Controls (title) | clipboard sheets | neon |
-| Pause, Settings, Controls (Esc) | white caps | same neon as the title |
-| Title menu row | white Big Shoulders, hover underline | **unchanged** (locked) |
-
-**Documents are pixel paper (A).** These are things in the world that someone printed.
-
-| Screen | Order |
+| Screen | State |
 | --- | --- |
-| Start contract (Financing Agreement) | 1 |
-| Form ID-1, Form NK-2 (contact) | 2 |
-| Launch ID card | 3 |
-| Ransom receipt, sector bulletin, dispatch slip | 4 |
-| Journal and chart | 5 (biggest; last) |
+| Careers register, start picker, Settings, Controls, Pause | built |
+| Start files (contract + sealed starts) | built |
+| Title menu row | **unchanged** (locked) |
+| Form ID-1 (name, rig, photo) | next |
+| Form NK-2 (Dez contact) | then |
+| Launch ID card | then |
+| Ransom receipt, sector bulletin, dispatch slip | then |
+| Journal and chart | last (biggest) |
 
 ## Neon rules (menus)
 
@@ -45,14 +39,12 @@ Mocks: `/mnt/project-files/sector-secundus/ui-look/` (A, B, C, now).
 - Input: up/down or the mouse to select, Enter or a click to open, Esc to go back. Selection is remembered. Hover and selection play the same tick.
 - Anything destructive takes two presses: the row turns red and reads "VOID? DEL AGAIN". The second press deletes it.
 
-## Pixel paper rules (documents)
+## Documents in neon
 
-- Draw at the art's pixel scale (2 screen px per paper px), nearest filter, no anti-aliasing.
-- Small palette: 4 paper tones, plus ink black, form green, stamp red and pen blue.
-- Dithered hard shadow, a torn or perforated edge, a little wear (speckle, one coffee ring at most).
-- Pre-printed parts in form green: headers, rules, column heads. Filled-in parts in black.
-- Print font: VT323. Handwriting: Nanum Pen, rendered at pixel scale. Stamps: Big Shoulders Stencil at pixel scale.
-- Each sheet is sized to its content. No clipboard.
+- The issuer in tracked white Big Shoulders, the form name and file number dim beneath.
+- Typed content in VT323 on the dark; neon words glow in their colours.
+- Numbers and terms green. Handwriting (pen notes, signatures) stays Nanum Pen, glowing pink like a sign in a window.
+- One action row at the bottom (SIGN HERE, FILE IT), selected like any menu row.
 
 ## Copy rules (everywhere)
 
@@ -60,13 +52,12 @@ Mocks: `/mnt/project-files/sector-secundus/ui-look/` (A, B, C, now).
 - Actions are caps verbs: BACK, OPEN, VOID, SIGN.
 - The world doesn't explain itself. If a line only tells you how the UI works, cut it or move it to the footer key hints.
 
-## Font lock change
+## Fonts
 
-Courier Prime leaves the UI. Print on paper is VT323. Big Shoulders, Stencil and Nanum Pen stay.
+Courier Prime leaves the UI. Typed text is VT323. Big Shoulders, Stencil and Nanum Pen stay.
 
 ## References
 
-- **Papers Please:** pixel documents in a cramped palette. Every form looks printed by a bureaucracy, and nothing on it explains itself.
 - **Katana Zero:** menus as glowing text over the scene, a gold or red highlight, scanlines, flicker on open. We already use its word effects in the openings.
 - **Citizen Sleeper:** menus stay out of the art's way. Text on a dark wash, never a box.
 
@@ -79,7 +70,4 @@ Courier Prime leaves the UI. Print on paper is VT323. Big Shoulders, Stencil and
 
 ## Build order
 
-1. Careers register (neon). Show it.
-2. Pause, Settings and Controls (neon, title and in-flight sharing one script). Show them.
-3. New career start picker (neon).
-4. Documents to pixel paper, one per step as in the table above.
+Mock, show, build, one screen at a time, in the table's order.
