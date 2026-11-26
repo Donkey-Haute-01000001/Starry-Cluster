@@ -1656,10 +1656,18 @@ func _run_merchant_test() -> void:
 					if j:
 						player.position = j.global_position + Vector2(320, 120)
 					await _wait(1.0)
+				elif what.begins_with("notice_"):
+					# notice_<station>_<n>: a station notice opened as its neon file.
+					var bits := what.split("_")
+					Career.flags["franz_met"] = true
+					_go(bits[1])
+					await _wait(0.3)
+					station_ui._open_notice(station_ui._notices()[int(bits[2])])
+					await _wait(0.6)
 				else:
 					Career.flags["franz_met"] = true
 					_go(what)
-					await _wait(0.3)
+					await _wait(1.0)
 				_shot("look_" + what)
 			get_tree().quit()
 			return
@@ -1808,6 +1816,10 @@ func _run_merchant_test() -> void:
 
 	# Saltgate's bar.
 	Career.credits += 2000
+	# The neon station screen: both captains on the notices, a market row per good.
+	var bar_rows: Array = station_ui._notices().filter(func(n): return n.get("issuer") == "SALTGATE BAR")
+	var goods_rows: Array = station_ui._items.filter(func(it): return it["kind"] == "good")
+	Checks.check(bar_rows.size() == 2 and goods_rows.size() == Data.goods_order.size(), "station: market rows and both bar captains listed")
 	print("[bar] hire fay=%s mersham=%s escorts=%s bond=%s" % [Career.hire("fay"), Career.hire("mersham"), escorts.map(func(e): return e.display_name), Career.flags.get("bond")])
 	Checks.check(Career.crew.has("fay") and Career.crew.has("mersham"), "Fay and Mersham hired")
 	# Save and load round trip.

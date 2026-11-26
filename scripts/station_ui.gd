@@ -1,163 +1,51 @@
 extends Control
+## The docked screen, in neon (docs/design/ui-look.md). Time is paused while
+## it's open, like landing in Endless Sky. The station hangs on the left; one
+## page on the dark fade to the right: market, ledger, jobs, the Charter
+## account and the station's notices. Comms play under the station.
+## Up/down picks, left/right sells/buys (Shift 10, Ctrl all), Enter opens,
+## F undocks. The mouse does the same: hover picks, click buys, right click sells.
 
 const Neon = preload("res://scripts/neon.gd")
-## The docked screen. Time is paused while it's open, like landing in Endless Sky.
-## Market for every good, captain status, the job board, Charlie's dispatch desk
-## at the Counter, and the comms log. Each station is its own wall of physical
-## things: a chalk price board, your ledger, pinned manifests, the Charter's
-## file, the radio. Their print, our handwriting.
+const NeonNotice = preload("res://scripts/neon_notice.gd")
+
+const WHITE := Color(0.9, 0.9, 0.94)
+const DIM := Color(0.47, 0.49, 0.56)
+const OFF := Color(0.3, 0.31, 0.37)
+const BODY := Color(0.63, 0.65, 0.71)
+const RED := Color(1.0, 0.3, 0.33)
+const BG := Color(0.016, 0.02, 0.047)
+const ROW := 30          ## market row text size
+const ROW_H := 36.0
+const SMALL := 20
+const SEC := 18          ## section label size
+const HINT := 24
 
 var main: Node
 var station_id := ""
 
-var _kicker: Label
-var _title: Label
-var _sub: Label
-var _clock_k: Label
-var _clock_v: Label
-var _desc: Label
-var _market: GridContainer
-var _stats: VBoxContainer
-var _hold_bar: ProgressBar
-var _jobs: VBoxContainer
-var _dispatch: VBoxContainer
-var _comms_box: PanelContainer
-var _comms_face: Control
-var _comms_who: Label
-var _comms_text: RichTextLabel
+## Everything you can land on, in order: {"kind", "rect", ...}.
+## kind "good": {"good"}; kind "act": {"text", "cb", "on"}.
+var _items: Array = []
+var _sel := 0
+var _age := 0.0
+var _hint_rects: Array = []
+var _sub_rects: Array = []     ## [Rect2, dir] for SELL / BUY on the picked good
 var _log: Array = []
-var _wall: Control
-
-const CHALK := Color(0.9, 0.9, 0.86)
-const CHALK_DIM := Color(0.62, 0.66, 0.62)
-const CHALK_YELLOW := Color(0.96, 0.85, 0.45)
-const CHALK_GREEN := Color(0.6, 0.9, 0.62)
-const MANILA := Color(0.84, 0.74, 0.5)
+var _comms_text: RichTextLabel
+var _notice: Control
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_wall = Control.new()
-	_wall.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_wall.draw.connect(_draw_wall)
-	add_child(_wall)
-
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var panel := MarginContainer.new()
-	panel.custom_minimum_size = Vector2(1340, 760)
-	center.add_child(panel)
-
-	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 12)
-	panel.add_child(root)
-
-	# Header: the station's sign plate, bolted to the wall; the shift clock on the right.
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 24)
-	root.add_child(head)
-	var plate := PanelContainer.new()
-	plate.add_theme_stylebox_override("panel", _box(Color(0.07, 0.07, 0.07, 0.92), Color(0, 0, 0, 0), 0, 16))
-	plate.draw.connect(func(): _bolts(plate, Rect2(Vector2.ZERO, plate.size)))
-	head.add_child(plate)
-	var left_head := VBoxContainer.new()
-	left_head.add_theme_constant_override("separation", 0)
-	plate.add_child(left_head)
-	_kicker = _label(left_head, "", 12, CHALK_DIM)
-	_kicker.add_theme_font_override("font", Data.font_type)
-	_title = _label(left_head, "", 42, Color(0.92, 0.97, 1.0))
-	if Data.font_stamp:
-		_title.add_theme_font_override("font", Data.font_stamp)
-	_sub = _label(left_head, "", 14, CHALK_DIM)
-	_sub.add_theme_font_override("font", Data.font_type)
-	var mid := VBoxContainer.new()
-	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mid.alignment = BoxContainer.ALIGNMENT_CENTER
-	head.add_child(mid)
-	# The station's blurb on a small enamel placard, so the stripe runs behind it.
-	var placard := PanelContainer.new()
-	placard.add_theme_stylebox_override("panel", _box(Color(0.08, 0.08, 0.08, 0.9), Color(0.3, 0.3, 0.28), 1, 10))
-	placard.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	mid.add_child(placard)
-	_desc = _label(placard, "", 14, Color(0.85, 0.85, 0.8))
-	_desc.add_theme_font_override("font", Data.font_type)
-	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_desc.custom_minimum_size.x = 520
-	var clock := PanelContainer.new()
-	clock.add_theme_stylebox_override("panel", _box(Color(0.04, 0.05, 0.04, 0.95), Color(0.3, 0.3, 0.28), 2, 10))
-	clock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(clock)
-	var cv0 := VBoxContainer.new()
-	cv0.add_theme_constant_override("separation", 0)
-	clock.add_child(cv0)
-	_clock_k = _label(cv0, "", 18, Color(1.0, 0.55, 0.25))
-	_clock_k.add_theme_font_override("font", Data.font_type_bold)
-	_clock_k.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_clock_v = _label(cv0, "", 13, Color(0.9, 0.6, 0.35))
-	_clock_v.add_theme_font_override("font", Data.font_type)
-	_clock_v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-
-	var cols := HBoxContainer.new()
-	cols.add_theme_constant_override("separation", 18)
-	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(cols)
-
-	var market_card := _card(cols, "PRICES TODAY", "chalk")
-	market_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	market_card.size_flags_stretch_ratio = 1.9
-	_market = GridContainer.new()
-	_market.columns = 7
-	_market.add_theme_constant_override("h_separation", 8)
-	_market.add_theme_constant_override("v_separation", 9)
-	market_card.get_child(0).add_child(_market)
-
-	var side := VBoxContainer.new()
-	side.add_theme_constant_override("separation", 18)
-	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cols.add_child(side)
-	var cap := _card(side, "MY LEDGER", "ledger")
-	_stats = VBoxContainer.new()
-	_stats.add_theme_constant_override("separation", 4)
-	cap.get_child(0).add_child(_stats)
-	var jobs_card := _card(side, "JOBS", "wall")
-	_jobs = VBoxContainer.new()
-	_jobs.add_theme_constant_override("separation", 8)
-	jobs_card.get_child(0).add_child(_jobs)
-	_dispatch = VBoxContainer.new()
-	_dispatch.add_theme_constant_override("separation", 8)
-	side.add_child(_dispatch)
-
-	# Comms: portrait, speaker, and the last few lines.
-	_comms_box = PanelContainer.new()
-	var csb := StyleBoxFlat.new()
-	csb.bg_color = Color(0.06, 0.065, 0.07, 0.95)
-	csb.border_color = Color(0.32, 0.33, 0.33)
-	csb.set_border_width_all(2)
-	csb.border_width_left = 4
-	csb.set_content_margin_all(14)
-	_comms_box.add_theme_stylebox_override("panel", csb)
-	root.add_child(_comms_box)
-	var crow := HBoxContainer.new()
-	crow.add_theme_constant_override("separation", 16)
-	_comms_box.add_child(crow)
-	_comms_face = Control.new()
-	_comms_face.custom_minimum_size = Vector2(60, 72)
-	_comms_face.draw.connect(_draw_face)
-	crow.add_child(_comms_face)
-	var cv := VBoxContainer.new()
-	cv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	crow.add_child(cv)
-	_comms_who = _label(cv, "", 13, UIStyle.GOLD)
-	_comms_who.add_theme_font_override("font", Data.font_type_bold)
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	_comms_text = RichTextLabel.new()
 	_comms_text.bbcode_enabled = true
 	_comms_text.fit_content = true
 	_comms_text.scroll_active = false
 	_comms_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_comms_text.custom_minimum_size.x = 1100
-	_comms_text.add_theme_font_size_override("normal_font_size", 22)
+	_comms_text.add_theme_font_size_override("normal_font_size", 24)
 	if Data.font_talk:
 		_comms_text.add_theme_font_override("normal_font", Data.font_talk)
 	_comms_text.add_theme_color_override("default_color", Data.TALK_BODY)
@@ -167,551 +55,511 @@ func _ready() -> void:
 		var bits := str(m).split("|")
 		if bits.size() == 2:
 			main.journal.open_to(bits[0], bits[1]))
-	cv.add_child(_comms_text)
-
-	var foot := HBoxContainer.new()
-	foot.alignment = BoxContainer.ALIGNMENT_END
-	root.add_child(foot)
-	var undock := Button.new()
-	undock.text = "UNDOCK  [F]"
-	undock.custom_minimum_size = Vector2(220, 48)
-	undock.focus_mode = Control.FOCUS_NONE
-	undock.add_theme_font_size_override("font_size", 20)
-	if Data.font_stamp:
-		undock.add_theme_font_override("font", Data.font_stamp)
-	for st in ["normal", "hover", "pressed"]:
-		undock.add_theme_stylebox_override(st, _box(Color(0.1, 0.09, 0.06) if st == "normal" else Color(0.2, 0.16, 0.06), Color(0.95, 0.75, 0.15), 3, 12))
-	undock.add_theme_color_override("font_color", Color(0.95, 0.75, 0.15))
-	undock.add_theme_color_override("font_hover_color", Color(1, 0.88, 0.4))
-	undock.draw.connect(func(): _hazard(undock, Rect2(Vector2(4, undock.size.y - 8), Vector2(undock.size.x - 8, 4))))
-	undock.pressed.connect(func(): main.undock())
-	foot.add_child(undock)
-
+	add_child(_comms_text)
 	Career.changed.connect(_refresh)
 	Career.comms.connect(_on_comms)
+	resized.connect(_refresh)
 	visible = false
 
 
-func _label(parent: Control, text: String, sz := 16, col := UIStyle.TEXT) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", sz)
-	l.add_theme_color_override("font_color", col)
-	parent.add_child(l)
-	return l
-
-
-## A titled board on the wall. Kinds: chalk (price board), ledger (your own
-## lined notebook, in pen), manila (the Charter's file), wall (stencil on the
-## bulkhead, with things pinned under it). Returns the card; first child is the body.
-func _card(parent: Control, title: String, kind := "wall") -> PanelContainer:
-	var c := PanelContainer.new()
-	c.set_meta("kind", kind)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
-	var t: Label
-	match kind:
-		"chalk":
-			var sb := _box(Color(0.1, 0.13, 0.115), Color(0.36, 0.25, 0.15), 10, 18)
-			c.add_theme_stylebox_override("panel", sb)
-			c.draw.connect(func(): _chalk_dust(c))
-			c.add_child(v)
-			t = _label(v, title, 26, CHALK)
-			t.add_theme_font_override("font", Data.font_hand)
-		"ledger":
-			var lb := _box(UIStyle.PAPER, UIStyle.PAPER_SHADE, 1, 12)
-			lb.content_margin_left = 44
-			c.add_theme_stylebox_override("panel", lb)
-			c.draw.connect(func(): _ruled(c))
-			c.rotation = deg_to_rad(0.5)
-			c.add_child(v)
-			t = _label(v, title, 13, UIStyle.INK_FADED)
-			t.add_theme_font_override("font", Data.font_type_bold)
-		"manila":
-			c.add_theme_stylebox_override("panel", _box(MANILA, MANILA.darkened(0.2), 1, 14))
-			c.rotation = deg_to_rad(-0.4)
-			c.add_child(v)
-			t = _label(v, title, 14, UIStyle.INK_STAMP)
-			t.add_theme_font_override("font", Data.font_stamp)
-		_:
-			c.add_theme_stylebox_override("panel", _box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 4))
-			c.add_child(v)
-			t = _label(v, title, 22, _stripe().lightened(0.1))
-			t.add_theme_font_override("font", Data.font_stamp)
-	parent.add_child(c)
-	return c
-
-
-func _box(bg: Color, border: Color, bw: int, margin: float) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(bw)
-	sb.set_content_margin_all(margin)
-	sb.shadow_color = Color(0, 0, 0, 0.35 if bg.a > 0.5 else 0.0)
-	sb.shadow_size = 6
-	sb.shadow_offset = Vector2(3, 4)
-	return sb
-
-
-func _wall_def() -> Dictionary:
-	return Data.station_walls.get(station_id, {"wall": Color(0.2, 0.22, 0.24), "stripe": Color(0.8, 0.8, 0.8), "wear": 0.5})
-
-
-func _stripe() -> Color:
-	return _wall_def()["stripe"]
-
-
-## The bulkhead: painted plates, seams, rivets, the station's stripe, grime.
-func _draw_wall() -> void:
-	var w := _wall_def()
-	var sz := _wall.size
-	var base: Color = w["wall"]
-	var wear: float = w["wear"]
-	_wall.draw_rect(Rect2(Vector2.ZERO, sz), base)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = station_id.hash()
-	var ph := 150.0
-	var row := 0
-	var y := -40.0
-	while y < sz.y:
-		var x := -rng.randf_range(0, 200)
-		while x < sz.x:
-			var pw := rng.randf_range(220, 380)
-			var tone := rng.randf_range(-0.035, 0.035)
-			_wall.draw_rect(Rect2(x + 2, y + 2, pw - 4, ph - 4), Color(base.r + tone, base.g + tone, base.b + tone))
-			# Seam shadow and highlight, rivets in the corners.
-			_wall.draw_rect(Rect2(x, y, pw, 2), base.darkened(0.45))
-			_wall.draw_rect(Rect2(x, y, 2, ph), base.darkened(0.45))
-			_wall.draw_rect(Rect2(x + 2, y + 2, pw - 4, 1), base.lightened(0.08))
-			for k in [Vector2(10, 10), Vector2(pw - 12, 10), Vector2(10, ph - 12), Vector2(pw - 12, ph - 12)]:
-				_wall.draw_rect(Rect2(Vector2(x, y) + k, Vector2(3, 3)), base.darkened(0.35))
-				_wall.draw_rect(Rect2(Vector2(x, y) + k, Vector2(2, 2)), base.lightened(0.12))
-			# Stains and scuffs, more on worn stations.
-			if rng.randf() < wear * 0.6:
-				var sp := Vector2(x + rng.randf_range(10, pw - 40), y + rng.randf_range(10, ph - 20))
-				for d in 6:
-					_wall.draw_rect(Rect2(sp + Vector2(rng.randf_range(-8, 8), d * rng.randf_range(4, 9)), Vector2(rng.randf_range(4, 26), 3)), Color(0, 0, 0, 0.08 + 0.05 * wear))
-			x += pw
-		y += ph
-		row += 1
-	# The painted stripe round the room, chipped.
-	var sy := sz.y * 0.5 - 392.0  # runs behind the sign plate, clear of the boards
-	var stripe: Color = w["stripe"]
-	_wall.draw_rect(Rect2(0, sy, sz.x, 14), Color(stripe.r, stripe.g, stripe.b, 0.55))
-	for i in int(sz.x / 9.0 * wear):
-		_wall.draw_rect(Rect2(rng.randf() * sz.x, sy + rng.randf_range(0, 12), rng.randf_range(3, 10), rng.randf_range(2, 5)), base)
-	if w.get("hazard", false):
-		_hazard(_wall, Rect2(0, sz.y - 22, sz.x, 22))
-	# Grime collects low on the wall; light falls from above.
-	for i in 12:
-		var f := float(i) / 12.0
-		_wall.draw_rect(Rect2(0, sz.y * (0.6 + f * 0.4), sz.x, sz.y * 0.04), Color(0, 0, 0, 0.03 + 0.04 * wear * f))
-		_wall.draw_rect(Rect2(0, sz.y * f * 0.25, sz.x, sz.y * 0.025), Color(1, 0.95, 0.85, 0.012 * (1.0 - f)))
-
-
-func _bolts(ci: Control, r: Rect2) -> void:
-	for k in [Vector2(6, 6), Vector2(r.size.x - 10, 6), Vector2(6, r.size.y - 10), Vector2(r.size.x - 10, r.size.y - 10)]:
-		ci.draw_rect(Rect2(k, Vector2(4, 4)), Color(0.45, 0.45, 0.42))
-		ci.draw_rect(Rect2(k + Vector2(1, 1), Vector2(2, 1)), Color(0.75, 0.75, 0.7))
-
-
-func _hazard(ci: CanvasItem, r: Rect2) -> void:
-	ci.draw_rect(r, Color(0.08, 0.07, 0.05))
-	var x := r.position.x - r.size.y
-	while x < r.end.x:
-		var pts := PackedVector2Array([Vector2(x, r.end.y), Vector2(x + r.size.y, r.position.y), Vector2(x + r.size.y + 10, r.position.y), Vector2(x + 10, r.end.y)])
-		for i in pts.size():
-			pts[i].x = clampf(pts[i].x, r.position.x, r.end.x)
-		ci.draw_colored_polygon(pts, Color(0.9, 0.7, 0.12, 0.85))
-		x += 20
-
-
-## Old chalk ghosts on the board: last week's prices never quite wipe off.
-func _chalk_dust(c: Control) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = station_id.hash() + 3
-	for i in 60:
-		var p := Vector2(rng.randf() * c.size.x, rng.randf() * c.size.y)
-		c.draw_rect(Rect2(p, Vector2(rng.randf_range(10, 60), 2)), Color(1, 1, 1, 0.025))
-	c.draw_rect(Rect2(Vector2(14, c.size.y - 14), Vector2(c.size.x - 28, 5)), Color(0.3, 0.21, 0.13))  # chalk ledge
-
-
-## Ruled lines and a red margin on your ledger.
-func _ruled(c: Control) -> void:
-	c.draw_line(Vector2(34, 4), Vector2(34, c.size.y - 4), Color(0.8, 0.3, 0.3, 0.4), 1.0)
-
-
-## Letter-spaced caps for small headings.
-func _spaced(s: String) -> String:
-	return " ".join(s.split(""))
-
-
 func open(id: String) -> void:
+	_close_notice()
 	station_id = id
-	var st: Dictionary = Data.stations[id]
-	var sys: Dictionary = Data.systems[st["system"]]
-	_kicker.text = "%s SYSTEM · %s SPACE · %s" % [sys["name"].to_upper(), sys["security"].to_upper(), Data.sector["name"].to_upper()]
-	_title.text = st["nick"].to_upper()
-	_title.add_theme_color_override("font_color", _stripe().lerp(Color(1, 1, 1), 0.25))
-	_wall.queue_redraw()
-	_sub.text = st["name"]
-	_desc.text = st["desc"]
 	_log.clear()
-	_comms_who.text = ""
 	_comms_text.text = ""
-	_comms_box.visible = false
+	_comms_text.visible = false
+	_sel = 0
+	_age = 0.0
 	visible = true
+	Sfx.play("neon", -12.0)
 	_refresh()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("interact"):
-		get_viewport().set_input_as_handled()
-		main.undock()
-
-
-## Shows the last few lines, newest at the bottom, so back-to-back lines aren't lost.
-func _on_comms(speaker: String, text: String) -> void:
-	_log.append([speaker, text])
-	if _log.size() > 2:
-		_log.pop_front()
-	var last: Array = _log[-1]
-	_comms_who.text = last[0].to_upper()
-	var lines := []
-	for i in _log.size() - 1:
-		lines.append("%s:  %s" % [_log[i][0], Neon.bbcode(_log[i][1])])
-	lines.append(Neon.bbcode(last[1]))
-	_comms_text.text = "\n\n".join(lines)
-	_comms_box.visible = true
-	_comms_face.queue_redraw()
-
-
-func _draw_face() -> void:
-	if _log.is_empty():
+func _process(delta: float) -> void:
+	if not visible:
 		return
-	UIStyle.draw_id_photo(_comms_face, Rect2(Vector2(3, 3), _comms_face.size - Vector2(6, 6)), Data.portrait_for(_log[-1][0]), "", str(_log[-1][0]).hash(), str(_log[-1][0]))
+	_age += delta
+	if _comms_text.visible:
+		_place_comms()   # the line's height settles a frame after it's set
+	queue_redraw()   # flicker on, the station turning, the pick's glow
+
+
+# --- Layout ------------------------------------------------------------------------
+
+func _x0() -> float:
+	return roundf(size.x * 0.4375)
 
 
 func _refresh() -> void:
-	if not visible:
+	if not visible or station_id == "":
 		return
-	var days_left := int(Career.next_payment_day) - int(Career.day)
-	_clock_k.text = "DAY %02d · WK %d" % [int(Career.day) + 1, Career.week()]
-	_clock_v.text = "Loan paid off" if Career.loan_balance <= 0 else ("Payment due tomorrow" if days_left <= 1 else "Next payment in %d days" % days_left)
-
-	for c in _market.get_children():
-		c.queue_free()
-	var trader: bool = Career.friend_with_you() and Career.friend["role"] == "trader"
-	for h in ["", "price" if not trader else "buy / sell", "in hold", "", "", "", ""]:
-		var hl := _chalk(_market, h.to_upper(), 11, CHALK_DIM)
-		if h != "":
-			hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var st: Dictionary = Data.stations[station_id]
+	var keep: Dictionary = _items[_sel] if _sel < _items.size() else {}
+	_items.clear()
+	var x0 := _x0()
+	var y := _market_top()
 	for g in Data.goods_order:
-		var col := CHALK
-		var tag := ""
-		if g in st["makes"]:
-			col = CHALK_GREEN
-			tag = "made here"
-		elif g in st["wants"]:
-			col = CHALK_YELLOW
-			tag = "NEEDED!"
-		# Name, tag and the dockworkers' slang underneath, all in chalk.
-		var cell := VBoxContainer.new()
-		cell.add_theme_constant_override("separation", -2)
-		cell.custom_minimum_size.x = 250
-		_market.add_child(cell)
-		var nrow := HBoxContainer.new()
-		nrow.add_theme_constant_override("separation", 10)
-		cell.add_child(nrow)
-		_chalk(nrow, Data.goods[g]["name"], 18, col)
-		if tag != "":
-			var tl := _chalk(nrow, tag, 20, col, true)
-			tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			tl.draw.connect(func(): tl.draw_line(Vector2(0, tl.size.y - 4), Vector2(tl.size.x, tl.size.y - 6), Color(col, 0.7), 1.5))
-		_typed(cell, "\"%s\"" % Data.goods[g]["slang"], 12, CHALK_DIM).tooltip_text = Data.goods[g]["desc"]
-		cell.tooltip_text = Data.goods[g]["desc"]
-		cell.mouse_filter = Control.MOUSE_FILTER_PASS
-
-		var bp := Career.buy_price(station_id, g)
-		var sp := Career.sell_price(station_id, g)
-		var ptxt := "%s" % Career.fmt(bp) if bp == sp else "%s / %s" % [Career.fmt(bp), Career.fmt(sp)]
-		var pl := _chalk(_market, ptxt, 20, CHALK)
-		pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		pl.custom_minimum_size.x = 90
-		var owned: int = Career.cargo.get(g, 0)
-		var job: int = Career.job_cargo.get(g, 0)
-		var hl2 := _chalk(_market, (str(owned) if owned > 0 else "-") + (" +%d job" % job if job > 0 else ""), 17, CHALK if owned + job > 0 else CHALK_DIM)
-		hl2.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		hl2.custom_minimum_size.x = 80
-		_button(_market, "Buy 1", func(): Career.buy(station_id, g, 1))
-		_button(_market, "Buy 10", func(): Career.buy(station_id, g, 10))
-		_button(_market, "Sell 1", func(): Career.sell(station_id, g, 1), owned > 0)
-		_button(_market, "Sell all", func(): Career.sell(station_id, g, 9999), owned > 0)
-
-	for c in _stats.get_children():
-		c.queue_free()
-	_stat("Credits", Career.fmt(Career.credits))
-	_stat("Hold", "%d / %d t" % [Career.cargo_used(), Career.cargo_capacity])
-	if Career.loan_balance > 0:
-		_stat("Charter loan", Career.fmt(Career.loan_balance), UIStyle.INK_STAMP)
-		_stat("Next payment", "%s, day %d" % [Career.fmt(mini(Data.LOAN_WEEKLY, Career.loan_balance)), int(Career.next_payment_day) + 1])
-	else:
-		_stat("Charter loan", "PAID!! all of it", Color(0.15, 0.45, 0.2))
-		_stat("Papers", "came through", Color(0.15, 0.45, 0.2))
-	if Career.friend_with_you():
-		var role: Dictionary = Data.friend_roles[Career.friend["role"]]
-		_stat("Flying with me", "%s, %s" % [Career.friend["name"], role["name"].to_lower()])
-
-	for c in _jobs.get_children():
-		c.queue_free()
-	if Career.jobs.is_empty():
-		var none := _label(_jobs, "Nothing pinned. Buy where a good is made, sell where it's needed.", 14, CHALK_DIM)
-		none.add_theme_font_override("font", Data.font_type)
-		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var n := 0
-	for j in Career.jobs:
-		var where := "pick up at %s" % Data.stations[j["from"]]["nick"] if not j["loaded"] else "deliver to %s" % Data.stations[j["to"]]["nick"]
-		# A typed manifest slip, pinned.
-		var slip := PanelContainer.new()
-		slip.add_theme_stylebox_override("panel", _box(UIStyle.PAPER, UIStyle.PAPER_SHADE, 1, 10))
-		slip.rotation = deg_to_rad(0.7 if n % 2 == 0 else -0.6)
-		# A strip of masking tape holds it to the wall.
-		slip.draw.connect(func(): slip.draw_rect(Rect2(slip.size.x * 0.5 - 28, -7, 56, 15), Color(0.86, 0.8, 0.62, 0.85)))
-		_jobs.add_child(slip)
-		var box := VBoxContainer.new()
-		box.add_theme_constant_override("separation", 0)
-		slip.add_child(box)
-		_typed(box, "MANIFEST · " + j["title"].split(":")[0].to_upper(), 13, UIStyle.INK_TYPE, true)
-		_typed(box, "%d t %s, %s" % [j["tons"], Data.goods[j["good"]]["name"].to_lower(), where], 14, UIStyle.INK_TYPE)
-		_typed(box, "PAYS %s CR" % Career.fmt(j["pay"]), 12, UIStyle.INK_FADED)
-		n += 1
-
-	for c in _dispatch.get_children():
-		c.queue_free()
-	if station_id == "counter" and Career.loan_balance > 0:
-		var d := _card(_dispatch, "CHARTER COMPANY · ACCOUNT CC-40817-M", "manila")
-		_typed(d.get_child(0), "Rig loan, company terms. Balance %s cr. Early payments accepted." % Career.fmt(Career.loan_balance), 13, UIStyle.INK_TYPE).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_items.append({"kind": "good", "good": g, "rect": Rect2(x0 - 30, y - ROW_H * 0.5, size.x - x0 - 30, ROW_H)})
+		y += ROW_H
+	# Actions on the right column: the Charter account, then notices.
+	var ax := x0 + _col2()
+	var ay := _lower_top() + _jobs_h()
+	if _charter_open():
+		ay += 34.0
 		if Career.arrears > 0:
-			_typed(d.get_child(0), "OVERDUE %s CR  ·  STRIKE %d OF 2%s" % [Career.fmt(Career.arrears), Career.strikes, "  ·  RECOVERY DISPATCHED" if Career.strikes >= 2 else ""], 14, UIStyle.INK_STAMP, true)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		d.get_child(0).add_child(row)
-		if Career.arrears > 0:
-			_button(row, "PAY OVERDUE", func(): Career.pay_extra(Career.arrears), Career.credits >= Career.arrears, "stamp")
-		_button(row, "PAY 1,000 EXTRA", func(): Career.pay_extra(1000), Career.credits > 0, "stamp")
-		_button(row, "PAY IN FULL", func(): Career.pay_extra(Career.loan_balance), Career.credits >= Career.loan_balance, "stamp")
-	if station_id == "four" and Career.flags.get("franz_met", false) and not Career.flags.get("bounty_paid", false):
-		_bounty_notice()
-	if station_id == "saltgate":
-		_bar()
-	# The forks: Kessler's commission at Four, the Tallyman's job at Amber's.
+			ay += 30.0
+		var ax2 := ax
+		for a in _charter_acts():
+			var w: float = Data.font_talk.get_string_size(a[0], HORIZONTAL_ALIGNMENT_LEFT, -1, ROW).x
+			_items.append({"kind": "act", "text": a[0], "cb": a[1], "on": a[2], "rect": Rect2(ax2 - 4, ay - 22, w + 8, 32)})
+			ax2 += w + 34.0
+		ay += 40.0
+	var ns := _notices()
+	if not ns.is_empty():
+		ay += 34.0
+		for n in ns:
+			_items.append({"kind": "act", "text": n["row"], "cb": _open_notice.bind(n), "on": true, "tint": n.get("tint", WHITE),
+				"rect": Rect2(ax - 30, ay - 22, size.x - ax - 30, 32)})
+			ay += 32.0
+	# Keep the pick on the same thing if it's still here.
+	_sel = 0
+	for i in _items.size():
+		var it: Dictionary = _items[i]
+		if not keep.is_empty() and it["kind"] == keep["kind"] and it.get("good", "") == keep.get("good", "") and it.get("text", "") == keep.get("text", ""):
+			_sel = i
+	_place_comms()
+	queue_redraw()
+
+
+func _market_top() -> float:
+	return 262.0
+
+
+func _lower_top() -> float:
+	return _market_top() + Data.goods_order.size() * ROW_H + 34.0
+
+
+func _col2() -> float:
+	return 440.0
+
+
+func _jobs_h() -> float:
+	return 34.0 + maxf(1, Career.jobs.size()) * 80.0 - (50.0 if Career.jobs.is_empty() else 0.0)
+
+
+func _charter_open() -> bool:
+	return station_id == "counter" and Career.loan_balance > 0
+
+
+func _charter_acts() -> Array:
+	var out := []
+	if Career.arrears > 0:
+		out.append(["PAY OVERDUE", func(): Career.pay_extra(Career.arrears), Career.credits >= Career.arrears])
+	out.append(["PAY 1,000 EXTRA", func(): Career.pay_extra(1000), Career.credits > 0])
+	out.append(["PAY IN FULL", func(): Career.pay_extra(Career.loan_balance), Career.credits >= Career.loan_balance])
+	return out
+
+
+## The station's notices: each a row that opens as a neon file.
+## {"row", "issuer", "form", "body", "pen" (pink), "sign", "verb", "cb", "done"}
+func _notices() -> Array:
+	var out := []
 	var side: String = Career.flags.get("side", "")
+	if station_id == "four" and Career.flags.get("franz_met", false) and not Career.flags.get("bounty_paid", false):
+		var b: Dictionary = Data.bounty
+		var state := ""
+		if Career.flags.get("bounty_killed", false):
+			state = "DONE, COLLECT HERE"
+		elif Career.flags.get("bounty_taken", false):
+			state = "TAKEN"
+		out.append({"row": b["title"], "issuer": "NAVY NOTICE", "form": "MARCELLUS PATROL", "body": b["text"], "sign": b["sign"],
+			"verb": "TAKE IT", "done": state, "cb": func():
+				Sfx.play("tick")
+				Career.take_bounty()})
 	if station_id == "four" and Career.flags.get("franz_pitch", false) and side == "" and not Career.flags.get("tally_job", false):
-		_fork_note("NAVY COMMISSION · MARCELLUS PATROL", Data.forks["navy_offer"], "Lt. F. Kessler", "SIGN IT", func(): Career.sign_navy(), UIStyle.PAPER, deg_to_rad(-0.8))
+		out.append({"row": "NAVY COMMISSION", "issuer": "NAVY COMMISSION", "form": "MARCELLUS PATROL", "body": Data.forks["navy_offer"],
+			"sign": "Lt. F. Kessler", "verb": "SIGN IT", "cb": func():
+				Sfx.play("stamp")
+				Career.sign_navy()})
 	if station_id == "ambers" and Career.flags.get("tally_offered", false) and side == "" and not Career.flags.get("tally_job", false):
-		_fork_note("ONE RIG", Data.forks["tally_offer"], "IIII IIII IIII II", "I'M IN", func(): Career.take_tally_job(), Color(0.8, 0.76, 0.66), deg_to_rad(1.8))
+		out.append({"row": "ONE RIG", "issuer": "ONE RIG", "form": "", "body": Data.forks["tally_offer"],
+			"sign": "IIII IIII IIII II", "verb": "I'M IN", "tint": Neon.color("tally"), "cb": func():
+				Sfx.play("stamp")
+				Career.take_tally_job()})
 	var shady := Career.shady_offer(station_id)
 	if not shady.is_empty():
 		Career.flags["shady_seen"] = true
-		_shady_note(shady)
+		out.append({"row": Data.shady["title"], "issuer": Data.shady["title"], "form": "",
+			"pen": Data.shady["text"] % [Data.stations[shady["to"]]["nick"], Career.fmt(shady["pay"])],
+			"sign": "- " + Data.shady["sign"], "verb": "TAKE THE CRATES", "cb": func():
+				Sfx.play("tick")
+				Career.take_shady(shady)})
+	if station_id == "saltgate":
+		for id in Data.captain_order:
+			var c: Dictionary = Data.captains[id]
+			var hired: bool = Career.crew.has(id)
+			out.append({"row": "%s   %s CR/WK%s" % [c["name"], Career.fmt(c["wage"]), "   HIRED" if hired else ""],
+				"issuer": "SALTGATE BAR", "form": "BY THE DOOR", "pen": "%s %s cr/week" % [c["note"], Career.fmt(c["wage"])],
+				"body": c["pitch"], "sign": c["full"], "portrait": c.get("name", id), "verb": "HIRE",
+				"done": "HIRED" if hired else ("" if Career.credits >= c["wage"] else "SHORT OF CREDITS"), "cb": func():
+					Sfx.play("stamp", -6.0)
+					Career.hire(id)})
+	return out
 
 
-## An offer that picks a side: typed, signed in pen, one stamp to take it.
-func _fork_note(title: String, text: String, sign: String, verb: String, cb: Callable, bg: Color, rot: float) -> void:
-	var paper := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.set_content_margin_all(12)
-	paper.add_theme_stylebox_override("panel", sb)
-	paper.rotation = rot
-	_dispatch.add_child(paper)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	paper.add_child(v)
-	var t := _label(v, title, 15, UIStyle.INK_TYPE)
-	if Data.font_type_bold:
-		t.add_theme_font_override("font", Data.font_type_bold)
-	var body := _label(v, text, 13, UIStyle.INK_TYPE)
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.custom_minimum_size.x = 380
-	if Data.font_type:
-		body.add_theme_font_override("font", Data.font_type)
-	var row := HBoxContainer.new()
-	v.add_child(row)
-	var sig := _label(row, sign, 22, UIStyle.INK_PEN)
-	sig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if Data.font_hand:
-		sig.add_theme_font_override("font", Data.font_hand)
-	_button(row, verb, func():
-		Sfx.play("stamp")
-		cb.call(), true, "stamp")
+## The last line said, under the station, growing up from the bottom.
+## (The journal's Radio keeps the rest.)
+func _place_comms() -> void:
+	var w := _x0() - 120.0 - 170.0
+	_comms_text.custom_minimum_size.x = w
+	_comms_text.size = Vector2(w, 0)
+	_comms_text.reset_size()
+	_comms_text.position = Vector2(170, size.y - 48.0 - _comms_text.get_content_height())
 
 
-## The no-questions job: a scrap of paper tucked behind the real notices.
-## Handwritten, unsigned but for where to find the sender.
-func _shady_note(j: Dictionary) -> void:
-	var paper := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.86, 0.82, 0.72)
-	sb.set_content_margin_all(12)
-	paper.add_theme_stylebox_override("panel", sb)
-	paper.rotation = deg_to_rad(1.4)
-	_dispatch.add_child(paper)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	paper.add_child(v)
-	var t := _label(v, Data.shady["title"], 15, UIStyle.INK_TYPE)
-	if Data.font_type_bold:
-		t.add_theme_font_override("font", Data.font_type_bold)
-	var body := _label(v, Data.shady["text"] % [Data.stations[j["to"]]["nick"], Career.fmt(j["pay"])], 17, UIStyle.INK_PEN)
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.custom_minimum_size.x = 380
-	if Data.font_hand:
-		body.add_theme_font_override("font", Data.font_hand)
-	var row := HBoxContainer.new()
-	v.add_child(row)
-	var sig := _label(row, "- " + Data.shady["sign"], 20, UIStyle.INK_PEN)
-	sig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if Data.font_hand:
-		sig.add_theme_font_override("font", Data.font_hand)
-	_button(row, "TAKE THE CRATES", func():
-		Sfx.play("tick")
-		Career.take_shady(j), true, "stamp")
+# --- Input -------------------------------------------------------------------------
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible or is_instance_valid(_notice):
+		return
+	if event.is_action_pressed("interact"):
+		get_viewport().set_input_as_handled()
+		main.undock()
+		return
+	if not (event is InputEventKey and event.pressed):
+		return
+	var n := 10 if event.shift_pressed else (9999 if event.ctrl_pressed else 1)
+	match event.keycode:
+		KEY_UP, KEY_W:
+			_pick(posmod(_sel - 1, _items.size()))
+		KEY_DOWN, KEY_S:
+			_pick(posmod(_sel + 1, _items.size()))
+		KEY_LEFT, KEY_A:
+			_trade(-1, n)
+		KEY_RIGHT, KEY_D:
+			_trade(1, n)
+		KEY_ENTER, KEY_KP_ENTER:
+			if event.echo:
+				return
+			_act()
+		_:
+			return
+	get_viewport().set_input_as_handled()
 
 
-## Kessler's notice, pinned to the board at Four: typed, signed in pen.
-func _bounty_notice() -> void:
-	var b: Dictionary = Data.bounty
-	var paper := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = UIStyle.PAPER
-	sb.set_content_margin_all(12)
-	paper.add_theme_stylebox_override("panel", sb)
-	paper.rotation = deg_to_rad(-0.6)
-	_dispatch.add_child(paper)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	paper.add_child(v)
-	var t := _label(v, b["title"], 15, UIStyle.INK_TYPE)
-	if Data.font_type_bold:
-		t.add_theme_font_override("font", Data.font_type_bold)
-	var body := _label(v, b["text"], 13, UIStyle.INK_TYPE)
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if Data.font_type:
-		body.add_theme_font_override("font", Data.font_type)
-	var row := HBoxContainer.new()
-	v.add_child(row)
-	var sig := _label(row, b["sign"], 22, UIStyle.INK_PEN)
-	sig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if Data.font_hand:
-		sig.add_theme_font_override("font", Data.font_hand)
-	if Career.flags.get("bounty_killed", false):
-		_label(row, "DONE: collect here", 13, UIStyle.INK_STAMP)
-	elif Career.flags.get("bounty_taken", false):
-		_label(row, "taken", 13, UIStyle.INK_FADED)
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		var i := _item_at(event.position)
+		if i >= 0 and i != _sel:
+			_pick(i)
+	elif event is InputEventMouseButton and event.pressed:
+		var n := 10 if event.shift_pressed else (9999 if event.ctrl_pressed else 1)
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_pick(posmod(_sel + 1, _items.size()))
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_pick(posmod(_sel - 1, _items.size()))
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			for h in _hint_rects:
+				if h[0].has_point(event.position):
+					h[1].call()
+					accept_event()
+					return
+			for s in _sub_rects:
+				if s[0].has_point(event.position):
+					_trade(s[1], n)
+					accept_event()
+					return
+			var i := _item_at(event.position)
+			if i >= 0:
+				_sel = i
+				if _items[i]["kind"] == "good":
+					_trade(1, n)
+				else:
+					_act()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			var i := _item_at(event.position)
+			if i >= 0 and _items[i]["kind"] == "good":
+				_sel = i
+				_trade(-1, n)
+		accept_event()
+
+
+func _item_at(p: Vector2) -> int:
+	for i in _items.size():
+		if _items[i]["rect"].has_point(p):
+			return i
+	return -1
+
+
+func _pick(i: int) -> void:
+	if i == _sel or _items.is_empty():
+		return
+	_sel = i
+	Sfx.play("tick", -16.0, 1.4)
+	queue_redraw()
+
+
+## Left sells, right buys, on the picked good.
+func _trade(dir: int, n: int) -> void:
+	if _items.is_empty() or _items[_sel]["kind"] != "good":
+		return
+	var g: String = _items[_sel]["good"]
+	var done := Career.buy(station_id, g, n) if dir > 0 else Career.sell(station_id, g, n)
+	if done > 0:
+		Sfx.play("tick", -8.0, 1.0 + 0.1 * dir)
+
+
+func _act() -> void:
+	if _items.is_empty() or _items[_sel]["kind"] != "act" or not _items[_sel]["on"]:
+		return
+	Sfx.play("tick", -6.0)
+	_items[_sel]["cb"].call()
+
+
+func _open_notice(n: Dictionary) -> void:
+	_notice = NeonNotice.new()
+	_notice.notice = n
+	_notice.back.connect(_close_notice)
+	_notice.chosen.connect(func(_i):
+		n["cb"].call()
+		_close_notice())
+	add_child(_notice)
+
+
+func _close_notice() -> void:
+	if is_instance_valid(_notice):
+		_notice.queue_free()
+	_notice = null
+	_age = 1.0
+	_refresh()
+
+
+func _on_comms(speaker: String, text: String) -> void:
+	_log = [[speaker, text]]
+	_comms_text.text = Neon.bbcode(text)
+	_comms_text.visible = true
+	_place_comms()
+	queue_redraw()
+
+
+# --- Drawing -----------------------------------------------------------------------
+
+## Flicker on: each part stutters in, one after the other.
+func _flick(i: int) -> float:
+	var t := _age - 0.04 * mini(i, 10)
+	if t <= 0.0:
+		return 0.0
+	if t > 0.22:
+		return 1.0
+	return [1.0, 0.15, 0.8, 0.0, 1.0, 0.4][int(t / 0.04) % 6]
+
+
+func _t(pos: Vector2, s: String, sz: int, col: Color, glow := false, right := false) -> float:
+	var f: Font = Data.font_talk
+	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
+	if right:
+		pos.x -= w
+	if glow:
+		for o in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2), Vector2(0, 2), Vector2(-3, -3), Vector2(3, 3)]:
+			draw_string(f, pos + o, s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(col, 0.13 * col.a))
+	draw_string(f, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, col)
+	return w
+
+
+## Small tracked caps: section labels and the header.
+func _tracked(pos: Vector2, s: String, sz: int, col: Color, gap: float, font: Font = null) -> float:
+	var f: Font = font if font else Data.font_talk
+	var x := pos.x
+	for ch in s:
+		draw_string(f, Vector2(x, pos.y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, col)
+		x += f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + gap
+	return x - pos.x
+
+
+func _draw() -> void:
+	if station_id == "":
+		return
+	var st: Dictionary = Data.stations[station_id]
+	var x0 := _x0()
+	# The dark, a few stars, the station turning slowly on the left.
+	draw_rect(Rect2(Vector2.ZERO, size), BG)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = station_id.hash()
+	for i in 90:
+		var p := Vector2(rng.randf() * x0, rng.randf() * size.y)
+		draw_rect(Rect2(p, Vector2(2, 2)), Color(1, 0.95, 0.85, rng.randf_range(0.1, 0.5)))
+	var art := str(st.get("art", ""))
+	if art != "":
+		var frames := Art.frames("stations/" + art)
+		var tex: Texture2D = frames[int(_age * 6.0) % frames.size()] if not frames.is_empty() else null
+		draw_set_transform(Vector2(x0 * 0.47, size.y * 0.44), 0.0, Vector2.ONE)
+		Art.draw_fit(self, "stations/%s/00.png" % art, minf(x0 * 0.72, size.y * 0.5), Color(1, 1, 1, 0.92), tex)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var fade_from := x0 - 300.0
+	for k in 30:
+		var x := fade_from + 300.0 * k / 30.0
+		draw_rect(Rect2(x, 0, 300.0 / 30.0 + 1.0, size.y), Color(BG, 0.9 * float(k) / 30.0))
+	draw_rect(Rect2(x0, 0, size.x - x0, size.y), Color(BG, 0.9))
+	for y in range(0, int(size.y), 3):
+		draw_line(Vector2(x0 - 120.0, y), Vector2(size.x, y), Color(0, 0, 0, 0.22), 1.0)
+
+	var a := _flick(0)
+	var rx := size.x - 60.0
+	# Header: the station's name, tracked white; the place and the day, dim.
+	_tracked(Vector2(x0, 92), str(st["nick"]).to_upper(), 34, Color(1, 1, 1, a), 9.0, Data.font_bold)
+	var meta := "%s     DAY %d     WK %d" % [str(st["name"]).to_upper(), int(Career.day) + 1, Career.week()]
+	var mw := 0.0
+	for ch in meta:
+		mw += Data.font_talk.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x + 3.0
+	_tracked(Vector2(rx - mw, 88), meta, 22, Color(DIM, a), 3.0)
+	draw_multiline_string(Data.font_talk, Vector2(x0, 128), str(st["desc"]), HORIZONTAL_ALIGNMENT_LEFT, rx - x0 - 60.0, 22, 2, Color(BODY, a * 0.85))
+
+	_draw_market(x0, rx)
+	_draw_lower(x0, rx)
+	_draw_comms()
+	if not is_instance_valid(_notice):
+		_draw_hints(x0)
+
+
+func _draw_market(x0: float, rx: float) -> void:
+	var a := _flick(1)
+	var top := _market_top()
+	_tracked(Vector2(x0, top - 58), "MARKET", SEC, Color(DIM, a), 7.0)
+	var trader: bool = Career.friend_with_you() and Career.friend["role"] == "trader"
+	var c_price := x0 + 300.0
+	var c_hold := x0 + 420.0
+	var c_tag := x0 + 450.0
+	var c_trade := x0 + 610.0
+	_tracked(Vector2(x0 + 22, top - 26), "GOOD", 18, Color(OFF, a), 4.0)
+	var ph := "BUY / SELL" if trader else "PRICE"
+	_t(Vector2(c_price, top - 26), ph, 18, Color(OFF, a), false, true)
+	_t(Vector2(c_hold, top - 26), "HOLD", 18, Color(OFF, a), false, true)
+	var st: Dictionary = Data.stations[station_id]
+	_sub_rects.clear()
+	for i in Data.goods_order.size():
+		var g: String = Data.goods_order[i]
+		var ra := _flick(2 + i)
+		var y := top + i * ROW_H + ROW * 0.3
+		var on := _sel == i
+		var col := UIStyle.GOLD if on else WHITE
+		if on:
+			_t(Vector2(x0 - 4, y), ">", ROW, Color(col, ra), true)
+		var nw := _t(Vector2(x0 + 22, y), str(Data.goods[g]["name"]).to_upper(), ROW, Color(col, ra), on)
+		if on:
+			_t(Vector2(x0 + 34 + nw, y - 2), "\"%s\"" % Data.goods[g]["slang"], SMALL, Color(UIStyle.GOLD.darkened(0.35), ra))
+		var bp := Career.buy_price(station_id, g)
+		var sp := Career.sell_price(station_id, g)
+		var ptxt := Career.fmt(bp) if bp == sp else "%s / %s" % [Career.fmt(bp), Career.fmt(sp)]
+		_t(Vector2(c_price, y), ptxt, ROW, Color(UIStyle.GOLD if on else UIStyle.GREEN, ra), on, true)
+		var owned: int = Career.cargo.get(g, 0)
+		var job: int = Career.job_cargo.get(g, 0)
+		var htxt := (str(owned) if owned > 0 else "-") + (" +%d JOB" % job if job > 0 else "")
+		_t(Vector2(c_hold, y), htxt, ROW, Color(UIStyle.GREEN if owned + job > 0 else OFF, ra), false, true)
+		if g in st["makes"]:
+			_tracked(Vector2(c_tag, y - 3), "MADE HERE", SMALL, Color(UIStyle.GREEN, ra), 2.0)
+		elif g in st["wants"]:
+			_tracked(Vector2(c_tag, y - 3), "NEEDED", SMALL, Color(UIStyle.GOLD, ra), 2.0)
+		if on:
+			var can_sell := owned > 0
+			var can_buy := Career.cargo_free() > 0 and Career.credits >= bp
+			var sw := _t(Vector2(c_trade, y), "< SELL", ROW - 4, Color(UIStyle.GOLD if can_sell else OFF, ra), can_sell)
+			_sub_rects.append([Rect2(c_trade - 6, y - 24, sw + 12, 32), -1])
+			var bx := c_trade + sw + 36.0
+			var bw := _t(Vector2(bx, y), "BUY >", ROW - 4, Color(UIStyle.GOLD if can_buy else OFF, ra), can_buy)
+			_sub_rects.append([Rect2(bx - 6, y - 24, bw + 12, 32), 1])
+
+
+func _draw_lower(x0: float, rx: float) -> void:
+	var a := _flick(11)
+	var top := _lower_top()
+	# Ledger, left.
+	_tracked(Vector2(x0, top), "LEDGER", SEC, Color(DIM, a), 7.0)
+	var rows := [["CREDITS", Career.fmt(Career.credits), UIStyle.GREEN],
+		["HOLD", "%d / %d T" % [Career.cargo_used(), Career.cargo_capacity], UIStyle.GREEN]]
+	if Career.loan_balance > 0:
+		rows.append(["LOAN", Career.fmt(Career.loan_balance), RED])
+		var days_left := int(Career.next_payment_day) - int(Career.day)
+		rows.append(["DUE DAY %d" % (int(Career.next_payment_day) + 1), Career.fmt(mini(Data.LOAN_WEEKLY, Career.loan_balance)), RED if days_left <= 1 else UIStyle.GREEN])
+		if Career.arrears > 0:
+			rows.append(["OVERDUE", Career.fmt(Career.arrears), RED])
 	else:
-		_button(row, "TAKE IT", func():
-			Sfx.play("tick")
-			Career.take_bounty(), true, "stamp")
+		rows.append(["LOAN", "PAID", UIStyle.GREEN])
+	if Career.friend_with_you():
+		var role: Dictionary = Data.friend_roles[Career.friend["role"]]
+		rows.append(["WITH ME", "%s, %s" % [Career.friend["name"], role["name"]], WHITE])
+	var y := top + 34.0
+	for r in rows:
+		_t(Vector2(x0, y), str(r[0]).to_upper(), 28, Color(DIM, a))
+		_t(Vector2(x0 + 200, y), str(r[1]).to_upper(), 28, Color(r[2], a))
+		y += 32.0
+
+	# Jobs, then the Charter account and notices, right.
+	var cx := x0 + _col2()
+	_tracked(Vector2(cx, top), "JOBS", SEC, Color(DIM, a), 7.0)
+	y = top + 34.0
+	if Career.jobs.is_empty():
+		_t(Vector2(cx, y), "NOTHING PINNED", 28, Color(OFF, a))
+		y += 30.0
+	for j in Career.jobs:
+		var where := "PICK UP AT %s" % Data.stations[j["from"]]["nick"] if not j["loaded"] else "DELIVER TO %s" % Data.stations[j["to"]]["nick"]
+		_t(Vector2(cx, y), str(j["title"]).split(":")[0].to_upper(), 28, Color(WHITE, a))
+		_t(Vector2(cx, y + 26), ("%d T %s, %s" % [j["tons"], Data.goods[j["good"]]["name"], where]).to_upper(), 24, Color(BODY, a))
+		var pw := _t(Vector2(cx, y + 50), "PAYS ", 24, Color(DIM, a))
+		_t(Vector2(cx + pw, y + 50), Career.fmt(j["pay"]), 24, Color(UIStyle.GREEN, a))
+		y += 80.0
+	y = top + _jobs_h()
+	if _charter_open():
+		_tracked(Vector2(cx, y), "CHARTER ACCOUNT  CC-40817-M", SEC, Color(DIM, a), 7.0)
+		y += 34.0
+		if Career.arrears > 0:
+			var strike := "OVERDUE %s, STRIKE %d OF 2" % [Career.fmt(Career.arrears), Career.strikes]
+			_t(Vector2(cx, y), strike, 24, Color(RED, a))
+			y += 30.0
+		y += 40.0
+	if not _notices().is_empty():
+		_tracked(Vector2(cx, y), "NOTICES", SEC, Color(DIM, a), 7.0)
+	# The picked or idle actions (Charter verbs, notice rows).
+	for i in _items.size():
+		var it: Dictionary = _items[i]
+		if it["kind"] != "act":
+			continue
+		var on := i == _sel
+		var r: Rect2 = it["rect"]
+		var p := Vector2(r.position.x + 4, r.position.y + 22)
+		var col: Color = OFF if not it["on"] else (UIStyle.GOLD if on else it.get("tint", WHITE))
+		if it.has("tint"):
+			p.x += 30.0
+			if on:
+				_t(Vector2(p.x - 26, p.y), ">", 28, Color(col, a), true)
+		_t(p, str(it["text"]).to_upper(), 28, Color(col, a), on and it["on"])
+		if on and not it.has("tint"):
+			draw_line(Vector2(r.position.x + 4, r.end.y), Vector2(r.end.x - 4, r.end.y), Color(UIStyle.GOLD, a * 0.8), 2.0)
 
 
-## Saltgate's bar: captains for hire on weekly contracts. Their own notes,
-## pinned by the bar door, in their own hands.
-func _bar() -> void:
-	var d := _card(_dispatch, "SALTGATE BAR", "wall")
-	var n := 0
-	for id in Data.captain_order:
-		var c: Dictionary = Data.captains[id]
-		var note := PanelContainer.new()
-		note.add_theme_stylebox_override("panel", _box(Color(0.93, 0.9, 0.78) if n == 0 else Color(0.86, 0.84, 0.8), UIStyle.PAPER_SHADE, 1, 10))
-		note.rotation = deg_to_rad(-1.0 if n == 0 else 0.8)
-		d.get_child(0).add_child(note)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		note.add_child(row)
-		var info := VBoxContainer.new()
-		info.add_theme_constant_override("separation", -4)
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(info)
-		var nm := _label(info, c["full"], 24, UIStyle.INK_PEN)
-		nm.add_theme_font_override("font", Data.font_hand)
-		var line := _label(info, "%s %s cr/week" % [c["note"], Career.fmt(c["wage"])], 19, UIStyle.INK_TYPE)
-		line.add_theme_font_override("font", Data.font_hand)
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		info.tooltip_text = c["pitch"]
-		if Career.crew.has(id):
-			var h := _label(row, "HIRED", 16, UIStyle.INK_STAMP)
-			h.add_theme_font_override("font", Data.font_stamp)
-			h.rotation = deg_to_rad(-8)
-		else:
-			_button(row, "HIRE", func():
-				Sfx.play("stamp", -6.0)
-				Career.hire(id), Career.credits >= c["wage"], "stamp")
-		n += 1
+func _draw_comms() -> void:
+	if _log.is_empty():
+		return
+	var who := str(_log[-1][0])
+	var top := _comms_text.position.y
+	var r := Rect2(Vector2(70, top - 26), Vector2(80, 96))
+	UIStyle.draw_id_photo(self, r, Data.portrait_for(who), "", who.hash(), who)
+	draw_rect(r.grow(6), Color(UIStyle.GOLD, 0.15), false, 4.0)
+	draw_rect(r.grow(6), Color(UIStyle.GOLD, 0.6), false, 1.0)
+	_tracked(Vector2(170, top - 10), who.to_upper(), 22, UIStyle.GOLD, 4.0)
 
 
-## A line in your ledger: the printed column, your figures in pen.
-func _stat(name: String, value: String, col := UIStyle.INK_PEN) -> void:
-	var row := HBoxContainer.new()
-	row.custom_minimum_size.y = 32
-	row.draw.connect(func(): row.draw_line(Vector2(-40, row.size.y + 1), Vector2(row.size.x + 4, row.size.y + 1), Color(0.45, 0.6, 0.8, 0.35), 1.0))
-	_stats.add_child(row)
-	var n := _typed(row, name, 13, UIStyle.INK_FADED)
-	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	n.size_flags_vertical = Control.SIZE_SHRINK_END
-	var v := _label(row, value, 24, col)
-	v.add_theme_font_override("font", Data.font_hand)
-
-
-## Chalk on the board: legible print by default, handwriting only for flourishes.
-func _chalk(parent: Control, text: String, sz: int, col: Color, hand := false) -> Label:
-	var l := _label(parent, text, sz, col)
-	l.add_theme_font_override("font", Data.font_hand if hand else Data.font_bold)
-	return l
-
-
-func _typed(parent: Control, text: String, sz: int, col: Color, bold := false) -> Label:
-	var l := _label(parent, text, sz, col)
-	l.add_theme_font_override("font", Data.font_type_bold if bold else Data.font_type)
-	return l
-
-
-## Buttons: chalk boxes on the board, rubber stamps on paper.
-func _button(parent: Control, text: String, cb: Callable, enabled := true, style := "chalk") -> Button:
-	var b := Button.new()
-	b.text = text
-	b.disabled = not enabled
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(0, 30)
-	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var ink := CHALK if style == "chalk" else UIStyle.INK_STAMP
-	b.add_theme_font_override("font", Data.font_type_bold if style == "chalk" else Data.font_stamp)
-	b.add_theme_font_size_override("font_size", 14)
-	for st in ["normal", "hover", "pressed", "disabled"]:
-		var a := 0.55
-		match st:
-			"hover":
-				a = 1.0
-			"pressed":
-				a = 0.8
-			"disabled":
-				a = 0.18
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(ink.r, ink.g, ink.b, 0.12 if st == "hover" else 0.0)
-		sb.border_color = Color(ink.r, ink.g, ink.b, a)
-		sb.set_border_width_all(2 if style == "stamp" else 1)
-		sb.set_corner_radius_all(3 if style == "stamp" else 0)
-		sb.content_margin_left = 9
-		sb.content_margin_right = 9
-		sb.content_margin_top = 0
-		sb.content_margin_bottom = 0
-		b.add_theme_stylebox_override(st, sb)
-	b.add_theme_color_override("font_color", Color(ink, 0.85))
-	b.add_theme_color_override("font_hover_color", ink.lightened(0.15) if style == "chalk" else ink)
-	b.add_theme_color_override("font_pressed_color", ink)
-	b.add_theme_color_override("font_disabled_color", Color(ink, 0.25))
-	b.pressed.connect(cb)
-	parent.add_child(b)
-	return b
+func _draw_hints(x0: float) -> void:
+	_hint_rects.clear()
+	var a := _flick(12)
+	var hs := [["UP DOWN", "PICK", Callable()], ["LEFT RIGHT", "SELL BUY", Callable()], ["SHIFT", "X10", Callable()],
+		["CTRL", "ALL", Callable()], ["F", "UNDOCK", func(): main.undock()]]
+	var hx := x0
+	var hy := size.y - 44.0
+	var f: Font = Data.font_talk
+	for h in hs:
+		var kw := f.get_string_size(h[0] + "  ", HORIZONTAL_ALIGNMENT_LEFT, -1, HINT).x
+		var vw := f.get_string_size(h[1], HORIZONTAL_ALIGNMENT_LEFT, -1, HINT).x
+		draw_string(f, Vector2(hx, hy), h[0], HORIZONTAL_ALIGNMENT_LEFT, -1, HINT, Color(UIStyle.GOLD, a))
+		draw_string(f, Vector2(hx + kw, hy), h[1], HORIZONTAL_ALIGNMENT_LEFT, -1, HINT, Color(DIM, a))
+		if h[2].is_valid():
+			_hint_rects.append([Rect2(hx - 6, hy - 22, kw + vw + 12, 30), h[2]])
+		hx += kw + vw + 46.0

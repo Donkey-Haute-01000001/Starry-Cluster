@@ -15,7 +15,7 @@ Vishnu writes and directs; Claude designs systems and builds. Read this file, th
 - **Talk to Vishnu tersely.** Short lines, whitespace, no filler. In-game dialogue is the opposite: real writing, rhythm, subtext. Check lines against the voice bible.
 - **Say "opening" / "start", never "demo".** Each start is the real beginning of the game.
 - **Sounds are real recordings** (Kenney CC0, Pixabay), never synth. Credit every source in `CREDITS.md`. No radio static.
-- **Fonts:** Big Shoulders (UI), Big Shoulders Stencil (stamps, hull marks), VT323 (typed text, dialogue), Nanum Pen Script (handwriting). Courier Prime is leaving: only on screens not yet neon (journal, chart, station). No Exo-style "AI" fonts.
+- **Fonts:** Big Shoulders (UI), Big Shoulders Stencil (stamps, hull marks), VT323 (typed text, dialogue), Nanum Pen Script (handwriting). Courier Prime is leaving: only on screens not yet neon (chart). No Exo-style "AI" fonts.
 - **Music:** DavidKBD "Pink Bloom" only, now-playing credit "Music by DavidKBD" required.
 - **No .exe / exports.** Vishnu runs from the editor.
 - **Art is git-ignored** (`art/`, bought packs; repo is public). New art = send an updated art-pack zip via project files.

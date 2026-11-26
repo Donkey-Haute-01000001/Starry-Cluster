@@ -28,6 +28,7 @@ Each screen is mocked, shown, and built only after Vishnu OKs it.
 | Ransom receipt, sector bulletin, dispatch slip | built |
 | Journal | built: neon sections, list, pages (2026-11-26) |
 | Chart | atlas on paper, kept by pick: territories, zoom, auto-placed names (2026-11-26) |
+| Station screen | built (2026-11-26): station art left, one page right (market, ledger, jobs, Charter account, notices). Notices open as neon files (`neon_notice.gd`). Keys: up/down pick, left/right sell/buy, Shift 10, Ctrl all, Enter open, F undock |
 
 ## Neon rules (menus)
 
