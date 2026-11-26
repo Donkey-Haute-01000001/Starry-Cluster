@@ -57,7 +57,7 @@ const PEN_NOTES := [
 const REGIONS := [
 	[Vector2(0.19, 0.5), Vector2(0.175, 0.46), Color(0.55, 0.78, 1.0), 0.5, "Federation pocket", "The Federation", "Hesper March and the interior, behind the Wall. Navy patrols, Charter routes.", Vector2(0.19, 0.93)],
 	[Vector2(0.205, 0.27), Vector2(0.06, 0.12), Color(0.85, 0.25, 0.25), 0.55, "The Grind", "Contested  ·  pirate clans", "Marcellus belt. Federation on paper; the rocks belong to whoever's armed.", Vector2(-1, -1)],
-	[Vector2(0.53, 0.5), Vector2(0.13, 0.25), Color(0.62, 0.62, 0.62), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls.", Vector2(0.53, 0.41)],
+	[Vector2(0.53, 0.5), Vector2(0.13, 0.25), Color(0.62, 0.62, 0.62), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls.", Vector2(0.53, 0.385)],
 	[Vector2(0.86, 0.5), Vector2(0.11, 0.18), Color(0.2, 0.72, 0.42), 0.4, "Dynasty heartland", "The Dynasty  ·  rumor", "Warlord country on the far side. Nobody you know has been."],
 	[Vector2(0.6, 0.15), Vector2(0.15, 0.12), Color(0.68, 0.42, 0.9), 0.4, "League lanes", "The Merchant League  ·  rumor", "Merchant houses on the lane stations. Tolls on everything, they say."],
 	[Vector2(0.82, 0.22), Vector2(0.1, 0.13), Color(0.82, 0.66, 0.28), 0.4, "Remnant holdout", "Imperial Remnant  ·  rumor", "Old empire colors, still flying. If it's true."],
@@ -304,14 +304,14 @@ func _net() -> Array:
 	# The Crossroads: a ring of free stations round the Dynasty gate, every one
 	# a toll, a market or a place to hide. (Vishnu 2026-11-26: "add more stations".)
 	var ring: Array = []
-	for v in [Vector2(0.455, 0.36), Vector2(0.43, 0.47), Vector2(0.465, 0.71), Vector2(0.57, 0.7), Vector2(0.63, 0.6), Vector2(0.64, 0.47)]:
+	for v in [Vector2(0.45, 0.32), Vector2(0.43, 0.47), Vector2(0.465, 0.71), Vector2(0.57, 0.7), Vector2(0.665, 0.6), Vector2(0.64, 0.47)]:
 		var ri: int = add.call(v, 2, "hub")
 		links.append([-1, ri, "spoke"])
 		ring.append(ri)
 	for k in ring.size():
 		links.append([ring[k], ring[(k + 1) % ring.size()], "local"])
 	# A Dynasty fort guarding the Crossroads.
-	links.append([-1, add.call(Vector2(0.6, 0.37), 2), "spoke"])
+	links.append([-1, add.call(Vector2(0.6, 0.32), 2), "spoke"])
 	# League: one long line of lane stations.
 	var prev := -1
 	for k in 6:
@@ -521,7 +521,7 @@ func _draw() -> void:
 			if j.get("locked", false):
 				_dashed(a2 + (b2 - a2).normalized() * 26.0, b2 - (b2 - a2).normalized() * 34.0, Color(UIStyle.INK_STAMP, 0.85), 2.5)
 				var mid := (a2 + b2) * 0.5
-				draw_string(tb, mid + Vector2(-38, -10), "PAPERS ONLY", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_STAMP)
+				draw_string(tb, mid + Vector2(-38, 19), "PAPERS ONLY", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_STAMP)
 			else:
 				# A Charter lane: double-ruled, like a road on an old map.
 				var dn := (b2 - a2).normalized().orthogonal() * 2.2
@@ -599,10 +599,11 @@ func _draw() -> void:
 	draw_string(_title_font, cx + Vector2(-7, 9), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, ink)
 	var cn := "THE CROSSROADS"
 	var cnw := tb.get_string_size(cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-	draw_rect(Rect2(cx + Vector2(-cnw * 0.5 - 8, 44), Vector2(cnw + 16, 34)), Color(UIStyle.PAPER, 0.92))
-	draw_string(tb, cx + Vector2(-cnw * 0.5, 60), cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ink)
 	var cs := "Dynasty gate  ·  every road meets here"
 	var csw := tr.get_string_size(cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+	var bw := maxf(cnw, csw)
+	draw_rect(Rect2(cx + Vector2(-bw * 0.5 - 8, 44), Vector2(bw + 16, 36)), Color(UIStyle.PAPER, 0.92))
+	draw_string(tb, cx + Vector2(-cnw * 0.5, 60), cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ink)
 	draw_string(tr, cx + Vector2(-csw * 0.5, 74), cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
 
 	# --- Your own pen: a tick by each thing you've noted; hover it to read -------------
@@ -1036,27 +1037,118 @@ func _draw_names() -> void:
 	if _names.modulate.a <= 0.01:
 		return
 	var big: Font = Data.font_bold
-	var c := _chart_rect()
 	var k := _ink(0.3)
-	for r in REGIONS:
-		var nm: String = str(r[4]).to_upper()
+	for spot in _label_spots():
+		var x: float = spot["rect"].position.x
+		var y: float = spot["base"]
+		for ch in str(spot["text"]):
+			_names.draw_string(big, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, spot["size"], Color(0.16, 0.15, 0.14, 0.55 * k))
+			x += big.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, spot["size"]).x + spot["gap"]
+
+
+var _spots_cache: Array = []
+var _spots_for := Rect2()
+
+
+## Where each territory's big name goes, the way a cartographer sets type: near
+## where we asked for it, but never over a system, a printed label, the compass
+## or another name, and crossing as few lanes as it can. Placed once per size.
+func _label_spots() -> Array:
+	var c := _chart_rect()
+	if c == _spots_for and not _spots_cache.is_empty():
+		return _spots_cache
+	var big: Font = Data.font_bold
+	# Things type must not sit on.
+	var keep: Array = []
+	var dot := func(q: Vector2, r: float): keep.append(Rect2(q - Vector2(r, r), Vector2(r, r) * 2.0))
+	var nodes: Array = _net()[0]
+	for n in nodes:
+		dot.call(_at(n[0]), 9.0)
+	for d in DEAD_RIFTS:
+		dot.call(_at(d), 12.0)
+	for d in FED_DOTS:
+		dot.call(_at(d), 8.0)
+	for id in LAYOUT:
+		dot.call(_at(LAYOUT[id]), 44.0 if id == "crossroads" else 24.0)
+	var cx := _sys_pos("crossroads")
+	keep.append(Rect2(cx + Vector2(-135, 40), Vector2(270, 44)))
+	dot.call(_at(Vector2(0.945, 0.15)), 44.0)
+	for i in PEN_NOTES.size():
+		dot.call(_note_tick(i), 12.0)
+	# Lanes, as short segments.
+	var segs: Array = []
+	for l in _net()[1]:
+		var pa: Vector2 = cx if l[0] < 0 else _at(nodes[l[0]][0])
+		var pb: Vector2 = _at(l[1]) if l[1] is Vector2 else _at(nodes[l[1]][0])
+		segs.append([pa, pb])
+	var out: Array = []
+	for ri in REGIONS.size():
+		var r: Array = REGIONS[ri]
 		var lp: Vector2 = r[7] if r.size() > 7 else r[0]
 		if lp.x < 0.0:
 			continue
-		var at := _at(lp)
+		var nm: String = str(r[4]).to_upper()
 		var room: float = r[1].x * c.size.x * 1.7
 		var sz := 30
 		var gap := 6.0
-		var w := 0.0
-		for ch in nm:
-			w += big.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + gap
+		var w := _tracked_w(big, nm, sz, gap)
 		if w > room:
 			sz = maxi(14, int(sz * room / w))
 			gap = 3.0
-			w = 0.0
-			for ch in nm:
-				w += big.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + gap
-		var x := at.x - w * 0.5
-		for ch in nm:
-			_names.draw_string(big, Vector2(x, at.y + sz * 0.35), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(0.16, 0.15, 0.14, 0.55 * k))
-			x += big.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + gap
+			w = _tracked_w(big, nm, sz, gap)
+		var h := float(sz) * 0.75
+		var best := Rect2()
+		var best_score := INF
+		var home := _at(lp)
+		for iy in range(-12, 13):
+			for ix in range(-6, 7):
+				var at := home + Vector2(ix * c.size.x * 0.01, iy * c.size.y * 0.01)
+				var rect := Rect2(at - Vector2(w * 0.5, h * 0.5), Vector2(w, h))
+				if not c.grow(-6.0).encloses(rect):
+					continue
+				var pad := rect.grow(6.0)
+				var score := at.distance_to(home) / 12.0
+				# Type stays inside its own territory, clear of the border.
+				for q in [rect.position, rect.end, Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.position.y), rect.get_center()]:
+					if _owner_at((q - c.position) / c.size, 0.06) != ri:
+						score += 100.0
+				for o in keep:
+					if pad.intersects(o):
+						score += 100.0
+				for sg in segs:
+					for t in 9:
+						if pad.has_point(sg[0].lerp(sg[1], (t + 0.5) / 9.0)):
+							score += 0.6
+							break
+				if score < best_score:
+					best_score = score
+					best = rect
+		keep.append(best)
+		out.append({"text": nm, "rect": best, "base": best.end.y - h * 0.5 + sz * 0.35, "size": sz, "gap": gap})
+	_spots_for = c
+	_spots_cache = out
+	return out
+
+
+## Which territory holds a chart point, by the wash's own distance rule
+## (noise left out). -1 when it sits within `margin` of a border.
+func _owner_at(v: Vector2, margin: float) -> int:
+	var best := -1
+	var d1 := INF
+	var d2 := INF
+	for i in REGIONS.size():
+		var d: float = ((v - REGIONS[i][0]) / REGIONS[i][1]).length()
+		if d < d1:
+			d2 = d1
+			d1 = d
+			best = i
+		elif d < d2:
+			d2 = d
+	return best if d2 - d1 > margin else -1
+
+
+func _tracked_w(f: Font, s: String, sz: int, gap: float) -> float:
+	var w := 0.0
+	for ch in s:
+		w += f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + gap
+	return w - gap
