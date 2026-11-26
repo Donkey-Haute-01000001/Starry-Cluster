@@ -876,9 +876,9 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	if main.debt:
 		_draw_debt(vp)
 
-	# What F does right now.
+	# What F does right now. Not while the launch card is up: you've only just left the berth.
 	var b: Node2D = main.nearby_interactable()
-	if b and is_instance_valid(main.player):
+	if b and is_instance_valid(main.player) and not main.launch_card:
 		var prompt := ""
 		if b.kind == "station":
 			prompt = "F  Dock at %s" % b.label
