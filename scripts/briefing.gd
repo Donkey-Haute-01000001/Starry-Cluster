@@ -150,7 +150,7 @@ func _show_choices() -> void:
 	var head := Label.new()
 	head.text = "REPLY"
 	head.add_theme_font_override("font", Data.font_type_bold)
-	head.add_theme_font_size_override("font_size", 12)
+	head.add_theme_font_size_override("font_size", 16)
 	head.add_theme_color_override("font_color", UIStyle.GOLD)
 	_choices.add_child(head)
 	var opts: Array = Data.briefing["replies"]

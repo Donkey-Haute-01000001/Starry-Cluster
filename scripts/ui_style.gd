@@ -280,7 +280,7 @@ static func _photo_finish(ci: CanvasItem, p: Rect2, serial: String, seed: int) -
 	if serial != "":
 		var f: Font = Data.font_type if Data.font_type else ThemeDB.fallback_font
 		ci.draw_rect(Rect2(p.position.x, p.end.y, p.size.x, 14), Color(0.93, 0.91, 0.86))
-		ci.draw_string(f, Vector2(p.position.x + 2, p.end.y + 11), serial, HORIZONTAL_ALIGNMENT_CENTER, p.size.x - 4, 10, INK_TYPE)
+		ci.draw_string(f, Vector2(p.position.x + 2, p.end.y + 11), serial, HORIZONTAL_ALIGNMENT_CENTER, p.size.x - 4, 13, INK_TYPE)
 
 
 ## What's behind a paper overlay: the cockpit gone dark, one warm pool of lamp

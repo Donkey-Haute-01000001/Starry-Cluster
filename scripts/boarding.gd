@@ -81,7 +81,7 @@ func _show_card() -> void:
 	var head := Label.new()
 	head.text = "BOARDING  ·  %d MARINES vs %d CREW  ·  PICK A PLAN" % [marines, defenders]
 	head.add_theme_font_override("font", Data.font_type_bold)
-	head.add_theme_font_size_override("font_size", 12)
+	head.add_theme_font_size_override("font_size", 16)
 	head.add_theme_color_override("font_color", UIStyle.GOLD)
 	_card.add_child(head)
 	for i in plans.size():
@@ -94,7 +94,7 @@ func _show_card() -> void:
 		b.custom_minimum_size = Vector2(420, 52)
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_override("font", Data.font_type)
-		b.add_theme_font_size_override("font_size", 16)
+		b.add_theme_font_size_override("font_size", 21)
 		for st in ["normal", "hover", "pressed"]:
 			var box := StyleBoxFlat.new()
 			box.bg_color = Color(0.06, 0.065, 0.07, 0.94) if st == "normal" else Color(0.13, 0.11, 0.07, 0.96)
@@ -239,8 +239,8 @@ func _draw() -> void:
 	draw_rect(Rect2(o, Vector2(w, 96)), Color(0.05, 0.055, 0.06, 0.92))
 	draw_rect(Rect2(o, Vector2(w, 96)), UIStyle.GOLD.darkened(0.3), false, 2.0)
 	var title := "BREACH  ·  ROUND %d" % round_n if round_n > 0 else "BREACH  ·  CHARGES SET"
-	draw_string(f, o + Vector2(10, 18), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.GOLD)
-	draw_string(Data.font_type, o + Vector2(w * 0.5 - 10, 18), plan.get("name", "").to_upper(), HORIZONTAL_ALIGNMENT_RIGHT, w * 0.5, 11, UIStyle.TEXT_DIM)
+	draw_string(f, o + Vector2(10, 18), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UIStyle.GOLD)
+	draw_string(Data.font_type, o + Vector2(w * 0.5 - 10, 18), plan.get("name", "").to_upper(), HORIZONTAL_ALIGNMENT_RIGHT, w * 0.5, 14, UIStyle.TEXT_DIM)
 	# Pips: marines (navy blue-white) vs crew (red). Dead pips go dark, the one
 	# that just fell flashes.
 	_pips(o + Vector2(10, 30), "YOURS" if defending else "MARINES", m_total, marines, Color(0.75, 0.88, 1.0), "m")
@@ -254,7 +254,7 @@ func _draw() -> void:
 	for i in range(1, 10):
 		draw_line(bar.position + Vector2(bar.size.x * i / 10.0, 0), bar.position + Vector2(bar.size.x * i / 10.0, 12), Color(0, 0, 0, 0.5), 1.0)
 	var pct := "%d%%" % roundi(_odds_shown * 100.0)
-	draw_string(f, o + Vector2(w - 54, 83), pct, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.TEXT)
+	draw_string(f, o + Vector2(w - 54, 83), pct, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIStyle.TEXT)
 	if absf(_swing) > 0.02:
 		var up := _swing > 0.0
 		var c := o + Vector2(w - 12, 77)
@@ -280,11 +280,11 @@ func _draw() -> void:
 			var last := i == _loot.size() - 1
 			var y := 60.0 + i * 22.0
 			draw_rect(Rect2(Vector2(-150, y - 15), Vector2(300, 20)), Color(0.91, 0.88, 0.8, 0.95 * a))
-			draw_string(Data.font_type_bold if last else Data.font_type, Vector2(-142, y), line, HORIZONTAL_ALIGNMENT_LEFT, 284, 13, Color(UIStyle.INK_STAMP if last else UIStyle.INK_TYPE, a))
+			draw_string(Data.font_type_bold if last else Data.font_type, Vector2(-142, y), line, HORIZONTAL_ALIGNMENT_LEFT, 284, 17, Color(UIStyle.INK_STAMP if last else UIStyle.INK_TYPE, a))
 
 
 func _pips(at: Vector2, label: String, total: int, alive: int, col: Color, side: String) -> void:
-	draw_string(Data.font_type, at + Vector2(0, 11), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.TEXT_DIM)
+	draw_string(Data.font_type, at + Vector2(0, 11), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.TEXT_DIM)
 	for i in total:
 		var r := Rect2(at + Vector2(70 + i * 20, 0), Vector2(14, 14))
 		if i < alive:

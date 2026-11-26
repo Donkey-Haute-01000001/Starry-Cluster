@@ -593,7 +593,7 @@ class Derelict extends Node2D:
 			draw_circle(Vector2.ZERO, 4.0, Color(1.0, 0.35, 0.2, 0.9))
 		var f: Font = Data.font_type
 		var label := "WRECK  ·  " + str(data.get("name", "")).to_upper()
-		draw_string(f, Vector2(-f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x * 0.5, -62), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.8, 0.7, 0.8))
+		draw_string(f, Vector2(-f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x * 0.5, -62), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.85, 0.8, 0.7, 0.8))
 		if int(data.get("tons", 0)) > 0 and data.get("good", "") != "":
 			var sub := "%d t %s in the hold  ·  [F] salvage" % [data["tons"], Data.goods[data["good"]]["name"].to_lower()]
-			draw_string(f, Vector2(-f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x * 0.5, -46), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.75, 0.7, 0.6, 0.7))
+			draw_string(f, Vector2(-f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x * 0.5, -46), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.75, 0.7, 0.6, 0.7))

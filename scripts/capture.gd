@@ -167,7 +167,7 @@ func _show_card() -> void:
 	var head := Label.new()
 	head.text = "BOARDED  ·  %s ALONGSIDE" % _name(captor).to_upper()
 	head.add_theme_font_override("font", Data.font_type_bold)
-	head.add_theme_font_size_override("font_size", 12)
+	head.add_theme_font_size_override("font_size", 16)
 	head.add_theme_color_override("font_color", UIStyle.RED)
 	_card.add_child(head)
 	var hail := Label.new()
@@ -191,7 +191,7 @@ func _show_card() -> void:
 		b.custom_minimum_size = Vector2(420, 52)
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_override("font", Data.font_type)
-		b.add_theme_font_size_override("font_size", 16)
+		b.add_theme_font_size_override("font_size", 21)
 		for st in ["normal", "hover", "pressed"]:
 			var box := StyleBoxFlat.new()
 			box.bg_color = Color(0.06, 0.065, 0.07, 0.94) if st == "normal" else Color(0.13, 0.07, 0.06, 0.96)
@@ -478,7 +478,7 @@ func _draw_death(vp: Vector2) -> void:
 		y += Neon.height(font, pl, w + 40.0, size) + 4.0
 		start += Neon.duration(pl) + 0.5
 	var b := clampf((_t - start) / 0.8, 0.0, 1.0) * a
-	draw_string(Data.font_type_bold, Vector2(vp.x * 0.5 - 360, y + 50.0), "[R]  LOAD LAST DOCK        [ESC]  TITLE", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, Color(UIStyle.TEXT_DIM, b))
+	draw_string(Data.font_type_bold, Vector2(vp.x * 0.5 - 360, y + 50.0), "[R]  LOAD LAST DOCK        [ESC]  TITLE", HORIZONTAL_ALIGNMENT_CENTER, 720, 18, Color(UIStyle.TEXT_DIM, b))
 
 
 ## The raider comes alongside your dead rig and holds there.

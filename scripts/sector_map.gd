@@ -396,10 +396,10 @@ func _draw() -> void:
 	draw_line(Vector2(hx, hy + 4), Vector2(pr.end.x - 44, hy + 4), Color(ink, 0.5), 1.0)
 	draw_string(_title_font, Vector2(hx, hy + 46), "THE CLUSTER", HORIZONTAL_ALIGNMENT_LEFT, -1, 40, ink)
 	var tw := _title_font.get_string_size("THE CLUSTER", HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x
-	draw_string(tb, Vector2(hx + tw + 22, hy + 28), "CHARTER COMPANY ROUTE CHART  ·  No. 61-H", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
-	draw_string(tr, Vector2(hx + tw + 22, hy + 45), "Charter routes in ink. Past the Wall, rumor and pencil.", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, faded)
-	draw_string(tr, Vector2(pr.end.x - 290, hy + 28), "OPERATOR'S COPY", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, faded)
-	draw_string(tb, Vector2(pr.end.x - 290, hy + 47), "DAY %d" % (int(Career.day) + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, ink)
+	draw_string(tb, Vector2(hx + tw + 22, hy + 28), "CHARTER COMPANY ROUTE CHART  ·  No. 61-H", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, ink)
+	draw_string(tr, Vector2(hx + tw + 22, hy + 45), "Charter routes in ink. Past the Wall, rumor and pencil.", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, faded)
+	draw_string(tr, Vector2(pr.end.x - 290, hy + 28), "OPERATOR'S COPY", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, faded)
+	draw_string(tb, Vector2(pr.end.x - 290, hy + 47), "DAY %d" % (int(Career.day) + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 21, ink)
 	_seal(Vector2(pr.end.x - 104, hy + 34), 0.82 * _ink(0.05))
 	draw_line(Vector2(hx, hy + 62), Vector2(pr.end.x - 44, hy + 62), Color(ink, 0.5), 1.0)
 
@@ -413,14 +413,14 @@ func _draw() -> void:
 		draw_line(Vector2(x, c.end.y), Vector2(x, c.end.y + 5), Color(ink, 0.5), 1.0)
 		if i < cols:
 			var L := String.chr(65 + i)
-			draw_string(tr, Vector2(x + c.size.x / cols * 0.5 - 4, c.position.y - 9), L, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+			draw_string(tr, Vector2(x + c.size.x / cols * 0.5 - 4, c.position.y - 9), L, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, faded)
 	for j in rows + 1:
 		var y := c.position.y + c.size.y * j / rows
 		draw_line(Vector2(c.position.x, y), Vector2(c.end.x, y), Color(ink, 0.045), 1.0)
 		draw_line(Vector2(c.position.x - 5, y), Vector2(c.position.x, y), Color(ink, 0.5), 1.0)
 		draw_line(Vector2(c.end.x, y), Vector2(c.end.x + 5, y), Color(ink, 0.5), 1.0)
 		if j < rows:
-			draw_string(tr, Vector2(c.position.x - 16, y + c.size.y / rows * 0.5 + 4), str(j + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+			draw_string(tr, Vector2(c.position.x - 16, y + c.size.y / rows * 0.5 + 4), str(j + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, faded)
 	draw_rect(c, Color(ink, 0.55), false, 1.0)
 	draw_rect(c.grow(4), Color(ink, 0.3), false, 1.0)
 	for d in DEAD_RIFTS:
@@ -498,10 +498,10 @@ func _draw() -> void:
 		if k % 3 != 2:
 			draw_line(fed[k], fed[(k + 1) % fed.size()].lerp(fed[k], 0.35 if k % 3 == 1 else 0.0), Color(UIStyle.INK_TYPE, 0.3), 1.0, true)
 	var fl := "FEDERATION"
-	var flw := tb.get_string_size(fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	var flw := tb.get_string_size(fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	var flp := _at(Vector2(0.19, 0.05)) + Vector2(-flw * 0.5, 4)
 	draw_rect(Rect2(flp + Vector2(-6, -12), Vector2(flw + 12, 16)), UIStyle.PAPER)
-	draw_string(tb, flp, fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(UIStyle.INK_TYPE, 0.6))
+	draw_string(tb, flp, fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(UIStyle.INK_TYPE, 0.6))
 	for d in FED_DOTS:
 		draw_circle(_at(d), 3.5, Color(ink, 0.5))
 		draw_arc(_at(d), 6.0, 0, TAU, 16, Color(ink, 0.25), 1.0, true)
@@ -521,14 +521,14 @@ func _draw() -> void:
 			if j.get("locked", false):
 				_dashed(a2 + (b2 - a2).normalized() * 26.0, b2 - (b2 - a2).normalized() * 34.0, Color(UIStyle.INK_STAMP, 0.85), 2.5)
 				var mid := (a2 + b2) * 0.5
-				draw_string(tb, mid + Vector2(-38, 19), "PAPERS ONLY", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_STAMP)
+				draw_string(tb, mid + Vector2(-38, 19), "PAPERS ONLY", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.INK_STAMP)
 			else:
 				# A Charter lane: double-ruled, like a road on an old map.
 				var dn := (b2 - a2).normalized().orthogonal() * 2.2
 				draw_line(a2 + dn, b2 + dn, Color(ink, 0.8), 1.2, true)
 				draw_line(a2 - dn, b2 - dn, Color(ink, 0.8), 1.2, true)
-	draw_string(tb, _at(Vector2(0.03, 0.065)) + Vector2(0, 30), "HESPER MARCH", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, ink)
-	draw_string(tr, _at(Vector2(0.03, 0.065)) + Vector2(0, 46), "\"the Long Haul\"  ·  Charter sector", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, faded)
+	draw_string(tb, _at(Vector2(0.03, 0.065)) + Vector2(0, 30), "HESPER MARCH", HORIZONTAL_ALIGNMENT_LEFT, -1, 21, ink)
+	draw_string(tr, _at(Vector2(0.03, 0.065)) + Vector2(0, 46), "\"the Long Haul\"  ·  Charter sector", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, faded)
 
 	var obj_station: String = Career.objective.get("station", "") if Career.objective else ""
 	var obj_sys: String = Data.stations[obj_station]["system"] if Data.stations.has(obj_station) else ""
@@ -551,23 +551,23 @@ func _draw() -> void:
 			# The fortress gate: a heavy bar across the way out.
 			draw_rect(Rect2(p + Vector2(22, -18), Vector2(6, 36)), ink)
 			draw_rect(Rect2(p + Vector2(30, -18), Vector2(2, 36)), ink)
-			draw_string(tb, p + Vector2(-26, -28), "THE WALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
+			draw_string(tb, p + Vector2(-26, -28), "THE WALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, ink)
 		var nm: String = sd["name"].to_upper()
-		var nw := tb.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		var nw := tb.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
 		var sub: String = "%s  ·  %s" % [sd["nick"], sd["security"]]
-		var sw := tr.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+		var sw := tr.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 		var bw := maxf(maxf(nw, sw), 70.0) + 12.0
 		draw_rect(Rect2(p + Vector2(-bw * 0.5, rad + 4), Vector2(bw, 30 + n_st * 13)), Color(UIStyle.PAPER, 0.9))
-		draw_string(tb, p + Vector2(-nw * 0.5, rad + 17), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col if rough else ink)
-		draw_string(tr, p + Vector2(-sw * 0.5, rad + 29), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+		draw_string(tb, p + Vector2(-nw * 0.5, rad + 17), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, col if rough else ink)
+		draw_string(tr, p + Vector2(-sw * 0.5, rad + 29), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, faded)
 		var y := rad + 42.0
 		for st_id in Data.stations:
 			var st: Dictionary = Data.stations[st_id]
 			if st["system"] != id:
 				continue
 			var label: String = st["nick"]
-			var lw := tr.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
-			draw_string(tr, p + Vector2(-lw * 0.5, y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
+			var lw := tr.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+			draw_string(tr, p + Vector2(-lw * 0.5, y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, ink)
 			if st_id == obj_station:
 				var k := _ink(0.9)
 				var xp := p + Vector2(lw * 0.5 + 10, y - 4)
@@ -598,13 +598,13 @@ func _draw() -> void:
 	draw_arc(cx, 40.0, 0, TAU, 48, Color(ink, 0.18), 1.0, true)
 	draw_string(_title_font, cx + Vector2(-7, 9), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, ink)
 	var cn := "THE CROSSROADS"
-	var cnw := tb.get_string_size(cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	var cnw := tb.get_string_size(cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
 	var cs := "Dynasty gate  ·  every road meets here"
-	var csw := tr.get_string_size(cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+	var csw := tr.get_string_size(cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 	var bw := maxf(cnw, csw)
 	draw_rect(Rect2(cx + Vector2(-bw * 0.5 - 8, 44), Vector2(bw + 16, 36)), Color(UIStyle.PAPER, 0.92))
-	draw_string(tb, cx + Vector2(-cnw * 0.5, 60), cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ink)
-	draw_string(tr, cx + Vector2(-csw * 0.5, 74), cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+	draw_string(tb, cx + Vector2(-cnw * 0.5, 60), cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, ink)
+	draw_string(tr, cx + Vector2(-csw * 0.5, 74), cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, faded)
 
 	# --- Your own pen: a tick by each thing you've noted; hover it to read -------------
 	var ka := _ink(1.0)
@@ -632,51 +632,51 @@ func _draw() -> void:
 	if _hover.begins_with("region_") or _hover.begins_with("rumor_"):
 		var rgn: Array = REGIONS[ri]
 		draw_rect(Rect2(Vector2(fx, fy - 11), Vector2(12, 12)), Color(rgn[2], 0.85))
-		draw_string(tb, Vector2(fx + 20, fy), str(rgn[4]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
-		var nw2 := tb.get_string_size(str(rgn[4]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-		draw_string(tr, Vector2(fx + 34 + nw2, fy), "held by  " + str(rgn[5]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_STAMP if "rumor" in str(rgn[5]) else UIStyle.INK_PEN)
-		draw_string(tr, Vector2(fx, fy + 18), str(rgn[6]), HORIZONTAL_ALIGNMENT_LEFT, fw, 12, faded)
+		draw_string(tb, Vector2(fx + 20, fy), str(rgn[4]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 17, ink)
+		var nw2 := tb.get_string_size(str(rgn[4]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
+		draw_string(tr, Vector2(fx + 34 + nw2, fy), "held by  " + str(rgn[5]), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UIStyle.INK_STAMP if "rumor" in str(rgn[5]) else UIStyle.INK_PEN)
+		draw_string(tr, Vector2(fx, fy + 18), str(rgn[6]), HORIZONTAL_ALIGNMENT_LEFT, fw, 16, faded)
 	elif _hover != "" and systems.has(_hover):
 		var sd2: Dictionary = systems[_hover]
-		draw_string(tb, Vector2(fx, fy), str(sd2.get("name", _hover)).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
+		draw_string(tb, Vector2(fx, fy), str(sd2.get("name", _hover)).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 17, ink)
 		if ri >= 0:
-			var sn := tb.get_string_size(str(sd2.get("name", _hover)).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+			var sn := tb.get_string_size(str(sd2.get("name", _hover)).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
 			draw_rect(Rect2(Vector2(fx + sn + 14, fy - 11), Vector2(12, 12)), Color(REGIONS[ri][2], 0.85))
-			draw_string(tr, Vector2(fx + sn + 32, fy), "held by  " + str(REGIONS[ri][5]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_PEN)
+			draw_string(tr, Vector2(fx + sn + 32, fy), "held by  " + str(REGIONS[ri][5]), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UIStyle.INK_PEN)
 		var desc: String = sd2.get("desc", "")
 		if _hover == "crossroads":
 			desc = "The cork in the bottle. Past the Wall, every lane in the cluster runs through it. Charter papers required."
-		draw_multiline_string(tr, Vector2(fx, fy + 18), desc, HORIZONTAL_ALIGNMENT_LEFT, fw, 12, 2, faded)
+		draw_multiline_string(tr, Vector2(fx, fy + 18), desc, HORIZONTAL_ALIGNMENT_LEFT, fw, 16, 2, faded)
 	elif Career.objective:
-		draw_string(tb, Vector2(fx, fy), "CURRENT JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, faded)
+		draw_string(tb, Vector2(fx, fy), "CURRENT JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, faded)
 		draw_multiline_string(hand, Vector2(fx, fy + 24), Career.objective["text"], HORIZONTAL_ALIGNMENT_LEFT, fw, 24, 2, Color(UIStyle.INK_PEN, _ink(0.2)))
 	else:
-		draw_string(tr, Vector2(fx, fy), "No job on the board. Check a station's board when you dock.", HORIZONTAL_ALIGNMENT_LEFT, fw, 12, faded)
+		draw_string(tr, Vector2(fx, fy), "No job on the board. Check a station's board when you dock.", HORIZONTAL_ALIGNMENT_LEFT, fw, 16, faded)
 	# Legend.
 	var lx := pr.position.x + pr.size.x * 0.6
 	var ly := fy - 8.0
 	var dn2 := Vector2(0, 2.2)
 	draw_line(Vector2(lx, ly) + dn2, Vector2(lx + 26, ly) + dn2, ink, 1.2)
 	draw_line(Vector2(lx, ly) - dn2, Vector2(lx + 26, ly) - dn2, ink, 1.2)
-	draw_string(tr, Vector2(lx + 32, ly + 4), "Charter lane", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	draw_string(tr, Vector2(lx + 32, ly + 4), "Charter lane", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
 	_dashed(Vector2(lx + 120, ly), Vector2(lx + 146, ly), UIStyle.INK_STAMP, 2.0, 6.0)
-	draw_string(tr, Vector2(lx + 152, ly + 4), "papers only", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	draw_string(tr, Vector2(lx + 152, ly + 4), "papers only", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
 	_dead_rift(Vector2(lx + 248, ly))
-	draw_string(tr, Vector2(lx + 262, ly + 4), "dead rift", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	draw_string(tr, Vector2(lx + 262, ly + 4), "dead rift", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
 	draw_arc(Vector2(lx + 342, ly), 7.0, 0, TAU, 16, UIStyle.INK_STAMP, 1.5, true)
-	draw_string(tr, Vector2(lx + 354, ly + 4), "rough", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
+	draw_string(tr, Vector2(lx + 354, ly + 4), "rough", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
 	# Scale bar, of a sort.
 	var sy := ly + 20.0
 	for i in 4:
 		draw_rect(Rect2(Vector2(lx + i * 40, sy - 3), Vector2(40, 6)), ink if i % 2 == 0 else UIStyle.PAPER)
 	draw_rect(Rect2(Vector2(lx, sy - 3), Vector2(160, 6)), ink, false, 1.0)
 	for i in 3:
-		draw_string(tr, Vector2(lx + i * 80 - 3, sy + 15), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, ink)
-	draw_string(tr, Vector2(lx + 172, sy + 4), "jumps  ·  not to scale. nothing out here is.", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
-	draw_string(tb, Vector2(lx, sy + 34), "THE SEVERANCE", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
-	draw_string(tr, Vector2(lx + 110, sy + 34), "outbound rifts, dark seventy years. Cause unknown.", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
-	draw_string(tr, Vector2(pr.position.x + 44, pr.end.y - 14), "PROPERTY OF THE CHARTER COMPANY  ·  CHART 61-H  ·  ANNOTATION VOIDS LIEN WARRANTY  ·  DO NOT FOLD", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(faded, 0.85))
-	draw_string(tr, Vector2(pr.end.x - 210, pr.end.y - 14), "Wheel zoom   drag pan   M close", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+		draw_string(tr, Vector2(lx + i * 80 - 3, sy + 15), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ink)
+	draw_string(tr, Vector2(lx + 172, sy + 4), "jumps  ·  not to scale. nothing out here is.", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, faded)
+	draw_string(tb, Vector2(lx, sy + 34), "THE SEVERANCE", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, ink)
+	draw_string(tr, Vector2(lx + 110, sy + 34), "outbound rifts, dark seventy years. Cause unknown.", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, faded)
+	draw_string(tr, Vector2(pr.position.x + 44, pr.end.y - 14), "PROPERTY OF THE CHARTER COMPANY  ·  CHART 61-H  ·  ANNOTATION VOIDS LIEN WARRANTY  ·  DO NOT FOLD", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(faded, 0.85))
+	draw_string(tr, Vector2(pr.end.x - 210, pr.end.y - 14), "Wheel zoom   drag pan   M close", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, faded)
 	_tape(pr.position + Vector2(18, 14), -0.7)
 	_tape(Vector2(pr.end.x - 18, pr.position.y + 14), 0.7)
 	_tape(Vector2(pr.position.x + 20, pr.end.y - 12), 0.75)
@@ -866,7 +866,7 @@ func _seal(c: Vector2, a: float) -> void:
 	draw_set_transform(c, deg_to_rad(-9.0), Vector2.ONE)
 	var w := Data.font_stamp.get_string_size("CC", HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
 	draw_string(Data.font_stamp, Vector2(-w * 0.5, 7), "CC", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, col)
-	draw_string(Data.font_type_bold, Vector2(-9, 18), "61", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
+	draw_string(Data.font_type_bold, Vector2(-9, 18), "61", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, col)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
@@ -904,8 +904,8 @@ func _compass(c: Vector2, r: float) -> void:
 		var ang := TAU * i / 32.0
 		var d := Vector2(cos(ang), sin(ang))
 		draw_line(c + d * (r + 4.0), c + d * (r + (1.0 if i % 4 else 7.0)), Color(ink, 0.6), 1.0)
-	draw_string(Data.font_type_bold, c + Vector2(-4, -r - 9), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
-	draw_string(Data.font_type, c + Vector2(-30, r + 22), "core-ward", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, UIStyle.INK_FADED)
+	draw_string(Data.font_type_bold, c + Vector2(-4, -r - 9), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, ink)
+	draw_string(Data.font_type, c + Vector2(-30, r + 22), "core-ward", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_FADED)
 
 
 ## A pen ring, loose and a little overdrawn.

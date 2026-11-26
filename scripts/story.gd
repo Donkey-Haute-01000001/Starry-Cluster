@@ -592,7 +592,7 @@ func _show_choices() -> void:
 	var head := Label.new()
 	head.text = "TX  ·  OPEN BAND  ·  REPLY OR STAY QUIET"
 	head.add_theme_font_override("font", Data.font_type_bold)
-	head.add_theme_font_size_override("font_size", 12)
+	head.add_theme_font_size_override("font_size", 16)
 	head.add_theme_color_override("font_color", UIStyle.GOLD)
 	_choices.add_child(head)
 	var opts: Array = Data.tally["choices"]
@@ -603,7 +603,7 @@ func _show_choices() -> void:
 		b.custom_minimum_size = Vector2(360, 40)
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_override("font", Data.font_type)
-		b.add_theme_font_size_override("font_size", 17)
+		b.add_theme_font_size_override("font_size", 22)
 		for st in ["normal", "hover", "pressed"]:
 			var box := StyleBoxFlat.new()
 			box.bg_color = Color(0.06, 0.065, 0.07, 0.94) if st == "normal" else Color(0.13, 0.11, 0.07, 0.96)

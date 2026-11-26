@@ -101,10 +101,10 @@ func _draw_credit() -> void:
 	var f: Font = Data.font_type
 	var head := "NOW PLAYING"
 	var line := "%s  ·  %s" % [_credit_text, ARTIST]
-	var w := maxf(fb.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, f.get_string_size(head, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x) + 30.0
+	var w := maxf(fb.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x, f.get_string_size(head, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x) + 30.0
 	var slide := (1.0 - clampf(_credit_t / 0.5, 0.0, 1.0)) * 12.0
 	var r := Rect2(Vector2(vp.x - w - 20 + slide, 4), Vector2(w, 34))
 	_credit.draw_rect(r, Color(0.04, 0.045, 0.05, 0.85 * a))
 	_credit.draw_rect(Rect2(r.position, Vector2(3, r.size.y)), Color(1.0, 0.45, 0.7, a))
-	_credit.draw_string(f, r.position + Vector2(14, 12), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.6, 0.65, 0.7, a))
-	_credit.draw_string(fb, r.position + Vector2(14, 28), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.92, 0.92, 0.9, a))
+	_credit.draw_string(f, r.position + Vector2(14, 12), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.6, 0.65, 0.7, a))
+	_credit.draw_string(fb, r.position + Vector2(14, 28), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.92, 0.92, 0.9, a))

@@ -12,7 +12,7 @@ const UI_FONT_WEIGHT := 500
 var font_bold: Font = null  ## titles and headings
 ## Paperwork fonts (all SIL Open Font License; see fonts/). The Charter's cold
 ## print, people's handwriting on top of it, and rubber stamps.
-var font_type: Font = null       ## Courier Prime: forms, serials, typed text
+var font_type: Font = null       ## VT323: forms, serials, typed text (same face as font_talk)
 var font_type_bold: Font = null
 var font_hand: Font = null       ## Nanum Pen Script: pen notes, signatures, tally marks
 var font_talk: Font = null       ## VT323, crisp pixels: what people say (comms, ticker)
@@ -44,8 +44,6 @@ func _ready() -> void:
 			for k in ["ui", "ui_bold", "type", "type_bold", "stamp", "hand"]:
 				if FileAccess.file_exists(dir + "/" + k + ".ttf"):
 					fs[k] = dir + "/" + k + ".ttf"
-	font_type = _load_font(fs.get("type", "res://fonts/CourierPrime.ttf"))
-	font_type_bold = _load_font(fs.get("type_bold", "res://fonts/CourierPrime-Bold.ttf"))
 	font_stamp = _load_font(fs.get("stamp", "res://fonts/BigShouldersStencil-ExtraBold.ttf"))
 	var hand := _load_font(fs.get("hand", "res://fonts/NanumPenScript.ttf"))
 	if hand:
@@ -61,6 +59,9 @@ func _ready() -> void:
 		tv.base_font = talk
 		tv.spacing_glyph = 1
 		font_talk = tv
+	# Typed text is VT323 too (Courier Prime retired 2026-11-26). VT323 has no bold.
+	font_type = _load_font(fs["type"]) if fs.has("type") else font_talk
+	font_type_bold = _load_font(fs["type_bold"]) if fs.has("type_bold") else font_talk
 	var base := _load_font(fs.get("ui", UI_FONT))
 	if base == null:
 		return

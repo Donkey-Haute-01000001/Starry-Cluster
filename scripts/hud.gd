@@ -504,7 +504,7 @@ func _draw() -> void:
 			_pips((sp + Vector2(-hw, r + 11)).round(), hw * 2.0, ship.hull_hp / ship.max_hull, COL_HULL)
 			if ship.disabled:
 				var blink := 0.6 + 0.4 * sin(t * 6.0)
-				draw_string(Data.font_type_bold, (sp + Vector2(-hw, -r - 6)).round(), "DISABLED", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.95, 0.85, 0.5, blink))
+				draw_string(Data.font_type_bold, (sp + Vector2(-hw, -r - 6)).round(), "DISABLED", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.95, 0.85, 0.5, blink))
 		elif ship.team == 1 and not ship.disabled:
 			var center := vp * 0.5
 			var dir := (sp - center).normalized()
@@ -519,10 +519,10 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([edge + dir * 16, edge + dir.rotated(2.5) * 12, edge + dir.rotated(-2.5) * 12]), Color(COL_ENEMY, blink))
 			var km := int(main.player.global_position.distance_to(ship.global_position)) if is_instance_valid(main.player) else 0
 			var lab := "MAYDAY  %s “%s”  %s km" % [Data.hull_class(ship.hull_id).to_upper(), ship.display_name, _km(km)]
-			var lw := Data.font_type_bold.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			var lw := Data.font_type_bold.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
 			var lp := (edge - dir * 30.0 - Vector2(lw * 0.5, -4)).clamp(Vector2(10, 20), vp - Vector2(lw + 10, 10))
 			draw_rect(Rect2(lp + Vector2(-6, -16), Vector2(lw + 12, 22)), Color(0.02, 0.03, 0.04, 0.8))
-			draw_string(Data.font_type_bold, lp.round(), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(COL_ENEMY, blink))
+			draw_string(Data.font_type_bold, lp.round(), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color(COL_ENEMY, blink))
 
 	if main.focus_target and is_instance_valid(main.focus_target):
 		var fp := _to_screen(main.focus_target.global_position)
@@ -540,11 +540,11 @@ func _draw() -> void:
 		var reg: String = (str(Career.pilot.get("rig", "")).to_upper() if str(Career.pilot.get("rig", "")) != "" else "CC-40817-M") if main.merchant else "FLAGSHIP"
 		draw_string(Data.font_stamp, base + Vector2(18, 28), reg, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.86, 0.62, 0.18))
 		var reg_w := Data.font_stamp.get_string_size(reg, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-		draw_string(Data.font_type, base + Vector2(maxf(132.0, 18.0 + reg_w + 14.0), 27), p.def["name"].to_upper(), HORIZONTAL_ALIGNMENT_LEFT, 300.0 - reg_w, 12, UIStyle.TEXT_DIM)
+		draw_string(Data.font_type, base + Vector2(maxf(132.0, 18.0 + reg_w + 14.0), 27), p.def["name"].to_upper(), HORIZONTAL_ALIGNMENT_LEFT, 300.0 - reg_w, 16, UIStyle.TEXT_DIM)
 		var spd := "%03d m/s" % int(p.velocity.length())
 		var sr := Rect2(base + Vector2(330, 11), Vector2(94, 22))
 		draw_rect(sr, Color(0.03, 0.02, 0.01))
-		draw_string(Data.font_type_bold, sr.position + Vector2(8, 16), spd, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1.0, 0.6, 0.2))
+		draw_string(Data.font_type_bold, sr.position + Vector2(8, 16), spd, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1.0, 0.6, 0.2))
 		if main.merchant and main.edge and (main.edge.outside or main.edge.reserve < 1.0):
 			# Reserve tank: only out past the beacons does it matter.
 			var ek: float = main.edge.reserve
@@ -572,10 +572,10 @@ func _draw() -> void:
 			var tab := Rect2(base + Vector2(0, -24), Vector2(300, 22))
 			draw_rect(tab, Color(0.05, 0.055, 0.06, 0.92))
 			draw_rect(Rect2(tab.position, Vector2(3, tab.size.y)), sw["color"])
-			draw_string(Data.font_type_bold, tab.position + Vector2(12, 16), "RMB  " + label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.TEXT)
-			var stw := Data.font_type_bold.get_string_size(state, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
-			draw_string(Data.font_type_bold, tab.position + Vector2(tab.size.x - 10 - stw, 16), state, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, sc)
-			draw_string(Data.font_type, tab.position + Vector2(tab.size.x + 10, 16), "[R] swap", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.TEXT_DIM)
+			draw_string(Data.font_type_bold, tab.position + Vector2(12, 16), "RMB  " + label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UIStyle.TEXT)
+			var stw := Data.font_type_bold.get_string_size(state, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			draw_string(Data.font_type_bold, tab.position + Vector2(tab.size.x - 10 - stw, 16), state, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, sc)
+			draw_string(Data.font_type, tab.position + Vector2(tab.size.x + 10, 16), "[R] swap", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.TEXT_DIM)
 		var rows := [["SHIELDS", p.shields / p.max_shields, COL_SHIELD], ["HULL", p.hull_hp / p.max_hull, COL_HULL], ["ENERGY", p.energy / p.max_energy, COL_ENERGY]]
 		for i in rows.size():
 			var y0 := base.y + 44 + i * 16
@@ -781,7 +781,7 @@ func _hazard(r: Rect2, col: Color, striped: bool) -> void:
 ## Embossed label-maker tape: black strip, raised white letters, tilted a hair.
 func _label_tape(at: Vector2, text: String, seed: int, base := Vector2.ZERO) -> void:
 	var f: Font = Data.font_type_bold
-	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 20.0
+	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x + 20.0
 	var tilt := (float(absi(seed) % 7) - 3.0) * 0.006
 	draw_set_transform(base + at, tilt, Vector2.ONE)
 	var r := Rect2(Vector2.ZERO, Vector2(w, 22))
@@ -791,7 +791,7 @@ func _label_tape(at: Vector2, text: String, seed: int, base := Vector2.ZERO) -> 
 	# Cut ends.
 	draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(3, 11), Vector2(0, 22)]), Color(0.075, 0.085, 0.095))
 	draw_colored_polygon(PackedVector2Array([Vector2(w, 0), Vector2(w - 3, 11), Vector2(w, 22)]), Color(0.075, 0.085, 0.095))
-	draw_string(f, Vector2(10, 16), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.93, 0.93, 0.9))
+	draw_string(f, Vector2(10, 16), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(0.93, 0.93, 0.9))
 	draw_set_transform(base, 0.0, Vector2.ONE)
 
 
@@ -823,18 +823,18 @@ func _ship_tag(at: Vector2, ship: Ship, hov: bool) -> void:
 		job = "MAYDAY"
 	var f: Font = Data.font_type_bold
 	var fr: Font = Data.font_type
-	var tw := maxf(f.get_string_size(name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x, maxf(fr.get_string_size(owner, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, fr.get_string_size(job, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x))
+	var tw := maxf(f.get_string_size(name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x, maxf(fr.get_string_size(owner, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, fr.get_string_size(job, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x))
 	draw_rect(Rect2(at + Vector2(-6, -14), Vector2(tw + 12, 22 + (13 if owner != "" else 0) + (13 if job != "" else 0) + (13 if hov and ship.team != 0 else 0))), Color(0.02, 0.03, 0.04, 0.72))
-	draw_string(f, at.round(), name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.95))
+	draw_string(f, at.round(), name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.95))
 	var y := 14.0
 	if owner != "":
-		draw_string(fr, (at + Vector2(0, y)).round(), owner, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(COL_NEUTRAL, 0.85))
+		draw_string(fr, (at + Vector2(0, y)).round(), owner, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(COL_NEUTRAL, 0.85))
 		y += 13.0
 	if job != "":
-		draw_string(fr, (at + Vector2(0, y)).round(), job, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, COL_ENEMY if job == "MAYDAY" else Color(COL_NEUTRAL, 0.7))
+		draw_string(fr, (at + Vector2(0, y)).round(), job, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, COL_ENEMY if job == "MAYDAY" else Color(COL_NEUTRAL, 0.7))
 		y += 13.0
 	if hov and ship.team != 0 and main.merchant:
-		draw_string(fr, (at + Vector2(0, y)).round(), "[Y] hail", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.GOLD)
+		draw_string(fr, (at + Vector2(0, y)).round(), "[Y] hail", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.GOLD)
 
 
 ## The lien in flight: the repo cutter, a customs scan, the repossession notice.
@@ -866,14 +866,14 @@ func _draw_repo_slip(vp: Vector2, slip: Dictionary) -> void:
 	draw_rect(Rect2(r.position, Vector2(r.size.x, 6)), UIStyle.INK_STAMP)
 	var f: Font = Data.font_type
 	var fb: Font = Data.font_type_bold
-	draw_string(fb, r.position + Vector2(18, 30), "THE CHARTER COMPANY  ·  RECOVERY", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
-	draw_string(fb, r.position + Vector2(18, 58), "NOTICE OF REPOSSESSION", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.INK_TYPE)
-	draw_string(f, r.position + Vector2(18, 84), "Cargo seized: %d t, all of it." % int(slip["seized"]), HORIZONTAL_ALIGNMENT_LEFT, 364, 12, UIStyle.INK_TYPE)
-	draw_string(f, r.position + Vector2(18, 102), "Cash applied to overdue: %s cr." % Career.fmt(int(slip["took"])), HORIZONTAL_ALIGNMENT_LEFT, 364, 12, UIStyle.INK_TYPE)
-	draw_string(f, r.position + Vector2(18, 120), "Rig released to owner-operator. Strikes cleared.", HORIZONTAL_ALIGNMENT_LEFT, 364, 12, UIStyle.INK_TYPE)
+	draw_string(fb, r.position + Vector2(18, 30), "THE CHARTER COMPANY  ·  RECOVERY", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_FADED)
+	draw_string(fb, r.position + Vector2(18, 58), "NOTICE OF REPOSSESSION", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 84), "Cargo seized: %d t, all of it." % int(slip["seized"]), HORIZONTAL_ALIGNMENT_LEFT, 364, 16, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 102), "Cash applied to overdue: %s cr." % Career.fmt(int(slip["took"])), HORIZONTAL_ALIGNMENT_LEFT, 364, 16, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 120), "Rig released to owner-operator. Strikes cleared.", HORIZONTAL_ALIGNMENT_LEFT, 364, 16, UIStyle.INK_TYPE)
 	draw_line(r.position + Vector2(18, 134), r.position + Vector2(382, 134), Color(UIStyle.INK_FADED, 0.5), 1.0)
-	draw_string(fb, r.position + Vector2(18, 156), "RECOVERY FEE", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_TYPE)
-	draw_string(fb, r.position + Vector2(140, 156), "%s cr" % Career.fmt(int(slip["fee"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_TYPE)
+	draw_string(fb, r.position + Vector2(18, 156), "RECOVERY FEE", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UIStyle.INK_TYPE)
+	draw_string(fb, r.position + Vector2(140, 156), "%s cr" % Career.fmt(int(slip["fee"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIStyle.INK_TYPE)
 	if float(slip["t"]) > 0.9:
 		var sk := clampf((float(slip["t"]) - 0.9) / 0.15, 0.0, 1.0)
 		var sc := 1.6 - 0.6 * sk
@@ -893,14 +893,14 @@ func _draw_tow_slip(vp: Vector2, slip: Dictionary) -> void:
 	draw_rect(r, Color(0.93, 0.91, 0.85))
 	var f: Font = Data.font_type
 	var fb: Font = Data.font_type_bold
-	draw_string(fb, r.position + Vector2(18, 26), "THE CHARTER COMPANY  ·  RECOVERY", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
-	draw_string(fb, r.position + Vector2(18, 54), "TOW SLIP  No. %03d" % (40 + int(slip["n"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.INK_TYPE)
+	draw_string(fb, r.position + Vector2(18, 26), "THE CHARTER COMPANY  ·  RECOVERY", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_FADED)
+	draw_string(fb, r.position + Vector2(18, 54), "TOW SLIP  No. %03d" % (40 + int(slip["n"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UIStyle.INK_TYPE)
 	var rig := str(Career.pilot.get("rig", "your rig"))
-	draw_string(f, r.position + Vector2(18, 82), slip.get("what", "Recovery of rig \"%s\" from past beacon range." % rig), HORIZONTAL_ALIGNMENT_LEFT, 344, 12, UIStyle.INK_TYPE)
-	draw_string(f, r.position + Vector2(18, 102), "Towed to nearest berth." if slip.has("what") else "Towed to nearest berth. Reserve refuelled.", HORIZONTAL_ALIGNMENT_LEFT, 344, 12, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 82), slip.get("what", "Recovery of rig \"%s\" from past beacon range." % rig), HORIZONTAL_ALIGNMENT_LEFT, 344, 16, UIStyle.INK_TYPE)
+	draw_string(f, r.position + Vector2(18, 102), "Towed to nearest berth." if slip.has("what") else "Towed to nearest berth. Reserve refuelled.", HORIZONTAL_ALIGNMENT_LEFT, 344, 16, UIStyle.INK_TYPE)
 	draw_line(r.position + Vector2(18, 116), r.position + Vector2(362, 116), Color(UIStyle.INK_FADED, 0.5), 1.0)
-	draw_string(fb, r.position + Vector2(18, 138), "FEE", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.INK_TYPE)
-	draw_string(fb, r.position + Vector2(90, 138), "%s cr" % Career.fmt(int(slip["fee"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.INK_TYPE)
+	draw_string(fb, r.position + Vector2(18, 138), "FEE", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UIStyle.INK_TYPE)
+	draw_string(fb, r.position + Vector2(90, 138), "%s cr" % Career.fmt(int(slip["fee"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIStyle.INK_TYPE)
 	if float(slip["t"]) > 0.9:
 		var sk := clampf((float(slip["t"]) - 0.9) / 0.15, 0.0, 1.0)
 		var sc := 1.6 - 0.6 * sk
@@ -1050,7 +1050,7 @@ func _draw_ticker(vp: Vector2) -> void:
 	var y := (comms_top - 18.0) if _comms_t > 0.0 else vp.y - 34.0
 	var fb: Font = Data.font_type_bold
 	var f: Font = Data.font_talk if Data.font_talk else Data.font_type
-	var ww := fb.get_string_size(who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	var ww := fb.get_string_size(who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	var text := str(_tick[1])
 	# Stay clear of the ship panel in the middle; long lines wrap to two.
 	var cap := minf(620.0, vp.x * 0.5 - 250.0 - 40.0 - ww)
@@ -1063,7 +1063,7 @@ func _draw_ticker(vp: Vector2) -> void:
 	y -= 20.0 * (lines - 1)
 	draw_rect(Rect2(Vector2(16, y - 17), Vector2(ww + tw + 36, h)), Color(0.02, 0.035, 0.045, 0.78 * a))
 	draw_rect(Rect2(Vector2(16, y - 17), Vector2(3, h)), Color(col, a))
-	draw_string(fb, Vector2(28, y), who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col, a))
+	draw_string(fb, Vector2(28, y), who.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(col, a))
 	Neon.draw(self, f, Vector2(28 + ww + 12, y - f.get_ascent(19) + 1), np, tw + 12.0, 19, Data.TALK_BODY.lightened(0.1), a, 1e9, false, 2)
 
 
@@ -1090,7 +1090,7 @@ func _draw_comms(vp: Vector2) -> void:
 	# Channel strip across the top.
 	draw_rect(Rect2(r.position, Vector2(r.size.x, 20)), Color(col.r, col.g, col.b, 0.16 * a))
 	var tf: Font = Data.font_type_bold if Data.font_type_bold else ThemeDB.fallback_font
-	draw_string(tf, r.position + Vector2(10, 15), info["channel"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, a))
+	draw_string(tf, r.position + Vector2(10, 15), info["channel"], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(col.r, col.g, col.b, a))
 	# Signal meter: bars that flicker while the line is still coming in.
 	var typing := _comms_age < Neon.duration(np)
 	for k in 5:
@@ -1128,9 +1128,9 @@ func _draw_comms(vp: Vector2) -> void:
 		if typing:
 			hint = "CLICK / SPACE  ▸  skip"
 		var hf: Font = Data.font_type_bold if Data.font_type_bold else ThemeDB.fallback_font
-		var hw := hf.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		var hw := hf.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 		var blink := 0.55 + 0.45 * absf(sin(_comms_age * 3.0))
-		draw_string(hf, Vector2(r.end.x - hw - 12, r.end.y - 10), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.r, col.g, col.b, blink * a))
+		draw_string(hf, Vector2(r.end.x - hw - 12, r.end.y - 10), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(col.r, col.g, col.b, blink * a))
 	comms_links.clear()
 	Neon.draw(self, tf22, Vector2(x, r.position.y + 70 - tf22.get_ascent(TALK_SIZE)), np, body_w, TALK_SIZE, Data.TALK_BODY, a, _comms_age, false, -1, comms_links)
 	# Highlighted words are links into the journal: underline the one under the mouse.
@@ -1275,8 +1275,8 @@ func _draw_plate(sys: Dictionary) -> void:
 		if Career.strikes > 0:
 			line += "  ·  STRIKE %d/2" % Career.strikes
 		var la := 1.0 - pk
-		draw_rect(Rect2(Vector2(16, 12), Vector2(Data.font_type_bold.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 24, 22)), Color(0.02, 0.03, 0.04, 0.6 * la))
-		draw_string(Data.font_type_bold, Vector2(28, 27), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(UIStyle.TEXT_DIM, la))
+		draw_rect(Rect2(Vector2(16, 12), Vector2(Data.font_type_bold.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 24, 22)), Color(0.02, 0.03, 0.04, 0.6 * la))
+		draw_string(Data.font_type_bold, Vector2(28, 27), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(UIStyle.TEXT_DIM, la))
 	var lift := Vector2(0, -(1.0 - pk) * 140.0)
 	draw_set_transform(lift, 0.0, Vector2.ONE)
 	var plate := Rect2(Vector2(16, 16), Vector2(470, 108))
@@ -1284,12 +1284,12 @@ func _draw_plate(sys: Dictionary) -> void:
 	var sec: String = sys["security"].to_upper()
 	var sc: Color = SECURITY_COLORS.get(sys["security"], UIStyle.GOLD)
 	var tf: Font = Data.font_type_bold
-	var tag_w := tf.get_string_size(sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 34.0
+	var tag_w := tf.get_string_size(sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 34.0
 	var tag := Rect2(Vector2(30, 26), Vector2(tag_w, 18))
 	_hazard(tag, sc, sys.get("danger", 0.0) > 0.5)
 	draw_rect(Rect2(tag.position + Vector2(9, 3), Vector2(tag_w - 18, 12)), Color(0.04, 0.04, 0.05))
-	draw_string(tf, tag.position + Vector2(17, 13), sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
-	draw_string(Data.font_type, Vector2(tag.end.x + 10, 39), "%s  ·  DAY %d  ·  WK %d" % [Data.sector["name"].to_upper(), int(Career.day) + 1, Career.week()], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.TEXT_DIM)
+	draw_string(tf, tag.position + Vector2(17, 13), sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, sc)
+	draw_string(Data.font_type, Vector2(tag.end.x + 10, 39), "%s  ·  DAY %d  ·  WK %d" % [Data.sector["name"].to_upper(), int(Career.day) + 1, Career.week()], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UIStyle.TEXT_DIM)
 	var name_up: String = sys["name"].to_upper()
 	draw_string(Data.font_stamp, Vector2(31, 79), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0, 0, 0, 0.6))
 	draw_string(Data.font_stamp, Vector2(30, 78), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.9, 0.88, 0.82))

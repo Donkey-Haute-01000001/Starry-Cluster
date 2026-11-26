@@ -73,7 +73,7 @@ func _ready() -> void:
 	add_child(sign)
 	var title := _label(sign, "SECTOR SECUNDUS", Data.font_bold, 46, Color(0.88, 0.92, 0.98))
 	title.add_theme_constant_override("outline_size", 0)
-	_label(sign, "AURELIA   HESPER MARCH", Data.font_type_bold, 15, Color(1.0, 0.75, 0.35, 0.85))
+	_label(sign, "AURELIA   HESPER MARCH", Data.font_type_bold, 20, Color(1.0, 0.75, 0.35, 0.85))
 
 	_board = Control.new()
 	_board.size = Vector2(PAPER_W + 44, PAPER_H + 70)
@@ -246,7 +246,7 @@ func _menu_button(text: String, cb: Callable, sub := "") -> void:
 	b.mouse_exited.connect(func(): slide.call(0.0))
 	col.add_child(b)
 	if sub != "":
-		var l := _label(col, sub, Data.font_type, 12, Color(1, 1, 1, 0.55))
+		var l := _label(col, sub, Data.font_type, 16, Color(1, 1, 1, 0.55))
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
@@ -481,7 +481,7 @@ func _label(parent: Node, text: String, font: Font, sz: int, col: Color) -> Labe
 
 
 func _type(parent: Node, text: String, sz := 15, bold := false, col := UIStyle.INK_TYPE) -> Label:
-	return _label(parent, text, Data.font_type_bold if bold else Data.font_type, sz, col)
+	return _label(parent, text, Data.font_type_bold if bold else Data.font_type, roundi(sz * 1.3), col)
 
 
 func _rule(parent: Node) -> void:
@@ -544,7 +544,7 @@ func _type_button(parent: Node, text: String, cb: Callable, sz := 16) -> Button:
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	if Data.font_type_bold:
 		b.add_theme_font_override("font", Data.font_type_bold)
-	b.add_theme_font_size_override("font_size", sz)
+	b.add_theme_font_size_override("font_size", roundi(sz * 1.3))
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color(0, 0, 0, 0)
 	normal.border_color = Color(UIStyle.INK_TYPE, 0.6)

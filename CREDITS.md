@@ -9,7 +9,7 @@
 - Turret sound: "Machine Gun SFX" by Dragon Studio on Pixabay (Pixabay Content License). Single shots cut from the burst.
 - Menu clicks, kill/ally-lost cues and paperwork (page flips, paper, pen, stamps), docking, cruise and jump sounds: Kenney's "Interface Sounds", "RPG Audio", "Impact Sounds" and "Sci-fi Sounds" (CC0).
 - Dialogue key ticks and neon buzz: Kenney's "Interface Sounds" clicks and "Sci-fi Sounds" computer noise (CC0), in `sounds/key*.wav` and `sounds/neon*.wav`.
-- Dialogue font: VT323 by Peter Hull (SIL Open Font License, `fonts/VT323-OFL.txt`).
-- UI fonts: Big Shoulders and Big Shoulders Stencil (The Big Shoulders Project Authors), Courier Prime (The Courier Prime Project Authors), Nanum Pen Script (NAVER Corporation), all SIL Open Font License, licenses in `fonts/`.
+- Typed text and dialogue font: VT323 by Peter Hull (SIL Open Font License, `fonts/VT323-OFL.txt`).
+- UI fonts: Big Shoulders and Big Shoulders Stencil (The Big Shoulders Project Authors), Nanum Pen Script (NAVER Corporation), all SIL Open Font License, licenses in `fonts/`.
 - Engine: Godot Engine (MIT, godotengine.org).
 - The in-game credits roll (`scripts/credits_roll.gd`) mirrors this file; keep them in step.

@@ -33,7 +33,7 @@ for p in SCRIPTS:
             problems.append(f"sound: {p.name} plays '{m.group(1)}' but sounds/{m.group(1)}.wav is missing")
 
 # Fonts: only the locked families.
-allowed = ("BigShoulders", "BigShouldersStencil", "CourierPrime", "NanumPenScript", "VT323")
+allowed = ("BigShoulders", "BigShouldersStencil", "NanumPenScript", "VT323")
 for p in (ROOT / "fonts").glob("*.[ot]tf"):
     if not p.stem.startswith(allowed):
         problems.append(f"font: {p.name} is not a locked font")

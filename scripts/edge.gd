@@ -156,5 +156,5 @@ func _draw() -> void:
 			continue
 		draw_set_transform(q, a + PI * 0.5, Vector2.ONE)
 		var s := "BEACON RANGE"
-		draw_string(f, Vector2(-f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x * 0.5, 0), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.55, 0.75, 0.9, 0.3))
+		draw_string(f, Vector2(-f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x * 0.5, 0), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color(0.55, 0.75, 0.9, 0.3))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

@@ -56,7 +56,7 @@ Each screen is mocked, shown, and built only after Vishnu OKs it.
 
 ## Fonts
 
-Courier Prime leaves the UI. Typed text is VT323. Big Shoulders, Stencil and Nanum Pen stay.
+Courier Prime is retired (2026-11-26). Typed text is VT323 everywhere. Big Shoulders, Stencil and Nanum Pen stay.
 
 ## References
 

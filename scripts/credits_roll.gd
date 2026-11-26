@@ -6,9 +6,9 @@ extends Control
 signal closed
 
 const SPEED := 38.0          ## px per second
-const ROLE_SIZE := 14
+const ROLE_SIZE := 18
 const NAME_SIZE := 30
-const NOTE_SIZE := 13
+const NOTE_SIZE := 17
 
 ## [kind, text]: "title", "role" (small print over a block), "name", "note", "gap".
 const LINES := [
@@ -144,5 +144,5 @@ func _draw() -> void:
 	# The way out, low and quiet, like the menu row.
 	var hint := "ESC  ·  BACK"
 	var hf: Font = Data.font_type_bold
-	var hw := hf.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
-	draw_string(hf, Vector2(vp.x - hw - 48, vp.y - 40), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.45 * _fade))
+	var hw := hf.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	draw_string(hf, Vector2(vp.x - hw - 48, vp.y - 40), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.45 * _fade))
