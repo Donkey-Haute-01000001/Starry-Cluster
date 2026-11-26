@@ -107,17 +107,39 @@ vec3 paper(vec2 p, vec2 uv) {
 		float pool = (1.0 - smoothstep(ring.z - 6.0, ring.z, d)) * 0.25 * fbm(p / 18.0);
 		col = mix(col, col * vec3(0.72, 0.55, 0.38), clamp(ringv * 0.6 + pool, 0.0, 1.0) * wear);
 	}
-	// Territory: a watercolor wash per power, pigment pooled at the rim.
-	for (int i = 0; i < 10; i++) {
-		if (i >= reg_n) break;
-		vec2 q = (p - reg[i].xy) / reg[i].zw;
-		float d = length(q) + (fbm(p / 45.0 + float(i) * 7.3) - 0.5) * 0.32;
-		float inside = 1.0 - smoothstep(0.9, 1.0, d);
-		float rim = exp(-pow((d - 0.96) / 0.035, 2.0));
-		float k = regc[i].a * (i == reg_hi ? 1.8 : 0.6);
-		float bloom = 0.85 + 0.3 * fbm(p / 22.0 + float(i));
-		vec3 tinted = col * mix(vec3(1.0), regc[i].rgb, clamp((inside * 0.55 * bloom + rim * 0.5) * k, 0.0, 1.0));
-		col = tinted;
+	// Territory, Victoria-style: every power's colour spreads until it meets a
+	// neighbour, then the two bleed into each other across a soft border. Far
+	// from everyone the paper stays blank.
+	if (reg_n > 0) {
+		vec3 rtint = vec3(0.0);
+		float wsum = 0.0;
+		float dmin = 99.0;
+		float w1 = 0.0;
+		float w2 = 0.0;
+		float hi = 0.0;
+		float str = 0.0;
+		for (int i = 0; i < 10; i++) {
+			if (i >= reg_n) break;
+			vec2 q = (p - reg[i].xy) / reg[i].zw;
+			float d = length(q) + (fbm(p / 45.0 + float(i) * 7.3) - 0.5) * 0.28;
+			float w = exp(-d * 7.0);
+			rtint += regc[i].rgb * w;
+			str += regc[i].a * w;
+			hi += (i == reg_hi ? 1.0 : 0.0) * w;
+			wsum += w;
+			dmin = min(dmin, d);
+			if (w > w1) { w2 = w1; w1 = w; } else if (w > w2) { w2 = w; }
+		}
+		rtint /= wsum;
+		str /= wsum;
+		hi /= wsum;
+		float cover = 1.0 - smoothstep(1.05, 1.7, dmin);
+		float bloom = 0.85 + 0.3 * fbm(p / 22.0);
+		// A faint pooled line where two powers meet.
+		float border = exp(-pow((w1 - w2) / (w1 + 1e-5) / 0.18, 2.0)) * cover;
+		float k = clamp(str * (1.0 + hi * 0.8) * bloom * cover, 0.0, 0.85);
+		col = col * mix(vec3(1.0), rtint, k);
+		col *= 1.0 - border * 0.22;
 	}
 	col = creases(col, uv.x, folds.x, size.x);
 	col = creases(col, uv.y, folds.y, size.y);
