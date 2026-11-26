@@ -629,8 +629,8 @@ func say(speaker: String, text: String, chatter := false) -> void:
 	comms_log.append([day, speaker, text])
 	if comms_log.size() > 200:
 		comms_log.pop_front()
-	if speaker != "You":
-		contacts[speaker] = true
+	if speaker != "You" and not (speaker == "Tallyman" and not flags.has("tally_named") and not flags.get("tally_done", false)):
+		contacts[speaker] = true  # the Tallyman is filed once he gives his name
 	comms.emit(speaker, text)
 
 

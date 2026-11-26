@@ -1731,6 +1731,7 @@ func _run_merchant_test() -> void:
 	Checks.check(is_instance_valid(player) and player.alive, "player survives the ambush")
 	Checks.check(Career.flags.has("tally_warned") and Career.comms_log.any(func(l): return l[2] == Data.charlie["raider"]), "ambush: he hails first and Charlie calls the raider")
 	Checks.check(story._tally.is_empty() or not is_instance_valid(story._tally[0]) or story._tally[0].display_name == "The Tallyman", "ambush: his tag turns to his name at the signoff")
+	Checks.check(Career.flags.has("tally_named") and Career.contacts.has("Tallyman"), "ambush: he's filed by name after the signoff")
 
 	# Kessler's board at Four, then the Red Stork near Amber's.
 	_go("four")

@@ -278,6 +278,14 @@ func on_comms(speaker: String, text: String) -> void:
 
 
 ## Lines wait for the player, except in scripted tests.
+## The name on the comms window. The Tallyman stays "Unknown" until he
+## gives his name at the ambush signoff, so the reveal lands.
+func _speaker_name() -> String:
+	if _comms_speaker == "Tallyman" and not Career.flags.has("tally_named") and not Career.flags.get("tally_done", false):
+		return "Unknown"
+	return _comms_speaker
+
+
 func hold_enabled() -> bool:
 	return not main._merchant_test and DisplayServer.get_name() != "headless"
 
@@ -1031,8 +1039,8 @@ func _draw_comms(vp: Vector2) -> void:
 			draw_rect(Rect2(sx, sy, srng.randf_range(40, r.size.x * 0.5), srng.randf_range(1, 3)), Color(col.r, col.g, col.b, srng.randf() * 0.4 * fade))
 	# Name, role, then the words.
 	var x := photo.end.x + 18.0
-	_text(Vector2(x, r.position.y + 44), _comms_speaker.to_upper(), 15, Color(1, 1, 1, a), false, true)
-	var role_w := (Data.font_bold if Data.font_bold else ThemeDB.fallback_font).get_string_size(_comms_speaker.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	_text(Vector2(x, r.position.y + 44), _speaker_name().to_upper(), 15, Color(1, 1, 1, a), false, true)
+	var role_w := (Data.font_bold if Data.font_bold else ThemeDB.fallback_font).get_string_size(_speaker_name().to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	_text(Vector2(x + role_w + 10, r.position.y + 44), info["role"], 12, Color(col.r, col.g, col.b, 0.85 * a))
 	# What to press, and how many lines are waiting.
 	if _comms_hold:

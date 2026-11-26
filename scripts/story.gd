@@ -456,9 +456,12 @@ func _ambush_step() -> void:
 			var fought: String = "fought_well" if Career.flags.get("tally_score", 0) >= FOUGHT_WELL_DAMAGE else "fought_poorly"
 			_say_at(8.0, "Tallyman", Data.tally[fought])
 			_say_at(13.0, "Tallyman", Data.tally["spare"])
+			if _t >= 18.5:
+				Career.flags["tally_named"] = true  # before the line, so he's filed by name
 			_say_at(18.5, "Tallyman", Data.tally["signoff"])
-			if g and _t >= 18.5:
-				g.display_name = "The Tallyman"
+			if _t >= 18.5:
+				if g:
+					g.display_name = "The Tallyman"
 			if _t > 22.0:
 				_tally_leaves()
 				_next("gone")
