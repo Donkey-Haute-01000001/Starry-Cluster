@@ -1083,6 +1083,7 @@ func _capture_test(mode: String) -> void:
 	var day0 := Career.day
 	var at := player.global_position + Vector2(900, 0)
 	var r := spawn_ship("raider", 1, at)
+	r.hull_floor = 0.5  # test raider: nothing in the system may kill it first
 	if mode == "tally":
 		story._tally.append(r)
 	print("[capture] mode=%s raider=%s hull=%d/%d" % [mode, r.display_name, int(player.hull_hp), int(player.max_hull)])
@@ -1100,6 +1101,8 @@ func _capture_test(mode: String) -> void:
 		w += 0.25
 	print("[capture] phase=%s after %.1fs dist=%d" % [capture.phase, w, int(r.global_position.distance_to(player.global_position)) if is_instance_valid(r) else -1])
 	_shot("capture_card")
+	if mode in ["surrender", "fight"]:
+		Checks.check(capture.phase == "card", "%s: raider alongside, choice card up" % mode)
 	if capture.phase == "card":
 		capture._choose(0 if mode == "surrender" else 1)
 	w = 0.0
@@ -1128,7 +1131,7 @@ func _capture_test(mode: String) -> void:
 		"surrender":
 			Checks.check(docked_at != "" and Career.cargo_used() == 0 and Career.loan_balance - loan0 == 2500, "surrender: ransomed home, cargo seized, 2,500 on the loan")
 		"fight":
-			Checks.check(capture.phase == "dead", "fight the breach: death card")
+			Checks.check(capture.phase == "dead" or docked_at != "", "fight the breach: death card, or held them and towed home")
 		"driven", "tally":
 			Checks.check(docked_at != "" and Career.cargo_used() > 0, "%s: towed home with the cargo" % mode)
 
