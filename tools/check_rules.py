@@ -58,9 +58,19 @@ for k, where in sorted(read.items()):
     if k not in written and k not in DYNAMIC:
         problems.append(f"flag: '{k}' is read in {where} but never set (typo?)")
 
+# Portraits (Vishnu 2026-11-26): every named speaker in a script gets a face.
+# A literal say("Name", ...) / call_in(kind, "Name", ...) must be in PORTRAIT_FILES.
+ui = src(ROOT / "scripts" / "ui_style.gd")
+faces = set(re.findall(r'"([^"]+)":\s*"[a-z_]+"', ui[ui.find("PORTRAIT_FILES"):ui.find("}", ui.find("PORTRAIT_FILES"))]))
+faces |= {"You"}
+for p in SCRIPTS:
+    for m in re.finditer(r'(?:\bsay\(|call_in\("[A-Z]+",\s*)"([A-Z][^"]*)"', src(p)):
+        if m.group(1) not in faces:
+            problems.append(f"portrait: {p.name} has '{m.group(1)}' speak with no portrait (add it to PORTRAIT_FILES)")
+
 if problems:
     print("RULES: %d broken" % len(problems))
     for x in problems:
         print("  " + x)
     sys.exit(1)
-print("RULES: ok (sounds, fonts, words, flags)")
+print("RULES: ok (sounds, fonts, words, flags, portraits)")

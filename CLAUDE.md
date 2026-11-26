@@ -21,6 +21,7 @@ Vishnu writes and directs; Claude designs systems and builds. Read this file, th
 - **Art is git-ignored** (`art/`, bought packs; repo is public). New art = send an updated art-pack zip via project files.
 - **Script lines:** lines marked `DRAFT` in `scripts/data.gd` are placeholders; the script doc wins.
 - **Line method:** offer 2-3 takes plus a pick; Vishnu picks. Tally-job lines (`tally_offer`, `tally_done`, `charter_heat`, `tally_heat`, Notch) are kept for the Scrapper.
+- **Portraits:** every character who speaks gets a portrait from the pack (No Border 1x, #1-200) in `art/portraits/`, mapped in `UIStyle.PORTRAIT_FILES`. Offer picks on a sheet; send the new files in `portraits.zip`. The rule check fails on a named speaker with no portrait.
 - **Inspiration check:** Endless Sky loop, Mount & Blade loop, Katana Zero look. Original names/art/story only.
 
 ## Where things live
