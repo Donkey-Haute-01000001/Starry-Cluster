@@ -26,7 +26,8 @@ Each screen is mocked, shown, and built only after Vishnu OKs it.
 | Form NK-2 (Dez contact) | built |
 | Launch ID card | built |
 | Ransom receipt, sector bulletin, dispatch slip | built |
-| Journal and chart | next (biggest) |
+| Journal | built: neon sections, list, pages (2026-11-26) |
+| Chart | atlas on paper, kept by pick: territories, zoom, auto-placed names (2026-11-26) |
 
 ## Neon rules (menus)
 
