@@ -509,6 +509,13 @@ func _ceasefire() -> void:
 		s.hold_fire = true
 	for s in _tally:
 		if is_instance_valid(s):
+			# The fight is over for good: shake off ions and damage so they can
+			# leave, and go neutral so nobody (your wing, the navy) keeps
+			# shooting and the radio isn't held for combat (playtest 11-26).
+			s.ion_t = 0.0
+			if s.disabled:
+				s.recover()
+			s.team = 2
 			s.hold_fire = true
 			# Turrets cold, and they open the range: the fight is over.
 			var away: Vector2 = (s.global_position - main.player.global_position).normalized()

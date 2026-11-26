@@ -1692,6 +1692,7 @@ func _run_merchant_test() -> void:
 			_shot("m_franz")
 	print("[tally] done after %.0fs: tally_done=%s franz_met=%s engines=%s escorts=%d cargo=%s job_cargo=%s" % [waited, Career.flags.get("tally_done"), Career.flags.get("franz_met"), player.ion_t <= 0.0, escorts.size(), Career.cargo, Career.job_cargo])
 	Checks.check(Career.flags.get("tally_done", false) and Career.flags.get("franz_met", false), "Tallyman ambush resolved, Franz met")
+	Checks.check(story._tally.all(func(x): return not is_instance_valid(x) or x.team == 2), "Tallyman's ships stand down after the hail (nobody keeps shooting)")
 	Checks.check(is_instance_valid(player) and player.alive, "player survives the ambush")
 
 	# Kessler's board at Four, then the Red Stork near Amber's.
