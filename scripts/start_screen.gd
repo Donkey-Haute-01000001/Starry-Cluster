@@ -19,6 +19,7 @@ const Neon = preload("res://scripts/neon.gd")
 const NeonMenu = preload("res://scripts/neon_menu.gd")
 const NeonSettings = preload("res://scripts/neon_settings.gd")
 const NeonFile = preload("res://scripts/neon_file.gd")
+const NeonId = preload("res://scripts/neon_id.gd")
 var _beats: Control                 ## the start's opening, typing onto the file
 var _file: Control                  ## the start's file, in neon
 const BeatsOnPaper = preload("res://scripts/beats_on_paper.gd")
@@ -121,8 +122,7 @@ func _ready() -> void:
 			_show_file.call_deferred(0, false)
 			_snapshot.call_deferred(a.substr(13))
 		elif a.begins_with("--id-shot="):
-			_open_board()
-			_show_identity(false)
+			_show_identity.call_deferred()
 			_snapshot.call_deferred(a.substr(10))
 		elif a.begins_with("--creator-shot="):
 			_open_board()
@@ -634,86 +634,29 @@ func _sign() -> void:
 	await get_tree().create_timer(0.9).timeout
 	_file.queue_free()
 	_file = null
-	_open_board()
-	_show_identity(true)
+	_show_identity()
 	_busy = false
 
 
 # --- Page two: who you are ----------------------------------------------------------
 
-## Form ID-1: your name, your rig's name and the photo the Charter keeps on file.
-func _show_identity(animate := true) -> void:
+## Form ID-1, in neon: your photo, your name and your rig's name.
+func _show_identity() -> void:
 	if _pilot.is_empty():
 		_pilot = {"name": Data.pilot_names.pick_random(), "rig": Data.rig_names.pick_random(), "photo": randi() % Data.PILOT_PHOTOS}
-	var page := _new_page(animate)
-	var v := _sheet_body(page)
-	v.add_theme_constant_override("separation", 8)
-	_type(v, "THE CHARTER COMPANY", 21, true)
-	_type(v, "Form ID-1  ·  Licensed Operator Identification", 13)
-	_type(v, "Attach to file CC-40817-M. Print clearly. Photo must be current.", 11, false, UIStyle.INK_FADED)
-	_rule(v)
-
-	var who := HBoxContainer.new()
-	who.add_theme_constant_override("separation", 22)
-	v.add_child(who)
-	# The photo, with arrows to pick another.
-	var pcol := VBoxContainer.new()
-	pcol.add_theme_constant_override("separation", 4)
-	who.add_child(pcol)
-	var photo := Control.new()
-	photo.custom_minimum_size = Vector2(150, 190)
-	photo.draw.connect(func():
-		UIStyle.draw_id_photo(photo, Rect2(Vector2(4, 4), Vector2(142, 182)), [Color(0.8, 0.65, 0.5), Color(0.2, 0.15, 0.1), Color(0.3, 0.35, 0.4)], "CC-40817-M", 7, "pilot_%d" % _pilot["photo"]))
-	pcol.add_child(photo)
-	var arrows := HBoxContainer.new()
-	arrows.alignment = BoxContainer.ALIGNMENT_CENTER
-	arrows.add_theme_constant_override("separation", 18)
-	pcol.add_child(arrows)
-	for d in [-1, 1]:
-		_type_button(arrows, "<  prev" if d < 0 else "next  >", func():
-			_pilot["photo"] = posmod(int(_pilot["photo"]) + d, Data.PILOT_PHOTOS)
-			Sfx.play("flip", -10.0, 1.3)
-			photo.queue_redraw(), 13)
-
-	var fields := VBoxContainer.new()
-	fields.add_theme_constant_override("separation", 2)
-	fields.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	who.add_child(fields)
-	_field(fields, "OPERATOR NAME", "name", 30)
-	var gap0 := Control.new()
-	gap0.custom_minimum_size = Vector2(0, 12)
-	fields.add_child(gap0)
-	_field(fields, "RIG NAME  (as painted on hull)", "rig", 30)
-	var gap1 := Control.new()
-	gap1.custom_minimum_size = Vector2(0, 12)
-	fields.add_child(gap1)
-	_type(fields, "RIG CLASS", 11, false, UIStyle.INK_FADED)
-	_type(fields, "Light freighter, used.\nCharter lien until paid.", 14)
-
-	_rule(v)
-	var note := _type(v, "Click a line to change it. The Charter will use this name on every invoice it sends you.", 12, false, UIStyle.INK_FADED)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.custom_minimum_size.x = PAPER_W - 70
-	var gap := Control.new()
-	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(gap)
-	_rule(v)
-	var foot := HBoxContainer.new()
-	foot.add_theme_constant_override("separation", 14)
-	v.add_child(foot)
-	var go := _type_button(foot, "next form", func():
-		if _busy:
-			return
-		for k in ["name", "rig"]:
-			_pilot[k] = str(_pilot[k]).strip_edges()
-			if _pilot[k] == "":
-				_pilot[k] = (Data.pilot_names if k == "name" else Data.rig_names).pick_random()
+	_board.visible = false   # back from the contact form: the clipboard goes
+	_set_menu_shown(false)
+	var m := NeonId.new()
+	m.pilot = _pilot
+	add_child(m)
+	m.filed.connect(func():
+		m.queue_free()
 		Sfx.play("flip", -4.0)
-		_show_contact(true), 17)
-	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_type_button(foot, "back", func():
-		if not _busy:
-			_show_file(_selected, false), 12)
+		_open_board()
+		_show_contact(true))
+	m.back.connect(func():
+		m.queue_free()
+		_show_file(_selected, false))
 
 
 ## A blank on a form: typed label, your handwriting on the line.
@@ -796,7 +739,7 @@ func _show_contact(animate := true) -> void:
 	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_type_button(foot, "back", func():
 		if not _busy:
-			_show_identity(true), 12)
+			_show_identity(), 12)
 
 	var b: Dictionary = Data.friend_backgrounds[_bg]
 	var note := _pen(page, b["note"], Vector2(300, 172), -5.0, 24)

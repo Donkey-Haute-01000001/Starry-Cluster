@@ -16,7 +16,7 @@ Updated 2026-11-25. Edit this file when something ships or a pick changes the pl
 - Merchant script complete (all lines locked, 2026-11-25)
 - Story: rig ahead (Alejandra, Hollis), Tallyman ambush + Franz, Red Stork bounty + boarding, Saltgate bar (Fay, Mersham), Navy offer + Mbeki, four forks with gate payoffs, ending + title card
 - Chart (M), journal (J), pause menu, autosave on dock, career files (neon Careers register on title)
-- UI look redo in progress (`docs/design/ui-look.md`, signed): all neon, no paper. Done: Careers register, Pause, Settings, Controls (title + flight share `neon_settings.gd`), New career start picker, start files (opening types in neon, sign line, pink pen note)
+- UI look redo in progress (`docs/design/ui-look.md`, signed): all neon, no paper. Done: Careers register, Pause, Settings, Controls (title + flight share `neon_settings.gd`), New career start picker, start files (opening types in neon, sign line, pink pen note), Form ID-1
 - Comms ticker, quiet HUD, neon text, VT323 dialogue
 - Real-recording sounds, Pink Bloom music
 
