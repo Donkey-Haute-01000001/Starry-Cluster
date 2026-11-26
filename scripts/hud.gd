@@ -493,6 +493,18 @@ func _draw() -> void:
 			var dir := (sp - center).normalized()
 			var edge := center + dir * minf(absf((vp.x * 0.5 - 30) / dir.x) if dir.x != 0 else 1e9, absf((vp.y * 0.5 - 30) / dir.y) if dir.y != 0 else 1e9)
 			draw_colored_polygon(PackedVector2Array([edge + dir * 12, edge + dir.rotated(2.5) * 9, edge + dir.rotated(-2.5) * 9]), COL_ENEMY)
+		elif ship.has_meta("tagged") and ship.team == 2 and ship.controller is Traffic.Pilot and ship.controller.flee:
+			# A story mayday off screen: point at it, name it, say how far.
+			var center := vp * 0.5
+			var dir := (sp - center).normalized()
+			var edge := center + dir * minf(absf((vp.x * 0.5 - 60) / dir.x) if dir.x != 0 else 1e9, absf((vp.y * 0.5 - 60) / dir.y) if dir.y != 0 else 1e9)
+			var blink := 0.6 + 0.4 * sin(t * 6.0)
+			draw_colored_polygon(PackedVector2Array([edge + dir * 16, edge + dir.rotated(2.5) * 12, edge + dir.rotated(-2.5) * 12]), Color(COL_ENEMY, blink))
+			var km := int(main.player.global_position.distance_to(ship.global_position)) if is_instance_valid(main.player) else 0
+			var lab := "MAYDAY  %s  %s km" % [ship.display_name.to_upper(), _km(km)]
+			var lw := Data.font_type_bold.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			var lp := (edge - dir * 30.0 - Vector2(lw * 0.5, -4)).clamp(Vector2(10, 20), vp - Vector2(lw + 10, 10))
+			draw_string(Data.font_type_bold, lp.round(), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(COL_ENEMY, blink))
 
 	if main.focus_target and is_instance_valid(main.focus_target):
 		var fp := _to_screen(main.focus_target.global_position)

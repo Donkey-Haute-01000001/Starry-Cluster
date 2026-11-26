@@ -282,9 +282,16 @@ func _raid_rig() -> void:
 		r.controller = AIController.new(r, main)
 		r.controller.target = _rig
 		r.info = {"group": "raider", "owner": "Pirate", "job": "hunting"}
+		r.display_name = "Raider"
+		r.set_meta("tagged", true)  # named on screen while the raid runs
 		_raiders.append(r)
 	_rig.controller.flee = true
+	_rig.set_meta("tagged", true)
+	# Make it land: banner, a beat of slow motion, and her line through the combat hold.
+	main.show_message("MAYDAY. %s is under attack." % Data.ahead["victim_rig"], 4.5, Color(1.0, 0.45, 0.35))
+	_slow_mo()
 	Career.say(Data.ahead["victim_rig"], Data.hails["mayday"] % [Data.ahead["victim_rig"], "the Greenhouse lane"], true)
+	main.hud.force_talk = true
 	Career.say(Data.ahead["owner"], Data.ahead["coach_1"])
 
 
@@ -295,6 +302,7 @@ func _coach_2(went_in: bool) -> void:
 	Career.flags["ahead_coach_2"] = true
 	if went_in:
 		Career.flags["ahead_went_in"] = true
+	main.hud.force_talk = true
 	Career.say(Data.ahead["owner"], Data.ahead["coach_2"])
 
 
@@ -303,9 +311,13 @@ func _end_ahead() -> void:
 	for s in _fleet():
 		s.hull_floor = 0.0
 	for r in _raiders:
+		if is_instance_valid(r) and r.has_meta("tagged"):
+			r.remove_meta("tagged")
 		if is_instance_valid(r) and r.alive and not (r.controller is Traffic.Leaving):
 			r.controller = Traffic.Leaving.new(r, main)
 	_raiders.clear()
+	if is_instance_valid(_rig) and _rig.has_meta("tagged"):
+		_rig.remove_meta("tagged")
 	if is_instance_valid(_rig) and _rig.alive and _rig.controller is Traffic.Pilot:
 		_rig.controller.flee = false
 	scene = ""
