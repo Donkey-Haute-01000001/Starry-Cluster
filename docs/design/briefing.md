@@ -34,10 +34,11 @@ The opening is a tutorial. Charlie gives the Charter's required briefing ("Hey c
 ## Open questions (one card each)
 
 1. ~~Pacing~~ locked: mix
-2. Skip: how the player says "I've got it"
+2. ~~Skip~~ locked: reply choice
 3. Do Charlie's beats replace the key-cap prompts, or sit beside them
 4. Lines: 2–3 takes per beat, Vishnu picks
 
 ## Locked
 
 - **Pacing: mix** (Vishnu 2026-11-26). Parked at launch for the basics: system plate, job line + arrow, comms box. The rest (radar, ship panel, guns, orders) gets a Charlie line the first time each matters.
+- **Skip: a reply to Charlie** (Vishnu 2026-11-26). After her opener: "Go ahead" or "I've flown before, Charlie. Thanks though." (his line), shown with a small "(skip tutorial)" tag. Skipping drops the parked briefing; Charlie answers in character.
