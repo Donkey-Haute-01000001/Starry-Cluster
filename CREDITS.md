@@ -5,7 +5,7 @@
 - UI: CraftPix "Space Game GUI" (https://craftpix.net/file-licenses/), purchased.
 - More ships and backdrops: Foozle (CC0). All art lives in `art/` (not in git).
 - Blaster sound: "Lazer Gun" by media_man_uk on Pixabay (Pixabay Content License: free for use in games, no attribution required; credited anyway). Trimmed and faded in `sounds/cannon.wav`.
-- Combat sounds (flak, explosions, torpedo, ion, shield and hull hits, engine): Kenney's "Sci-fi Sounds" and "Impact Sounds" (https://kenney.nl, CC0). Trimmed in `sounds/`.
+- Combat sounds (flak, explosions, torpedo, ion, shield and hull hits, engine): Kenney's "Sci-fi Sounds" and "Impact Sounds" (https://kenney.nl, CC0). Trimmed in `sounds/`. The shield break (`sounds/shield_break.wav`) is a mix of Kenney shield hits, a small explosion and the power-down, pitched down.
 - Turret sound: "Machine Gun SFX" by Dragon Studio on Pixabay (Pixabay Content License). Single shots cut from the burst.
 - Menu clicks, kill/ally-lost cues and paperwork (page flips, paper, pen, stamps), docking, cruise and jump sounds: Kenney's "Interface Sounds", "RPG Audio", "Impact Sounds" and "Sci-fi Sounds" (CC0).
 - Dialogue key ticks and neon buzz: Kenney's "Interface Sounds" clicks and "Sci-fi Sounds" computer noise (CC0), in `sounds/key*.wav` and `sounds/neon*.wav`.

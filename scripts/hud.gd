@@ -8,6 +8,42 @@ const Keys = preload("res://scripts/keys.gd")
 var main: Node
 var show_help := false
 var _dialogue_paused := false  ## a story line has stopped the game until you move it on
+var force_talk := false        ## the briefing may speak mid-fight (otherwise the radio waits)
+## Charter briefing (docs/design/briefing.md): HUD parts stay hidden until
+## Charlie names them, then pulse once so you see what she means.
+var held := {}               ## part -> true: "plate", "job", "nav", "ship", "radar"
+var _reveal_t := {}            ## part -> seconds since it popped up
+
+
+func shown(part: String) -> bool:
+	return not held.has(part)
+
+
+func reveal(part: String) -> void:
+	if held.erase(part):
+		_reveal_t[part] = 0.0
+	if part == "plate":
+		_plate_wake = 0.0
+	elif part == "job":
+		_slip_wake = 0.0
+
+
+## A gold frame that pulses around a part that just appeared.
+func _draw_reveals(vp: Vector2) -> void:
+	for part in _reveal_t.keys():
+		var k: float = _reveal_t[part]
+		if k > 4.0:
+			_reveal_t.erase(part)
+			continue
+		var r := Rect2()
+		match part:
+			"plate": r = Rect2(Vector2(16, 16), Vector2(470, 108))
+			"job": r = Rect2(Vector2(vp.x * 0.5 - 380, 62), Vector2(760, 72))
+			"ship": r = Rect2(Vector2(vp.x * 0.5 - 220, vp.y - 140), Vector2(440, 124))
+			"radar": r = Rect2(Vector2(vp.x - 210, vp.y - 210), Vector2(200, 200))
+			_: continue
+		var a := (0.5 + 0.5 * sin(k * 7.0)) * clampf(4.0 - k, 0.0, 1.0)
+		draw_rect(r.grow(6.0), Color(UIStyle.GOLD, a), false, 2.0)
 var _comms_speaker := ""
 var _comms_text := ""
 var _comms_t := 0.0
@@ -148,7 +184,7 @@ func _ready() -> void:
 func _dialogue_pause_step() -> void:
 	var st = main.story
 	var want: bool = _comms_hold and _comms_t > 0.0 and main.docked_at == "" and main.merchant \
-		and not (st and (st._choices or st.ringing))
+		and not (st and (st._choices or st.ringing)) and not (main.briefing and main.briefing.choosing)
 	if want and not _dialogue_paused and not get_tree().paused:
 		_dialogue_paused = true
 		get_tree().paused = true
@@ -168,6 +204,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_dialogue_pause_step()
+	for part in _reveal_t:
+		_reveal_t[part] += delta
 	if get_tree().paused and not _dialogue_paused:
 		return  # map, journal, pause menu: the radio waits too
 	_tip_step(delta)
@@ -214,7 +252,7 @@ func _quiet_step(delta: float) -> void:
 ## Nobody talks during an engagement. Scripted scenes are the exception:
 ## they stage their own talk.
 func _quiet() -> bool:
-	return main.merchant and main.in_combat and not (main.story and main.story.busy())
+	return main.merchant and main.in_combat and not (main.story and main.story.busy()) and not force_talk
 
 
 ## Comms messages from people (Charlie, dock crews). Shown in flight for a while.
@@ -457,7 +495,7 @@ func _draw() -> void:
 	# Flagship status, bottom centre.
 	var p: Ship = main.player
 	var base := Vector2(vp.x * 0.5 - 180, vp.y - 80)
-	if p and is_instance_valid(p) and p.alive:
+	if p and is_instance_valid(p) and p.alive and shown("ship"):
 		base = Vector2(vp.x * 0.5 - 220, vp.y - 108)
 		UIStyle.draw_glass(self, Rect2(base, Vector2(440, 92)))
 		# The rig's own plate: registration stencilled, speed on an amber readout.
@@ -511,7 +549,7 @@ func _draw() -> void:
 			var vp_end := sp + p.velocity.normalized() * (40.0 + 60.0 * p.velocity.length() / p.max_speed)
 			draw_line(sp, vp_end, Color(0.6, 0.9, 1.0, 0.35), 1.5)
 			draw_circle(vp_end, 3.0, Color(0.6, 0.9, 1.0, 0.6))
-	else:
+	elif not (p and is_instance_valid(p) and p.alive):
 		_text(Vector2(vp.x * 0.5, vp.y * 0.45), "FREIGHTER DESTROYED" if main.merchant else "FLAGSHIP DESTROYED", 34, COL_ENEMY, true)
 		_text(Vector2(vp.x * 0.5, vp.y * 0.45 + 34), "Press R to return to the start screen" if main.merchant else "Press R to restart", 18, Color(1, 1, 1), true)
 
@@ -551,7 +589,9 @@ func _draw() -> void:
 	if main.message_t > 0:
 		_text(Vector2(vp.x * 0.5, vp.y * 0.25), main.message, 20, Color(0.92, 0.97, 1.0, minf(1.0, main.message_t)), true, true)
 
-	_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)
+	if shown("radar"):
+		_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)
+	_draw_reveals(vp)
 
 	if show_help:
 		var K := func(a: String) -> String: return Keys.key_name(a)
@@ -832,51 +872,20 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	var sys: Dictionary = Data.systems.get(main.system_id, Data.crossroads)
 	# The rig's nav plate: security tag, stencilled system name, and the
 	# nickname spacers use, punched on label tape and stuck on crooked.
-	var pk := 1.0 - pow(1.0 - _plate_k, 3.0)
-	if _plate_k < 0.98 and not main.in_combat:
-		# Tucked away: one quiet line where the plate was.
-		var line := "%s  ·  %s  ·  %s cr" % [sys["name"].to_upper(), sys["security"].to_upper(), Career.fmt(Career.credits)]
-		if Career.strikes > 0:
-			line += "  ·  STRIKE %d/2" % Career.strikes
-		var la := 1.0 - pk
-		draw_rect(Rect2(Vector2(16, 12), Vector2(Data.font_type_bold.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 24, 22)), Color(0.02, 0.03, 0.04, 0.6 * la))
-		draw_string(Data.font_type_bold, Vector2(28, 27), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(UIStyle.TEXT_DIM, la))
-	var lift := Vector2(0, -(1.0 - pk) * 140.0)
-	draw_set_transform(lift, 0.0, Vector2.ONE)
-	var plate := Rect2(Vector2(16, 16), Vector2(470, 108))
-	UIStyle.draw_glass(self, plate, 1.0, 14.0, SECURITY_COLORS.get(sys["security"], UIStyle.GOLD))
-	var sec: String = sys["security"].to_upper()
-	var sc: Color = SECURITY_COLORS.get(sys["security"], UIStyle.GOLD)
-	var tf: Font = Data.font_type_bold
-	var tag_w := tf.get_string_size(sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 34.0
-	var tag := Rect2(Vector2(30, 26), Vector2(tag_w, 18))
-	_hazard(tag, sc, sys.get("danger", 0.0) > 0.5)
-	draw_rect(Rect2(tag.position + Vector2(9, 3), Vector2(tag_w - 18, 12)), Color(0.04, 0.04, 0.05))
-	draw_string(tf, tag.position + Vector2(17, 13), sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
-	draw_string(Data.font_type, Vector2(tag.end.x + 10, 39), "%s  ·  DAY %d  ·  WK %d" % [Data.sector["name"].to_upper(), int(Career.day) + 1, Career.week()], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.TEXT_DIM)
-	var name_up: String = sys["name"].to_upper()
-	draw_string(Data.font_stamp, Vector2(31, 79), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0, 0, 0, 0.6))
-	draw_string(Data.font_stamp, Vector2(30, 78), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.9, 0.88, 0.82))
-	var nick_x := 30.0 + Data.font_stamp.get_string_size(name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x + 14.0
-	_label_tape(Vector2(nick_x, 58), sys["nick"].to_upper(), sys["name"].hash(), lift)
-	var loan := "Loan paid off" if Career.loan_balance <= 0 else "Loan %s · %s due day %d" % [Career.fmt(Career.loan_balance), Career.fmt(mini(Data.LOAN_WEEKLY, Career.loan_balance)), int(Career.next_payment_day) + 1]
-	if Career.strikes > 0:
-		loan = "Loan %s · OVERDUE %s · STRIKE %d/2" % [Career.fmt(Career.loan_balance), Career.fmt(Career.arrears), Career.strikes]
-	draw_line(Vector2(30, 90), Vector2(plate.end.x - 14, 90), Color(0.22, 0.24, 0.26), 1.0)
-	_text(Vector2(32, 112), "%s cr" % Career.fmt(Career.credits), 15, UIStyle.TEXT, false, true)
-	_text(Vector2(140, 112), "Hold %d/%d t" % [Career.cargo_used(), Career.cargo_capacity], 15, UIStyle.TEXT)
-	_text(Vector2(262, 112), loan, 15, UIStyle.RED if Career.loan_balance > 0 else UIStyle.GREEN)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if shown("plate"):
+		_draw_plate(sys)
 
 	# Every station and jump in the system, named at the screen edge, so you
 	# always know where home is. The job's stop gets the bright arrow below.
-	if main.merchant and is_instance_valid(main.player) and main.docked_at == "":
+	if main.merchant and is_instance_valid(main.player) and main.docked_at == "" and shown("nav"):
 		_draw_nav_pips(vp)
 
 	# Objective line and a marker toward where to go next. The full slip
 	# fades when nothing changes; a short line stays pinned (playtest 11-26).
 	var fight: bool = main.in_combat
-	if not Career.objective.is_empty():
+	if not shown("job"):
+		pass
+	elif not Career.objective.is_empty():
 		var ot: String = Career.objective["text"]
 		var sk := 1.0 - pow(1.0 - _slip_k, 3.0)
 		if sk > 0.01:
@@ -1117,3 +1126,42 @@ func _draw_nav_pips(vp: Vector2) -> void:
 		var lp := edge - dir * 22 + Vector2(0, 4)
 		lp.x = clampf(lp.x, half, vp.x - half)
 		_text(lp, nm, 12, col, true)
+
+
+## The rig's nav plate (top left): where you are, how rough, money, hold, loan.
+func _draw_plate(sys: Dictionary) -> void:
+	var pk := 1.0 - pow(1.0 - _plate_k, 3.0)
+	if _plate_k < 0.98 and not main.in_combat:
+		# Tucked away: one quiet line where the plate was.
+		var line := "%s  ·  %s  ·  %s cr" % [sys["name"].to_upper(), sys["security"].to_upper(), Career.fmt(Career.credits)]
+		if Career.strikes > 0:
+			line += "  ·  STRIKE %d/2" % Career.strikes
+		var la := 1.0 - pk
+		draw_rect(Rect2(Vector2(16, 12), Vector2(Data.font_type_bold.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 24, 22)), Color(0.02, 0.03, 0.04, 0.6 * la))
+		draw_string(Data.font_type_bold, Vector2(28, 27), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(UIStyle.TEXT_DIM, la))
+	var lift := Vector2(0, -(1.0 - pk) * 140.0)
+	draw_set_transform(lift, 0.0, Vector2.ONE)
+	var plate := Rect2(Vector2(16, 16), Vector2(470, 108))
+	UIStyle.draw_glass(self, plate, 1.0, 14.0, SECURITY_COLORS.get(sys["security"], UIStyle.GOLD))
+	var sec: String = sys["security"].to_upper()
+	var sc: Color = SECURITY_COLORS.get(sys["security"], UIStyle.GOLD)
+	var tf: Font = Data.font_type_bold
+	var tag_w := tf.get_string_size(sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 34.0
+	var tag := Rect2(Vector2(30, 26), Vector2(tag_w, 18))
+	_hazard(tag, sc, sys.get("danger", 0.0) > 0.5)
+	draw_rect(Rect2(tag.position + Vector2(9, 3), Vector2(tag_w - 18, 12)), Color(0.04, 0.04, 0.05))
+	draw_string(tf, tag.position + Vector2(17, 13), sec, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, sc)
+	draw_string(Data.font_type, Vector2(tag.end.x + 10, 39), "%s  ·  DAY %d  ·  WK %d" % [Data.sector["name"].to_upper(), int(Career.day) + 1, Career.week()], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.TEXT_DIM)
+	var name_up: String = sys["name"].to_upper()
+	draw_string(Data.font_stamp, Vector2(31, 79), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0, 0, 0, 0.6))
+	draw_string(Data.font_stamp, Vector2(30, 78), name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.9, 0.88, 0.82))
+	var nick_x := 30.0 + Data.font_stamp.get_string_size(name_up, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x + 14.0
+	_label_tape(Vector2(nick_x, 58), sys["nick"].to_upper(), sys["name"].hash(), lift)
+	var loan := "Loan paid off" if Career.loan_balance <= 0 else "Loan %s · %s due day %d" % [Career.fmt(Career.loan_balance), Career.fmt(mini(Data.LOAN_WEEKLY, Career.loan_balance)), int(Career.next_payment_day) + 1]
+	if Career.strikes > 0:
+		loan = "Loan %s · OVERDUE %s · STRIKE %d/2" % [Career.fmt(Career.loan_balance), Career.fmt(Career.arrears), Career.strikes]
+	draw_line(Vector2(30, 90), Vector2(plate.end.x - 14, 90), Color(0.22, 0.24, 0.26), 1.0)
+	_text(Vector2(32, 112), "%s cr" % Career.fmt(Career.credits), 15, UIStyle.TEXT, false, true)
+	_text(Vector2(140, 112), "Hold %d/%d t" % [Career.cargo_used(), Career.cargo_capacity], 15, UIStyle.TEXT)
+	_text(Vector2(262, 112), loan, 15, UIStyle.RED if Career.loan_balance > 0 else UIStyle.GREEN)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

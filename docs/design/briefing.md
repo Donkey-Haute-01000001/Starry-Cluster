@@ -1,6 +1,6 @@
 # Charter briefing (first-launch tutorial)
 
-Status: **draft spec, picks open.** Asked by Vishnu 2026-11-26 after the first outside playtest: a non-gamer couldn't read the HUD, couldn't tell what to do, and got lost.
+Status: **built** (dev, 2026-11-26). Beat 3 line still DRAFT. Asked by Vishnu 2026-11-26 after the first outside playtest: a non-gamer couldn't read the HUD, couldn't tell what to do, and got lost.
 
 ## The idea (Vishnu)
 
@@ -36,7 +36,7 @@ The opening is a tutorial. Charlie gives the Charter's required briefing ("Hey c
 1. ~~Pacing~~ locked: mix
 2. ~~Skip~~ locked: reply choice
 3. ~~Key prompts~~ locked: Charlie + key caps together
-4. Lines: 2–3 takes per beat, Vishnu picks
+4. ~~Lines~~ picked 2026-11-26, except beat 3 (DRAFT A)
 
 ## Locked
 
@@ -61,3 +61,10 @@ First time it matters (one line each, then never again):
 9. Ship panel: first hit on your shields
 10. Guns: first hostile in range (caps: turrets / ion / swap)
 11. Orders: first fight with an escort (caps: hold Tab)
+
+## Build
+
+- `scripts/briefing.gd`: parked beats, reply buttons (keys 1/2), first-time lines. Lines in `Data.briefing`.
+- `hud.gd`: `held` parts stay off until `reveal(part)`; a gold frame pulses on each for 4s. `force_talk` lets a first-time line through the combat hold.
+- Shield break: `sounds/shield_break.wav` (Kenney hits + small boom + power-down, pitched down) when your shields hit 0.
+- Old careers (no `briefed` flag) don't get the first-time lines.

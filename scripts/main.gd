@@ -50,6 +50,7 @@ var system_id := ""
 var bodies: Array = []
 var station_ui: Control
 var story: Node
+var briefing: Node = null  ## the Charter briefing on a new career
 var traffic: Traffic
 var edge: Edge
 var debt  ## Debt (scripts/debt.gd)
@@ -148,6 +149,9 @@ func _ready() -> void:
 		story = StoryScript.new()
 		story.main = self
 		add_child(story)
+		briefing = preload("res://scripts/briefing.gd").new()
+		briefing.main = self
+		add_child(briefing)
 		traffic = Traffic.new(self)
 		add_child(traffic)
 		edge = Edge.new(self)
@@ -358,12 +362,33 @@ func _launch() -> void:
 	launch_card = card
 	card.finished.connect(func():
 		launch_card = null
-		Career.first_job())
+		if briefing and briefing.needed():
+			briefing.start()
+		else:
+			Career.first_job())
 
 
 func _new_career_test() -> void:
 	await _wait(7.0)
 	print("[launch] docked=%s card=%s jobs=%d log=%d waiting=%s objective=%s" % [docked_at, launch_card != null, Career.jobs.size(), Career.comms_log.size(), hud.comms_waiting(), Career.objective.get("text", "")])
+	# The briefing: Charlie talks each HUD part in, then lets go of the clamps.
+	var parked := player.global_position
+	var shots := 0
+	for i in 80:
+		if Career.flags.get("briefed", "") == "done":
+			break
+		if briefing.choosing:
+			_shot("brief_reply")
+			briefing._choose(0)
+		elif hud.comms_waiting() and shots < 8:
+			shots += 1
+			_shot("brief_%d" % shots)
+		hud.advance_comms()
+		await _wait(0.5)
+	print("[launch] briefed=%s held=%s moved=%.0f" % [Career.flags.get("briefed", ""), hud.held, player.global_position.distance_to(parked)])
+	Checks.check(Career.flags.get("briefed", "") == "done", "briefing: Charlie runs it to the end")
+	Checks.check(hud.shown("plate") and hud.shown("job") and hud.shown("nav"), "briefing: plate, job and names revealed")
+	Checks.check(not hud.shown("ship"), "briefing: ship panel waits for the first hit")
 	hud.advance_comms()
 	hud.advance_comms()
 	await _wait(1.0)

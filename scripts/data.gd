@@ -591,6 +591,22 @@ var charlie := {
 	"job_done": "Greenhouse says the water's in. Nice flying, captain. The board's open: pick your own runs from here. Watch the belt, though. Marcellus pays well for a reason.",
 }
 
+## The Charter briefing (docs/design/briefing.md). Picks by Vishnu; beat 3 still DRAFT.
+var briefing := {
+	"opener": "Hey, captain. I know, I know, you don't need the briefing. Charter says I have to give it anyway. It's short. Mostly.",  ## Vishnu's line
+	"replies": ["Go ahead.", "I've flown before, Charlie. Thanks though.  (skip tutorial)"],  ## Vishnu's line
+	"skipped": "Okay, okay. I'm writing down that you were briefed. Don't make me a liar.",
+	"comms": "When a window like this pops up, somebody's talking to you. Usually me. Hailing ships, talking your way out of trouble, it all happens here. Click to move on.",  ## Vishnu's line
+	"plate": "Top left is where you are. How rough it gets, your credits, your hold. And the loan. The Charter wants you watching that one. I'd rather you watched the rest.",  ## DRAFT
+	"job": "Your job sits up top, and that green arrow is the way. Tired of steering? G is autopilot.",
+	"nav": "Every station and jump in the system is named on the edge of your screen. You can't get lost. People still manage it.",
+	"keys": "Okay, releasing the clamps. Throttle, steer, brake. Keys are on your screen. Try not to hit the station.",
+	"radar": "Bottom right's your radar. Dots are ships. Red dots are a problem.",
+	"shields": "That was your shields. When the blue's gone, the hull's next. Get out or fight back.",
+	"guns": "Hostile! Turrets on the mouse, left click. Right click fires the ion bolt. It kills engines, not people.",
+	"orders": "You've got a wing now. Hold Tab and tell them what to do. They listen. Mostly.",
+}
+
 ## The Charter Company rig loan.
 const LOAN_TOTAL := 40000
 const LOAN_WEEKLY := 1200

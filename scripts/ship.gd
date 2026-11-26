@@ -318,6 +318,8 @@ func take_damage(amount: float, hit_pos: Vector2) -> void:
 		shields -= absorbed
 		amount -= absorbed
 		_shield_flash = 1.0
+		if is_player and shields <= 0.0:
+			Sfx.play("shield_break", -2.0)  # your shields just went
 	if amount > 0.0:
 		hull_hp -= amount
 		_hull_flash = 1.0
@@ -363,8 +365,11 @@ func recover() -> void:
 ## An ion bolt: shields soak a little, then the engines go dead for a while.
 func ion_hit(seconds: float) -> void:
 	ion_t = maxf(ion_t, seconds)
+	var had := shields > 0.0
 	shields = maxf(0.0, shields - max_shields * 0.5)
 	_shield_flash = 1.0
+	if is_player and had and shields <= 0.0:
+		Sfx.play("shield_break", -2.0)
 
 
 func die() -> void:
