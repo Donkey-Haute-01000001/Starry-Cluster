@@ -108,9 +108,9 @@ vec3 paper(vec2 p, vec2 uv) {
 		float pool = (1.0 - smoothstep(ring.z - 6.0, ring.z, d)) * 0.25 * fbm(p / 18.0);
 		col = mix(col, col * vec3(0.72, 0.55, 0.38), clamp(ringv * 0.6 + pool, 0.0, 1.0) * wear);
 	}
-	// Territory, Victoria-style: every power holds ground up to a hard border
-	// with its neighbours, inked dark, the colour pooled deeper along its own
-	// side of the line. Past the outer frontier the paper stays blank.
+	// Territory: a map of a war. Every inch of the chart is somebody's, held
+	// right up to an inked border. Where two powers meet, the front is hatched
+	// in both their colours and scorched, like ground still being fought over.
 	if (reg_n > 0) {
 		// Two passes: weights relative to the nearest power, so they never
 		// underflow far from a centre (GL Compatibility floats are short).
@@ -123,6 +123,8 @@ vec3 paper(vec2 p, vec2 uv) {
 			dmin = min(dmin, ds[i]);
 		}
 		vec3 rtint = vec3(0.0);
+		vec3 c1 = vec3(1.0);
+		vec3 c2 = vec3(1.0);
 		float wsum = 0.0;
 		float w1 = 0.0;
 		float w2 = 0.0;
@@ -135,31 +137,36 @@ vec3 paper(vec2 p, vec2 uv) {
 			str += regc[i].a * w;
 			hi += (i == reg_hi ? 1.0 : 0.0) * w;
 			wsum += w;
-			if (w > w1) { w2 = w1; w1 = w; } else if (w > w2) { w2 = w; }
+			if (w > w1) { w2 = w1; c2 = c1; w1 = w; c1 = regc[i].rgb; }
+			else if (w > w2) { w2 = w; c2 = regc[i].rgb; }
 		}
 		rtint /= wsum;
 		str /= wsum;
 		hi /= wsum;
-		float edge_d = 1.3;
-		float cover = 1.0 - smoothstep(edge_d - 0.02, edge_d, dmin);
-		float inclip = 1.0;
+		float cover = 1.0;
 		if (reg_clip.z > 0.0) {
-			inclip = step(reg_clip.x, p.x) * step(p.x, reg_clip.x + reg_clip.z) * step(reg_clip.y, p.y) * step(p.y, reg_clip.y + reg_clip.w);
+			cover = step(reg_clip.x, p.x) * step(p.x, reg_clip.x + reg_clip.z) * step(reg_clip.y, p.y) * step(p.y, reg_clip.y + reg_clip.w);
 		}
-		cover *= inclip;
+		// Far from any heartland the hold thins: lighter, sun-bleached.
+		float reach = 1.0 - 0.45 * smoothstep(1.2, 2.6, dmin);
 		// How close to a neighbour's border: 0 on the line, 1 deep inside.
 		float sep = clamp((w1 - w2) / (w1 + 1e-6), 0.0, 1.0);
 		float pool = (1.0 - smoothstep(0.0, 0.5, sep)) * cover;
-		float outer = 1.0 - smoothstep(0.0, 0.045, edge_d - dmin);
-		pool = max(pool, outer * cover);
 		float bloom = 0.9 + 0.2 * fbm(p / 22.0);
-		float k = clamp((str * 0.95 * (1.0 + hi * 0.6) * bloom + pool * 0.25) * cover, 0.0, 0.75);
+		float k = clamp((str * 1.05 * reach * (1.0 + hi * 0.6) * bloom + pool * 0.25) * cover, 0.0, 0.8);
 		col = col * mix(vec3(1.0), rtint, k);
-		// Inked borders: between powers, and the outer frontier.
+		// The front: diagonal hatching in both colours, a ragged scorched band.
+		// Gap to the second-nearest power, in heartland radii: 0 on the line.
+		float dd = -log(max(w2 / (w1 + 1e-6), 1e-6)) / 26.0;
+		float front = (1.0 - smoothstep(0.05, 0.26, dd + (fbm(p / 14.0) - 0.5) * 0.12)) * cover;
+		float stripe = step(0.5, fract((p.x + p.y) / 9.0));
+		vec3 hatch = mix(c1, c2, stripe);
+		col = mix(col, col * hatch * 0.8, front * 0.7);
+		float burn = smoothstep(0.4, 0.75, fbm(p / 9.0 + 3.1)) * front;
+		col = mix(col, col * vec3(0.38, 0.29, 0.22), burn * 0.75);
+		// Inked border on the line itself.
 		float line_in = (1.0 - smoothstep(0.03, 0.09, sep)) * cover;
-		float line_out = exp(-pow((dmin - edge_d) / 0.012, 2.0)) * inclip;
-		float ink = clamp(max(line_in, line_out), 0.0, 1.0);
-		col = mix(col, col * rtint * 0.5, ink * 0.75);
+		col = mix(col, col * rtint * 0.4, line_in * 0.85);
 	}
 	col = creases(col, uv.x, folds.x, size.x);
 	col = creases(col, uv.y, folds.y, size.y);
