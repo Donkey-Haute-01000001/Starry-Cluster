@@ -13,6 +13,11 @@ const LEAD := 0.4          ## s before the first beat types
 var beats: Array = []
 var width := 440.0
 var instant := false
+## Neon: VT323 on the dark, words glow instead of inking (docs/design/ui-look.md).
+var neon := false
+var text_size := SIZE
+## Taller than this, older beats scroll up and fade out the top (0 = no limit).
+var max_h := 0.0
 
 var _age := 0.0
 var _starts: Array = []     ## when each beat begins typing (only beats started so far)
@@ -23,8 +28,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var h := 0.0
 	for b in beats:
-		h += Neon.height(_font(), Neon.parse(b), width, SIZE) + BEAT_GAP
-	custom_minimum_size = Vector2(width, h)
+		h += Neon.height(_font(), Neon.parse(b), width, text_size) + BEAT_GAP
+	custom_minimum_size = Vector2(width, h if max_h <= 0.0 else minf(h, max_h))
 	if not beats.is_empty():
 		_starts.append(LEAD)
 	if instant:
@@ -32,6 +37,8 @@ func _ready() -> void:
 
 
 func _font() -> Font:
+	if neon and Data.font_talk:
+		return Data.font_talk
 	return Data.font_type if Data.font_type else ThemeDB.fallback_font
 
 
@@ -51,9 +58,11 @@ func done() -> bool:
 func finish() -> void:
 	while _starts.size() < beats.size():
 		_starts.append(0.0)
+	var longest := 0.0
 	for i in _starts.size():
 		_starts[i] = 0.0
-	_age = maxf(_age, _beat_end() + 0.01)
+		longest = maxf(longest, Neon.duration(Neon.parse(beats[i])))
+	_age = maxf(_age, longest + 0.01)   # a slow beat can outlast the last one
 	_words = 1 << 20
 
 
@@ -101,16 +110,24 @@ func _tick() -> void:
 
 func _draw() -> void:
 	var f := _font()
-	var y := 0.0
+	var hs: Array = []
+	var typed := 0.0     # height of every beat started so far
+	for i in beats.size():
+		hs.append(Neon.height(f, Neon.parse(beats[i]), width, text_size))
+		if i < _starts.size():
+			typed += hs[i] + BEAT_GAP
+	var scroll := maxf(0.0, typed - max_h) if max_h > 0.0 else 0.0
+	var fade := text_size * 3.0
+	var y := -scroll
 	for i in beats.size():
 		var p := Neon.parse(beats[i])
-		var h := Neon.height(f, p, width, SIZE)
-		if i < _starts.size() and _age >= _starts[i]:
-			Neon.draw(self, f, Vector2(0, y), p, width, SIZE, UIStyle.INK_TYPE, 1.0, _age - _starts[i], true)
+		var h: float = hs[i]
+		if i < _starts.size() and _age >= _starts[i] and y + h > 0.0:
+			var a := clampf((y + h) / fade, 0.0, 1.0) if scroll > 0.0 and y < fade else 1.0
+			Neon.draw(self, f, Vector2(0, y), p, width, text_size, Color(0.9, 0.9, 0.94) if neon else UIStyle.INK_TYPE,
+				a, _age - _starts[i], not neon)
 		y += h + BEAT_GAP
 	# More to come: a typewriter caret blinks where the next beat will land.
 	if _starts.size() < beats.size() and _age >= _beat_end() and fmod(_age, 1.0) < 0.6:
-		var yy := 0.0
-		for i in _starts.size():
-			yy += Neon.height(f, Neon.parse(beats[i]), width, SIZE) + BEAT_GAP
-		draw_rect(Rect2(0, yy + f.get_ascent(SIZE) - 2, 8, 2), UIStyle.INK_FADED)
+		draw_rect(Rect2(0, typed - scroll + f.get_ascent(text_size) - 2, 8 if not neon else 12, 2),
+			Color(1.0, 0.77, 0.42) if neon else UIStyle.INK_FADED)

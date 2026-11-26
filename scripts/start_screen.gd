@@ -18,7 +18,9 @@ var _menu: HBoxContainer            ## the main menu: one row along the bottom
 const Neon = preload("res://scripts/neon.gd")
 const NeonMenu = preload("res://scripts/neon_menu.gd")
 const NeonSettings = preload("res://scripts/neon_settings.gd")
+const NeonFile = preload("res://scripts/neon_file.gd")
 var _beats: Control                 ## the start's opening, typing onto the file
+var _file: Control                  ## the start's file, in neon
 const BeatsOnPaper = preload("res://scripts/beats_on_paper.gd")
 const CreditsRoll = preload("res://scripts/credits_roll.gd")
 
@@ -114,11 +116,9 @@ func _ready() -> void:
 			_intro_shots.call_deferred(a.substr(13))
 		elif a.begins_with("--file-open="):
 			# --file-open=N: open start N's file and let it type (for recordings).
-			_open_board()
-			_show_file(int(a.substr(12)), true)
+			_show_file.call_deferred(int(a.substr(12)), true)
 		elif a.begins_with("--start-shot="):
-			_open_board()
-			_show_file(0, false)
+			_show_file.call_deferred(0, false)
 			_snapshot.call_deferred(a.substr(13))
 		elif a.begins_with("--id-shot="):
 			_open_board()
@@ -142,7 +142,6 @@ func _credits_shot(dir: String) -> void:
 ## --intro-shot=DIR: each start's file, part-typed and fully typed.
 func _intro_shots(dir: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
-	_open_board()
 	for i in Data.starts.size():
 		_show_file(i, false)
 		await get_tree().create_timer(4.0).timeout
@@ -380,25 +379,11 @@ func _show_starts() -> NeonMenu:
 	add_child(m)
 	m.chosen.connect(func(k):
 		m.queue_free()
-		_selected = -1
-		_open_board()
 		_show_file(k, true))
 	m.back.connect(func():
 		m.queue_free()
 		_set_menu_shown(true))
 	return m
-
-
-## From a file back to the list of starts: the clipboard slides away first.
-func _board_to_starts() -> void:
-	var tw := create_tween()
-	var home := _board.position
-	tw.tween_property(_board, "position:x", home.x + 700.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_callback(func():
-		_board.visible = false
-		_board.position = home
-		_show_starts())
-	Sfx.play("paper", -6.0)
 
 
 ## Settings and Controls: neon pages, shared with the pause menu.
@@ -620,126 +605,38 @@ func _sheet_body(page: Control) -> VBoxContainer:
 
 func _show_file(i: int, animate := true) -> void:
 	_selected = i
-	var s: Dictionary = Data.starts[i]
-	var doc: Dictionary = s["doc"]
-	var page := _new_page(animate)
-	var v := _sheet_body(page)
-
-	# Folder tabs: one file per career.
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 6)
-	v.add_child(tabs)
-	for k in Data.starts.size():
-		var label: String = Data.starts[k]["name"].to_upper()
-		var b := _type_button(tabs, ("[%s]" % label) if k == i else label, _pick.bind(k), 13)
-		if k == i:
-			b.disabled = true
-			b.add_theme_color_override("font_disabled_color", UIStyle.INK_TYPE)
-
-	var head := HBoxContainer.new()
-	v.add_child(head)
-	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", -2)
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(left)
-	_type(left, doc["issuer"], 21, true)
-	_type(left, doc["title"], 14)
-	_type(left, doc["office"], 12, false, UIStyle.INK_FADED)
-	var file := _type(head, "FILE NO.\n" + doc["file"], 12, true, UIStyle.INK_FADED)
-	file.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_rule(v)
-
-	# The opening types onto the contract, a beat at a time, neon words inked in.
-	_beats = BeatsOnPaper.new()
-	_beats.beats = s["beats"]
-	_beats.width = PAPER_W - 64
-	_beats.instant = not animate
-	v.add_child(_beats)
-
-	var gap := Control.new()
-	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(gap)
-
-	if s["playable"]:
-		_rule(v)
-		var terms := GridContainer.new()
-		terms.columns = 3
-		terms.add_theme_constant_override("h_separation", 26)
-		v.add_child(terms)
-		for t in [["PRINCIPAL", "%d cr" % Data.LOAN_TOTAL], ["WEEKLY", "%d cr" % Data.LOAN_WEEKLY],
-				["MISSED PMT", "+%d%%" % int(Data.LOAN_INTEREST * 100)]]:
-			var cell := VBoxContainer.new()
-			cell.add_theme_constant_override("separation", -3)
-			terms.add_child(cell)
-			_type(cell, t[0], 11, false, UIStyle.INK_FADED)
-			_type(cell, t[1], 17, true)
-		var sig := HBoxContainer.new()
-		sig.add_theme_constant_override("separation", 10)
-		v.add_child(sig)
-		_type(sig, "BORROWER", 12, false, UIStyle.INK_FADED)
-		var line := _type_button(sig, "x  sign here", _sign, 16)
-		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	else:
-		_type(v, "This file stays sealed for now.", 13, false, UIStyle.INK_FADED)
-
-	_rule(v)
-	var foot := HBoxContainer.new()
-	foot.add_theme_constant_override("separation", 14)
-	v.add_child(foot)
-	_type_button(foot, "all files", _board_to_starts, 12)
-	_type_button(foot, "combat sandbox", func():
+	_board.visible = false   # back from the ID form: the clipboard goes
+	if _file:
+		_file.queue_free()
+	_set_menu_shown(false)
+	var f := NeonFile.new()
+	f.start = Data.starts[i]
+	f.animate = animate
+	add_child(f)
+	_file = f
+	_beats = f.beats
+	f.back.connect(func():
+		_file = null
+		f.queue_free()
+		_show_starts())
+	f.chosen.connect(func(_r): _sign())
+	f.sandbox.connect(func():
 		Data.mode = "sandbox"
-		get_tree().change_scene_to_file("res://scenes/main.tscn"), 12)
-	_type_button(foot, "quit", func(): get_tree().quit(), 12)
-
-	# Ink on top: the stamp, and your note in the margin.
-	# Sealed files: the stamp goes across the header, the note sits under the text.
-	var stamp_at := Vector2(PAPER_W - 250, PAPER_H - 300) if s["playable"] else Vector2(PAPER_W - 235, 38)
-	var pen_at := Vector2(40, PAPER_H - 250) if s["playable"] else Vector2(40, PAPER_H - 128)
-	_stamp(page, doc["stamp"], stamp_at, -9.0, animate,
-		UIStyle.INK_STAMP if s["playable"] else UIStyle.INK_FADED)
-	_pen(page, doc["note"], pen_at, -4.0)
+		get_tree().change_scene_to_file("res://scenes/main.tscn"))
 
 
-func _pick(i: int) -> void:
-	if _busy or i == _selected:
-		return
-	Sfx.play("flip", -4.0)
-	_show_file(i)
-
-
-## Signing the loan: the pen scrawls a signature, then the next form comes up.
+## Signing the loan: a neon scrawl across the line, then the next form comes up.
 func _sign() -> void:
 	if _busy:
 		return
 	_busy = true
-	Sfx.play("pen", -2.0)
-	var scrawl := Scrawl.new()
-	scrawl.position = Vector2(140, PAPER_H - 128)
-	scrawl.size = Vector2(240, 50)
-	_page.add_child(scrawl)
-	await get_tree().create_timer(0.75).timeout
+	_file.scrawl()
+	await get_tree().create_timer(0.9).timeout
+	_file.queue_free()
+	_file = null
+	_open_board()
 	_show_identity(true)
 	_busy = false
-
-
-## An animated signature: a loopy pen line drawn left to right.
-class Scrawl extends Control:
-	var _t := 0.0
-	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-	func _process(delta: float) -> void:
-		_t = minf(_t + delta * 1.6, 1.0)
-		queue_redraw()
-	func _draw() -> void:
-		var pts := PackedVector2Array()
-		var n := int(60 * _t)
-		for i in n:
-			var u := i / 60.0
-			pts.append(Vector2(u * size.x, size.y * 0.55 + sin(u * 23.0) * 12.0 * (1.0 - u * 0.6) - u * 10.0
-				+ cos(u * 9.0) * 5.0))
-		if pts.size() > 1:
-			draw_polyline(pts, UIStyle.INK_PEN, 2.0, true)
 
 
 # --- Page two: who you are ----------------------------------------------------------
@@ -816,7 +713,7 @@ func _show_identity(animate := true) -> void:
 	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_type_button(foot, "back", func():
 		if not _busy:
-			_show_file(_selected), 12)
+			_show_file(_selected, false), 12)
 
 
 ## A blank on a form: typed label, your handwriting on the line.

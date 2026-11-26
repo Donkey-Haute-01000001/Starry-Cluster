@@ -40,6 +40,7 @@ var note_col := DIM
 var hints: Array = []
 ## While valid, every key and mouse press goes here first (key rebinding).
 var catcher := Callable()
+var hint_gap := 60.0                 ## footer baseline, up from the bottom edge
 
 var sel := 0
 var _armed := -1
@@ -336,7 +337,7 @@ func _draw() -> void:
 			hs.append(["DEL", "VOID", _void])
 		hs.append(["ESC", "BACK", _back])
 	var hx := x0
-	var hy := size.y - 60.0
+	var hy := size.y - hint_gap
 	for h in hs:
 		var key: String = h[0]
 		var verb: String = h[1]
