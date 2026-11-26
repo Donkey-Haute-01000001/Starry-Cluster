@@ -7,6 +7,7 @@ const Keys = preload("res://scripts/keys.gd")
 
 var main: Node
 var show_help := false
+var _dialogue_paused := false  ## a story line has stopped the game until you move it on
 var _comms_speaker := ""
 var _comms_text := ""
 var _comms_t := 0.0
@@ -102,7 +103,7 @@ func _tip_finished(p: Ship) -> bool:
 
 ## Key caps in a row, centred under the ship: [KEY] what it does.
 func _draw_tip(vp: Vector2) -> void:
-	if _tip_a <= 0.01 or not TIPS.has(tip if tip != "" else "fly"):
+	if _dialogue_paused or _tip_a <= 0.01 or not TIPS.has(tip if tip != "" else "fly"):
 		return
 	var segs: Array = []
 	for sg in TIPS.get(tip, []):
@@ -137,7 +138,38 @@ func _draw_tip(vp: Vector2) -> void:
 		x += font.get_string_size(sg[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x + gap
 
 
+func _ready() -> void:
+	# Runs while the game is paused, so a story line can hold the world still.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
+## Story lines pause the game and sit in a window mid-screen (playtest 11-26:
+## a new player panicked reading in the corner mid-fight). Chatter doesn't.
+func _dialogue_pause_step() -> void:
+	var st = main.story
+	var want: bool = _comms_hold and _comms_t > 0.0 and main.docked_at == "" and main.merchant \
+		and not (st and (st._choices or st.ringing))
+	if want and not _dialogue_paused and not get_tree().paused:
+		_dialogue_paused = true
+		get_tree().paused = true
+	elif not want and _dialogue_paused:
+		_dialogue_paused = false
+		get_tree().paused = false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _dialogue_paused:
+		return
+	if (event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]) \
+			or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		advance_comms()
+		get_viewport().set_input_as_handled()
+
+
 func _process(delta: float) -> void:
+	_dialogue_pause_step()
+	if get_tree().paused and not _dialogue_paused:
+		return  # map, journal, pause menu: the radio waits too
 	_tip_step(delta)
 	if not (_comms_hold and _comms_t > 0.0):
 		_comms_t = maxf(0.0, _comms_t - delta)
@@ -904,6 +936,8 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	# photo, and the words coming in a letter at a time over the static.
 	comms_top = vp.y - 192.0
 	if _comms_t > 0.0 and not main.docked_at:
+		if _dialogue_paused:
+			draw_rect(Rect2(Vector2.ZERO, vp), Color(0.0, 0.0, 0.02, 0.55))
 		_draw_comms(vp)
 	if _tick_t > 0.0 and not main.docked_at and not _tick.is_empty():
 		_draw_ticker(vp)
@@ -942,15 +976,20 @@ func _draw_comms(vp: Vector2) -> void:
 	var info: Dictionary = Data.speaker_info(_comms_speaker)
 	var col: Color = info["color"]
 	# The panel grows upward to fit the whole line.
-	var body_w := 560.0 - 110.0 - 16.0
+	var big := _comms_hold
+	var pw := 760.0 if big else 560.0
+	var body_w := pw - 110.0 - 16.0
 	var np := Neon.parse(_comms_text)
 	var tf22: Font = Data.font_talk if Data.font_talk else ThemeDB.fallback_font
 	var text_h := Neon.height(tf22, np, body_w, TALK_SIZE)
 	var h := maxf(152.0, 70.0 + text_h + 18.0)
-	var r := Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
+	# Story lines: a window in the middle, above the ship panel. Chatter-sized
+	# lines stay in the corner.
+	var r := Rect2(Vector2(roundf((vp.x - pw) * 0.5), vp.y - 150 - h), Vector2(pw, h)) if big \
+		else Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
 	comms_top = r.position.y
 	comms_rect = r
-	draw_rect(r, Color(0.02, 0.035, 0.045, 0.92 * a))
+	draw_rect(r, Color(0.02, 0.035, 0.045, (1.0 if big else 0.92) * a))
 	draw_rect(r, Color(col.r, col.g, col.b, 0.35 * a), false, 1.0)
 	# Channel strip across the top.
 	draw_rect(Rect2(r.position, Vector2(r.size.x, 20)), Color(col.r, col.g, col.b, 0.16 * a))
@@ -989,9 +1028,9 @@ func _draw_comms(vp: Vector2) -> void:
 	# What to press, and how many lines are waiting.
 	if _comms_hold:
 		var more := _comms_queue.size()
-		var hint := ("SPACE  ▸  next (%d more)" % more) if more > 0 else "SPACE  ▸  close"
+		var hint := ("CLICK / SPACE  ▸  next (%d more)" % more) if more > 0 else "CLICK / SPACE  ▸  continue"
 		if typing:
-			hint = "SPACE  ▸  skip"
+			hint = "CLICK / SPACE  ▸  skip"
 		var hf: Font = Data.font_type_bold if Data.font_type_bold else ThemeDB.fallback_font
 		var hw := hf.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 		var blink := 0.55 + 0.45 * absf(sin(_comms_age * 3.0))
