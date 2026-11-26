@@ -27,6 +27,7 @@ var title := ""
 ##   "step": Callable(dir: int)   left / right (a click steps +1, right click -1)
 ##   "tint": {cell index: Color}  colour for one cell
 ##   "danger": true   red when picked
+##   "blurb": String  a few dim lines under the list while this row is picked
 var rows: Array = []
 var cols: Array = []                 ## x offset of each cell from the left edge
 var heads: Array = []                ## optional small column heads
@@ -321,6 +322,11 @@ func _draw() -> void:
 
 	if note != "":
 		draw_string(talk, Vector2(x0, size.y - 104.0), note.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, 560, SMALL, Color(note_col, head_a))
+	# A row's own blurb, under the list, while it's picked.
+	if not rows.is_empty() and rows[sel].has("blurb"):
+		var by := _row_y(rows.size() - 1) + row_h * 0.5 + 30.0
+		draw_multiline_string(talk, Vector2(x0, by), str(rows[sel]["blurb"]), HORIZONTAL_ALIGNMENT_LEFT,
+			540, 24, 6, Color(DIM, _flicker(rows.size() + 1)))
 
 	_hint_rects.clear()
 	var hs := hints
