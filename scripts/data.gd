@@ -670,7 +670,8 @@ var capture := {
 	"tally": "DRAFT  He looks you over. He makes a mark. He leaves.",
 	"charlie_wake": "DRAFT  Three days, captain. The Charter paid them. Which means you paid them. ...I'm just glad it's you on the line.",
 	"death_head": "YOU DIED",
-	"death": "\"Here Phaeton lies. Although greatly he failed, more greatly, he dared.\"",
+	## Vishnu's epitaph, one line per row, neon tags allowed.
+	"death": ["\"Here Phaeton lies.", "Although greatly he failed,", "more greatly, he [gold][wave][shine]dared.\"[/shine][/wave][/gold]"],
 }
 var customs := {
 	"scan": "Charter rig, hold your course. Routine customs scan.",

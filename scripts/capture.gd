@@ -7,6 +7,7 @@ extends Control
 ## The Tallyman takes nothing. He counts, and leaves.
 
 const BoardingScript := preload("res://scripts/boarding.gd")
+const Neon = preload("res://scripts/neon.gd")
 
 const DRIFT_TIME := 3.0       ## seconds dead in space before anyone comes alongside
 const ALONGSIDE := 320.0
@@ -430,14 +431,38 @@ func _draw_receipt(vp: Vector2) -> void:
 
 func _draw_death(vp: Vector2) -> void:
 	var a := _black
+	var now := Time.get_ticks_msec() / 1000.0
+	# The headline is a neon tube: it stutters on, then hums, with the odd flicker.
+	var on := _t - 2.4
+	var hum := a
+	if on < 0.5 and int(on * 30.0) % 3 == 0:
+		hum *= 0.25
+	elif fmod(now, 4.3) < 0.12:
+		hum *= 0.55
 	var head: String = Data.capture["death_head"]
-	draw_string(Data.font_stamp, Vector2(vp.x * 0.5 - 400, vp.y * 0.38), head, HORIZONTAL_ALIGNMENT_CENTER, 800, 72, Color(UIStyle.RED, a))
-	# The epitaph comes up a beat after the headline.
-	var b := clampf((_t - 3.2) / 1.2, 0.0, 1.0) * a
-	var line: String = Data.capture["death"]
+	var hs := 72
+	var hw := Data.font_stamp.get_string_size(head, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x
+	var hat := Vector2(vp.x * 0.5 - hw * 0.5, vp.y * 0.36)
+	var red: Color = Data.neon["colors"]["threats"]
+	for g in [[16, 0.05], [9, 0.10], [4, 0.22]]:
+		draw_string_outline(Data.font_stamp, hat, head, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, g[0], Color(red, red.a * g[1] * hum))
+	draw_string(Data.font_stamp, hat, head, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red.lightened(0.15), hum))
+	# Vishnu's epitaph, a line at a time, centered.
 	var font: Font = Data.font_talk if Data.font_talk else Data.font_type
-	draw_multiline_string(font, Vector2(vp.x * 0.5 - 300, vp.y * 0.38 + 56), line, HORIZONTAL_ALIGNMENT_CENTER, 600, 26, -1, Color(0.92, 0.88, 0.78, b))
-	draw_string(Data.font_type_bold, Vector2(vp.x * 0.5 - 360, vp.y * 0.38 + 170), "[R]  LOAD LAST DOCK        [ESC]  TITLE", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, Color(UIStyle.TEXT_DIM, b))
+	var size := 26
+	var y := vp.y * 0.36 + 40.0
+	var lines: Array = Data.capture["death"]
+	var start := 3.4
+	for i in lines.size():
+		var pl: Dictionary = Neon.parse(lines[i])
+		var w := font.get_string_size(str(pl["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var age := _t - start
+		if age > 0.0:
+			Neon.draw(self, font, Vector2(vp.x * 0.5 - w * 0.5, y), pl, w + 40.0, size, Color(0.92, 0.88, 0.78), a, age)
+		y += Neon.height(font, pl, w + 40.0, size) + 4.0
+		start += Neon.duration(pl) + 0.5
+	var b := clampf((_t - start) / 0.8, 0.0, 1.0) * a
+	draw_string(Data.font_type_bold, Vector2(vp.x * 0.5 - 360, y + 50.0), "[R]  LOAD LAST DOCK        [ESC]  TITLE", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, Color(UIStyle.TEXT_DIM, b))
 
 
 ## The raider comes alongside your dead rig and holds there.

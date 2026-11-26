@@ -1111,7 +1111,7 @@ func _capture_test(mode: String) -> void:
 			set_meta("s4", true)
 			_shot("capture_tow")
 	if capture.phase == "dead":
-		await _wait(5.5)
+		await _wait(9.0)
 		_shot("capture_death")
 	print("[capture] end phase=%s docked=%s disabled=%s credits=%d cargo=%d loan +%d days +%.1f strikes=%d" % [capture.phase, docked_at, player.disabled, Career.credits, Career.cargo_used(), Career.loan_balance - loan0, Career.day - day0, Career.strikes])
 
