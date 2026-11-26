@@ -11,6 +11,7 @@ const PHOTO_Y := 186.0
 
 var pilot: Dictionary = {}        ## name, rig, photo; shared with the title screen
 var _edit: LineEdit
+var _arrows: Array = []           ## [Rect2, dir]: click either side of the photo to flip it
 
 
 func _ready() -> void:
@@ -33,6 +34,18 @@ func _fill() -> void:
 		{"cells": ["File it", ""], "act": _file_it},
 	]
 	set_rows(r)
+
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and not _edit:
+		for h in _arrows:
+			if (h[0] as Rect2).has_point(event.position):
+				_photo(h[1])
+				accept_event()
+				return
+	if event is InputEventMouseMotion:
+		queue_redraw()
+	super._gui_input(event)
 
 
 func _photo(d: int) -> void:
@@ -107,7 +120,19 @@ func _draw() -> void:
 	UIStyle.draw_id_photo(self, pr, [Color(0.8, 0.65, 0.5), Color(0.2, 0.15, 0.1), Color(0.3, 0.35, 0.4)], "CC-40817-M", 7, "pilot_%d" % pilot["photo"])
 	draw_rect(pr.grow(8), Color(UIStyle.GOLD, 0.18 * a), false, 4.0)
 	draw_rect(pr.grow(8), Color(UIStyle.GOLD, 0.7 * a), false, 1.0)
-	draw_string(talk, Vector2(x0 + PHOTO.x + 24.0, PHOTO_Y + 110.0), "<  PHOTO %d  >" % (int(pilot["photo"]) + 1),
+	# Arrows you can click, either side of the photo; left/right keys flip it too.
+	_arrows.clear()
+	var mid := pr.position.y + pr.size.y * 0.5
+	for d in [-1, 1]:
+		var c := Vector2(pr.position.x - 34.0 if d < 0 else pr.end.x + 34.0, mid)
+		var hot := Rect2(c - Vector2(22, 30), Vector2(44, 60))
+		_arrows.append([hot, d])
+		var on := hot.has_point(get_local_mouse_position())
+		var col := Color(UIStyle.GOLD, a * (1.0 if on else 0.75))
+		draw_colored_polygon(PackedVector2Array([c + Vector2(10 * d, 0), c + Vector2(-8 * d, -14), c + Vector2(-8 * d, 14)]), col)
+	draw_string(talk, Vector2(x0 + PHOTO.x + 64.0, PHOTO_Y + 104.0), "PHOTO %d OF %d" % [int(pilot["photo"]) + 1, Data.PILOT_PHOTOS],
+		HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL, Color(UIStyle.GOLD, a))
+	draw_string(talk, Vector2(x0 + PHOTO.x + 64.0, PHOTO_Y + 130.0), "CLICK THE ARROWS OR < >",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL, Color(DIM, a))
 	# Your names, in your own hand, glowing pink.
 	var hand: Font = Data.font_hand

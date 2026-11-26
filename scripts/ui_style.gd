@@ -182,6 +182,10 @@ static var _photo_bg := {}
 const PORTRAIT_FILES := {
 	"Dez": "dez", "Charlie": "charlie", "Franz": "franz", "Tallyman": "tallyman",
 	"Fay": "fay", "Mersham": "mersham", "Gate customs": "customs", "Dock crew": "dock_crew", "Marines": "marines",
+	# Pack picks 2026-11-26 (portrait-picks.png): Alejandra #155, Hollis #44, Mbeki #118,
+	# Qasim #78, Notch #10, Trojan #40, Recovery #194, Navy patrol #140.
+	"Alejandra": "alejandra", "Hollis": "hollis", "Hollis' Girl": "hollis", "Mbeki": "mbeki", "Qasim": "qasim",
+	"Notch": "notch", "Trojan": "trojan", "Charter Recovery": "recovery", "Navy patrol": "navy_patrol",
 }
 
 
