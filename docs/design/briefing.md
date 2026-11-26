@@ -1,6 +1,6 @@
 # Charter briefing (first-launch tutorial)
 
-Status: **built** (dev, 2026-11-26). Beat 3 line still DRAFT. Asked by Vishnu 2026-11-26 after the first outside playtest: a non-gamer couldn't read the HUD, couldn't tell what to do, and got lost.
+Status: **built** (dev, 2026-11-26). Asked by Vishnu 2026-11-26 after the first outside playtest: a non-gamer couldn't read the HUD, couldn't tell what to do, and got lost.
 
 ## The idea (Vishnu)
 
@@ -36,7 +36,7 @@ The opening is a tutorial. Charlie gives the Charter's required briefing ("Hey c
 1. ~~Pacing~~ locked: mix
 2. ~~Skip~~ locked: reply choice
 3. ~~Key prompts~~ locked: Charlie + key caps together
-4. ~~Lines~~ picked 2026-11-26, except beat 3 (DRAFT A)
+4. ~~Lines~~ picked 2026-11-26
 
 ## Locked
 
