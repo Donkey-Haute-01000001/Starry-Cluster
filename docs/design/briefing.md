@@ -42,3 +42,4 @@ The opening is a tutorial. Charlie gives the Charter's required briefing ("Hey c
 
 - **Pacing: mix** (Vishnu 2026-11-26). Parked at launch for the basics: system plate, job line + arrow, comms box. The rest (radar, ship panel, guns, orders) gets a Charlie line the first time each matters.
 - **Skip: a reply to Charlie** (Vishnu 2026-11-26). After her opener: "Go ahead" or "I've flown before, Charlie. Thanks though." (his line), shown with a small "(skip tutorial)" tag. Skipping drops the parked briefing; Charlie answers in character.
+- **Dialogue: story lines pause the game in a centre window** (Vishnu 2026-11-26). Big window above the ship panel, world dimmed, "CLICK / SPACE ▸ continue". Chatter stays in the corner ticker and never pauses. Built in `hud.gd` (`_dialogue_pause_step`).
