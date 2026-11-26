@@ -1,6 +1,6 @@
 # Hold view (inventory)
 
-Status: **draft spec, picks open.** From the 2026-11-26 playtest: the tester "couldn't understand what she was holding or why" and asked for an inventory.
+Status: **spec ready for sign-off.** From the 2026-11-26 playtest: the tester "couldn't understand what she was holding or why" and asked for an inventory.
 
 ## What's there today
 
@@ -23,8 +23,13 @@ Status: **draft spec, picks open.** From the 2026-11-26 playtest: the tester "co
 - What it's worth / where it sells
 - A line of flavour on what the thing is
 
-## Open questions (one card each)
+## Locked
 
-1. Where it lives: journal tab, HUD strip, or both
-2. What each line shows
-3. Key (I?) and whether it pauses
+- **Where: both** (Vishnu 2026-11-26). HUD strip under the system plate while you carry cargo; HOLD tab in the journal for detail.
+- **Lines: where + money** (Vishnu 2026-11-26). Good, tons, JOB → station or who wants it, what you paid, today's best price where it's wanted, profit. Tracking what you paid is new (average cost per ton, kept in the save).
+
+## Proposed (in the sign-off)
+
+- **Strip:** one row per good, at most 4, then "+N more". `WATER 20 t  JOB → Greenhouse` / `PARTS 10 t  paid 52  Greenhouse 71  +190`. Profit green, loss red.
+- **Tab:** HOLD, first tab in the journal. `I` opens the journal on it (rebindable). Pauses, like the journal. Each good: name + slang, tons, paid/t, best price and station, profit, the `desc` line. Job cargo lists the job, its pay and the due station.
+- Buying more of a good averages the paid price. Selling doesn't change it. Job cargo has no paid price.
