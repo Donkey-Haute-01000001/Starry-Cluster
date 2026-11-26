@@ -1153,7 +1153,7 @@ func _run_merchant_test() -> void:
 					story.scene = "ending"
 					story.arrive_crossroads()
 					await _wait(9.0)
-				elif what in ["map", "maphover", "launch", "comms"] or what.begins_with("journal") or what.begins_with("mapnote"):
+				elif what in ["map", "maphover", "mapzoom", "launch", "comms"] or what.begins_with("journal") or what.begins_with("mapnote"):
 					# The paperwork overlays, with a little history to show.
 					if Career.pilot.get("name", "") in ["", "Unnamed"]:
 						Career.pilot = {"name": "Mara Quill", "rig": "Long Haul", "photo": 8}
@@ -1176,6 +1176,10 @@ func _run_merchant_test() -> void:
 							sector_map.open()
 							if what == "maphover":
 								sector_map._hover = "region_2"
+							elif what == "mapzoom":
+								# Lean in on the Crossroads.
+								sector_map._zoom = 2.2
+								sector_map._pan = -(sector_map._sys_pos("crossroads") - sector_map.size * 0.5) * 2.2
 							elif what.begins_with("mapnote"):
 								sector_map._note_hover = int(what.substr(7))
 						else:

@@ -9,6 +9,13 @@ var _hover := ""
 var _note_hover := -1
 var _note_t := 0.0
 var _t := 0.0
+## Leaning in: wheel zooms toward the cursor, left-drag pans. Zoomed out you read
+## the powers' names; zoomed in, their stations and lanes.
+const ZOOM_MAX := 2.6
+var _zoom := 1.0
+var _pan := Vector2.ZERO
+var _drag := false
+var _names: Control
 
 ## Where each charted system sits (0..1 of the chart area).
 const LAYOUT := {
@@ -48,9 +55,9 @@ const PEN_NOTES := [
 ## Who holds what, as best the Charter knows: [centre, radii (chart 0..1), tint,
 ## strength, name, holder, note]. Faint washes; the hovered one deepens.
 const REGIONS := [
-	[Vector2(0.19, 0.5), Vector2(0.175, 0.46), Color(0.55, 0.78, 1.0), 0.5, "Federation pocket", "The Federation", "Hesper March and the interior, behind the Wall. Navy patrols, Charter routes."],
-	[Vector2(0.205, 0.27), Vector2(0.06, 0.12), Color(0.85, 0.25, 0.25), 0.55, "The Grind", "Contested  ·  pirate clans", "Marcellus belt. Federation on paper; the rocks belong to whoever's armed."],
-	[Vector2(0.53, 0.5), Vector2(0.13, 0.25), Color(0.62, 0.62, 0.62), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls."],
+	[Vector2(0.19, 0.5), Vector2(0.175, 0.46), Color(0.55, 0.78, 1.0), 0.5, "Federation pocket", "The Federation", "Hesper March and the interior, behind the Wall. Navy patrols, Charter routes.", Vector2(0.19, 0.93)],
+	[Vector2(0.205, 0.27), Vector2(0.06, 0.12), Color(0.85, 0.25, 0.25), 0.55, "The Grind", "Contested  ·  pirate clans", "Marcellus belt. Federation on paper; the rocks belong to whoever's armed.", Vector2(-1, -1)],
+	[Vector2(0.53, 0.5), Vector2(0.13, 0.25), Color(0.62, 0.62, 0.62), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls.", Vector2(0.53, 0.3)],
 	[Vector2(0.86, 0.5), Vector2(0.11, 0.18), Color(0.2, 0.72, 0.42), 0.4, "Dynasty heartland", "The Dynasty  ·  rumor", "Warlord country on the far side. Nobody you know has been."],
 	[Vector2(0.6, 0.15), Vector2(0.15, 0.12), Color(0.68, 0.42, 0.9), 0.4, "League lanes", "The Merchant League  ·  rumor", "Merchant houses on the lane stations. Tolls on everything, they say."],
 	[Vector2(0.82, 0.22), Vector2(0.1, 0.13), Color(0.82, 0.66, 0.28), 0.4, "Remnant holdout", "Imperial Remnant  ·  rumor", "Old empire colors, still flying. If it's true."],
@@ -78,6 +85,11 @@ func _ready() -> void:
 	_title_font = FontVariation.new()
 	_title_font.base_font = Data.font_bold
 	_title_font.spacing_glyph = 6
+	_names = Control.new()
+	_names.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_names.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_names.draw.connect(_draw_names)
+	add_child(_names)
 
 
 ## The dim sits under the sheet as a sibling, so it doesn't turn with it.
@@ -108,6 +120,9 @@ func open(was_paused = null) -> void:
 	get_tree().paused = true
 	visible = true
 	_t = 0.0
+	_zoom = 1.0
+	_pan = Vector2.ZERO
+	_drag = false
 	Sfx.play("paper", -6.0)
 
 
@@ -144,8 +159,37 @@ func _gui_input(event: InputEvent) -> void:
 		if nh != _note_hover:
 			_note_hover = nh
 			_note_t = 0.0
+		if _drag:
+			_pan += get_viewport().get_mouse_position() - _drag_from
+			_drag_from = get_viewport().get_mouse_position()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		close()
+	elif event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] and event.pressed:
+		_zoom_at(1.18 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.18)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_drag = event.pressed and _zoom > 1.01
+		_drag_from = get_viewport().get_mouse_position()
+
+
+var _drag_from := Vector2.ZERO
+
+
+## Zoom by `f`, keeping the point under the cursor where it is on screen.
+func _zoom_at(f: float) -> void:
+	var z2 := clampf(_zoom * f, 1.0, ZOOM_MAX)
+	if is_equal_approx(z2, _zoom):
+		return
+	var sp := get_viewport().get_mouse_position()
+	var piv := size * 0.5
+	var m := (sp - _pan - piv) / _zoom
+	_pan = sp - piv - m * z2
+	_zoom = z2
+	queue_redraw()
+
+
+## How far in you've leaned: 0 = the whole chart, 1 = close enough to read stations.
+func _detail() -> float:
+	return smoothstep(1.25, 1.75, _zoom)
 
 
 func _process(delta: float) -> void:
@@ -156,7 +200,12 @@ func _process(delta: float) -> void:
 	# The sheet comes up off the desk and settles.
 	var k := 1.0 - pow(1.0 - clampf(_t / 0.38, 0.0, 1.0), 3.0)
 	pivot_offset = size * 0.5
-	scale = Vector2.ONE * lerpf(0.94, 1.0, k)
+	scale = Vector2.ONE * lerpf(0.94, 1.0, k) * _zoom
+	var lim := size * 0.5 * (_zoom - 1.0)
+	_pan = _pan.clamp(-lim, lim)
+	position = _pan
+	_names.modulate.a = 1.0 - _detail()
+	_names.queue_redraw()
 	rotation = lerpf(-0.035, 0.0, k)
 	modulate.a = clampf(_t / 0.2, 0.0, 1.0)
 	_dim.modulate.a = modulate.a
@@ -385,7 +434,7 @@ func _draw() -> void:
 		var ra: int = 2 if l[0] < 0 else nodes[l[0]][1]
 		var rb: int = 7 if l[1] is Vector2 else nodes[l[1]][1]
 		var hi := hr >= 0 and (hr == ra or hr == rb)
-		var m := 1.5 if hi else 1.0
+		var m := (1.5 if hi else 1.0) * (0.3 + 0.7 * _detail())
 		if l[0] < 0:
 			pa += (pb - pa).normalized() * 34.0
 		match l[2]:
@@ -424,6 +473,7 @@ func _draw() -> void:
 		var p := _at(rm[0])
 		var hov := _hover == "rumor_%d" % i
 		var k := _ink(0.35 + i * 0.07)
+		k *= _detail()
 		var w := hand.get_string_size(rm[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 		draw_string(hand, p - Vector2(w * 0.5, 0), rm[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(GRAPHITE, (0.95 if hov else 0.72) * k))
 		var w2 := hand.get_string_size(rm[2], HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
@@ -620,7 +670,7 @@ func _draw() -> void:
 	draw_string(tb, Vector2(lx, sy + 34), "THE SEVERANCE", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
 	draw_string(tr, Vector2(lx + 110, sy + 34), "outbound rifts, dark seventy years. Cause unknown.", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
 	draw_string(tr, Vector2(pr.position.x + 44, pr.end.y - 14), "PROPERTY OF THE CHARTER COMPANY  ·  CHART 61-H  ·  ANNOTATION VOIDS LIEN WARRANTY  ·  DO NOT FOLD", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(faded, 0.85))
-	draw_string(tr, Vector2(pr.end.x - 230, pr.end.y - 14), "M or Esc to close  ·  J journal", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
+	draw_string(tr, Vector2(pr.end.x - 210, pr.end.y - 14), "Wheel zoom   drag pan   M close", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faded)
 	_tape(pr.position + Vector2(18, 14), -0.7)
 	_tape(Vector2(pr.end.x - 18, pr.position.y + 14), 0.7)
 	_tape(Vector2(pr.position.x + 20, pr.end.y - 12), 0.75)
@@ -739,7 +789,7 @@ func _callout(at: Vector2, text: String, tilt_deg: float, anchor, k: float, sd: 
 
 ## A rumored system, drawn in the mark its power would use.
 func _net_glyph(q: Vector2, kind: String, hi: bool) -> void:
-	var col := Color(GRAPHITE, 1.0 if hi else 0.78)
+	var col := Color(GRAPHITE, (1.0 if hi else 0.78) * (0.35 + 0.65 * _detail()))
 	match kind:
 		"capital":
 			# An eight-point star: the Dynasty's seat.
@@ -973,3 +1023,35 @@ func _pen_route(a: Vector2, b: Vector2, k: float) -> void:
 	if k >= 1.0:
 		draw_line(e, e - d.rotated(0.5) * 13.0, UIStyle.INK_PEN, 2.2, true)
 		draw_line(e, e - d.rotated(-0.5) * 13.0, UIStyle.INK_PEN, 2.2, true)
+
+
+## Zoomed out: each power's name, big and faint across its ground, letters spaced
+## like a printed atlas. Fades as you lean in.
+func _draw_names() -> void:
+	if _names.modulate.a <= 0.01:
+		return
+	var big: Font = Data.font_bold
+	var c := _chart_rect()
+	var k := _ink(0.3)
+	for r in REGIONS:
+		var nm: String = str(r[4]).to_upper()
+		var lp: Vector2 = r[7] if r.size() > 7 else r[0]
+		if lp.x < 0.0:
+			continue
+		var at := _at(lp)
+		var room: float = r[1].x * c.size.x * 1.7
+		var sz := 30
+		var gap := 6.0
+		var w := 0.0
+		for ch in nm:
+			w += big.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + gap
+		if w > room:
+			sz = maxi(14, int(sz * room / w))
+			gap = 3.0
+			w = 0.0
+			for ch in nm:
+				w += big.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + gap
+		var x := at.x - w * 0.5
+		for ch in nm:
+			_names.draw_string(big, Vector2(x, at.y + sz * 0.35), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(0.16, 0.15, 0.14, 0.55 * k))
+			x += big.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + gap
