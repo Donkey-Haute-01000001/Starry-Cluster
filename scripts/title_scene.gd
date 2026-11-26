@@ -17,6 +17,7 @@ const DYNASTY := [["nairan/dreadnought", 0.73, 0.44, 3.0], ["nairan/battlecruise
 
 var _t := 0.0
 var _planet: Array = []
+var _ships: Array = []            ## [engine layer, hull layer], drawn over the planet
 
 
 func _ready() -> void:
@@ -24,11 +25,25 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp
 	_planet = Art.frames(PLANET)
+	# Each ship's hull gets its side's livery, so each needs its own layer.
+	for side in [[NAVY, PI * 0.5, "navy", 0], [DYNASTY, -PI * 0.5, "dynasty", 10]]:
+		for i in side[0].size():
+			var s: Array = side[0][i]
+			var eng := Node2D.new()
+			eng.draw.connect(_draw_ship.bind(eng, s, side[1], i + side[3], true))
+			var hull := Node2D.new()
+			hull.material = Art.livery(Data.liveries.get(side[2], []), i, Art.main_hue("ships/%s/base.png" % s[0]))
+			hull.draw.connect(_draw_ship.bind(hull, s, side[1], i + side[3], false))
+			add_child(eng)
+			add_child(hull)
+			_ships.append_array([eng, hull])
 
 
 func _process(delta: float) -> void:
 	_t += delta
 	queue_redraw()
+	for n in _ships:
+		n.queue_redraw()
 
 
 func _draw() -> void:
@@ -37,35 +52,33 @@ func _draw() -> void:
 	_draw_traffic()
 	var d := size.y * 2.3
 	_draw_planet(Vector2(size.x * 0.5, size.y * 1.8), d)
-	for i in NAVY.size():
-		_draw_ship(NAVY[i], PI * 0.5, i)
-	for i in DYNASTY.size():
-		_draw_ship(DYNASTY[i], -PI * 0.5, i + 10)
 
 
 ## One pack ship at idle: engine glow cycling, a slow bob.
-func _draw_ship(s: Array, rot: float, seed: int) -> void:
+func _draw_ship(ci: CanvasItem, s: Array, rot: float, seed: int, engine: bool) -> void:
 	var dir := "ships/" + str(s[0])
 	var base := Art.tex(dir + "/base.png")
 	var p := Vector2(size.x * float(s[1]), size.y * float(s[2]))
 	p.y += sin(_t * 0.6 + seed * 1.7) * 3.0
 	var k := float(s[3]) * size.y / 900.0
 	if base == null:
-		draw_circle(p, 20.0 * k, Color(0.3, 0.35, 0.45))
+		if not engine:
+			ci.draw_circle(p, 20.0 * k, Color(0.3, 0.35, 0.45))
 		return
-	draw_set_transform(p.round(), rot, Vector2(k, k))
-	var eng := Art.tex(dir + "/engine.png")
-	if eng:
-		var h := eng.get_height()
-		var n := maxi(1, eng.get_width() / h)
-		var f := int(_t * 7.0 + seed) % n
-		draw_texture_rect_region(eng, Rect2(-Vector2(h, h) * 0.5, Vector2(h, h)), Rect2(f * h, 0, h, h), Color(1, 1, 1, 0.7))
-	draw_texture_rect(base, Rect2(-base.get_size() * 0.5, base.get_size()), false)
+	ci.draw_set_transform(p.round(), rot, Vector2(k, k))
+	if engine:
+		var eng := Art.tex(dir + "/engine.png")
+		if eng:
+			var h := eng.get_height()
+			var n := maxi(1, eng.get_width() / h)
+			var f := int(_t * 7.0 + seed) % n
+			ci.draw_texture_rect_region(eng, Rect2(-Vector2(h, h) * 0.5, Vector2(h, h)), Rect2(f * h, 0, h, h), Color(1, 1, 1, 0.7))
+		return
+	ci.draw_texture_rect(base, Rect2(-base.get_size() * 0.5, base.get_size()), false)
 	var w := Art.tex(dir + "/weapons.png")
 	if w:
 		var h2 := w.get_height()
-		draw_texture_rect_region(w, Rect2(-Vector2(h2, h2) * 0.5, Vector2(h2, h2)), Rect2(0, 0, h2, h2))
-	draw_set_transform(Vector2.ZERO)
+		ci.draw_texture_rect_region(w, Rect2(-Vector2(h2, h2) * 0.5, Vector2(h2, h2)), Rect2(0, 0, h2, h2))
 
 
 func _draw_planet(c: Vector2, d: float) -> void:
