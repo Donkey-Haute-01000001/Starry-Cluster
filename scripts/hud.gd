@@ -677,34 +677,23 @@ func _label_tape(at: Vector2, text: String, seed: int, base := Vector2.ZERO) -> 
 	draw_set_transform(base, 0.0, Vector2.ONE)
 
 
-## The current job, as a dispatch printout fed out of the dash printer:
-## thermal paper, typed, torn edge at the bottom.
-func _draw_dispatch_slip(vp: Vector2, text: String) -> void:
-	var f: Font = Data.font_type
-	var fb: Font = Data.font_type_bold
+## The current job in neon (docs/design/ui-look.md): a dark wash at the top of
+## the screen, the dispatch line typed in VT323 with its words lit.
+func _draw_dispatch_slip(vp: Vector2, text: String, a := 1.0) -> void:
+	var f: Font = Data.font_talk
 	var np := Neon.parse(text)
 	text = str(np["text"])
-	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-	var w := maxf(tw + 44.0, 300.0)
-	var r := Rect2(Vector2(roundf(vp.x * 0.5 - w * 0.5), 74), Vector2(roundf(w), 50))
-	# Printer slot it hangs from.
-	draw_rect(Rect2(r.position + Vector2(-10, -6), Vector2(r.size.x + 20, 8)), Color(0.05, 0.05, 0.06))
-	draw_rect(Rect2(r.position + Vector2(-10, -6), Vector2(r.size.x + 20, 2)), Color(0.24, 0.26, 0.28))
-	# Paper with a torn bottom edge.
-	var paper := Color(0.93, 0.91, 0.85)
-	var poly := PackedVector2Array([r.position, Vector2(r.end.x, r.position.y)])
-	var n := int(r.size.x / 7.0)
-	for i in range(n, -1, -1):
-		var x := r.position.x + r.size.x * float(i) / n
-		poly.append(Vector2(x, r.end.y - (3.0 if i % 2 else 0.0)))
-	var shadow := PackedVector2Array()
-	for q in poly:
-		shadow.append(q + Vector2(2, 3))
-	draw_colored_polygon(shadow, Color(0, 0, 0, 0.45))
-	draw_colored_polygon(poly, paper)
-	draw_string(fb, r.position + Vector2(14, 16), "DISPATCH  ·  CHARTER CH 03", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_FADED)
-	draw_string(fb, r.position + Vector2(r.size.x - 14 - fb.get_string_size("JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x, 16), "JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIStyle.INK_STAMP)
-	Neon.draw(self, f, r.position + Vector2(roundf((r.size.x - tw) * 0.5), 37 - f.get_ascent(15)), np, tw + 4.0, 15, UIStyle.INK_TYPE, 1.0, 1e9, true)
+	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+	var w := maxf(tw, 300.0)
+	var r := Rect2(Vector2(roundf(vp.x * 0.5 - w * 0.5), 70), Vector2(roundf(w), 56))
+	# Soft dark wash, no box.
+	for k in 10:
+		var g := 40.0 - k * 4.0
+		draw_rect(r.grow_individual(g, g * 0.4, g, g * 0.4), Color(0.016, 0.02, 0.047, 0.16 * a))
+	var dim := Color(0.3, 0.31, 0.37, a)
+	draw_string(f, r.position + Vector2(0, 16), "DISPATCH   CH 03", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, dim)
+	draw_string(f, r.position + Vector2(0, 16), "JOB", HORIZONTAL_ALIGNMENT_RIGHT, r.size.x, 18, Color(UIStyle.GOLD, a))
+	Neon.draw(self, f, r.position + Vector2(roundf((r.size.x - tw) * 0.5), 46 - f.get_ascent(24)), np, tw + 4.0, 24, Color(0.9, 0.9, 0.94), a, 1e9)
 
 
 ## Who a ship is: name, owner, what it's doing. Hovered ships say how to hail.
@@ -852,9 +841,7 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 		var ot: String = Career.objective["text"]
 		var sk := 1.0 - pow(1.0 - _slip_k, 3.0)
 		if sk > 0.01:
-			draw_set_transform(Vector2(0, -(1.0 - sk) * 110.0), 0.0, Vector2.ONE)
-			_draw_dispatch_slip(vp, ot)
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			_draw_dispatch_slip(vp, ot, sk)
 		var target: Node2D = main.objective_target()
 		if target and is_instance_valid(main.player):
 			var sp := _to_screen(target.global_position)
