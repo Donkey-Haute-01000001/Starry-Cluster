@@ -341,7 +341,7 @@ static func _refresh_rules() -> void:
 	for n in you:
 		if n.length() >= 2 and n != "Unnamed rig" and n != "Unnamed":
 			list.append([n, "you", false])
-	for k in ["people", "places", "charter", "navy", "dynasty", "tally"]:
+	for k in ["people", "places", "charter", "navy", "dynasty", "karabey", "league", "remnant", "faithful", "nomad", "tally"]:
 		for ph in Data.neon[k]:
 			list.append([ph, k, false])
 	for s in Data.systems.values():
@@ -418,6 +418,6 @@ static func link(kind: String, phrase: String) -> Array:
 			for id in Data.stations:
 				if Data.systems.get(Data.stations[id]["system"], {}).get("name", "") == phrase:
 					return [2, id]
-		"charter", "navy", "dynasty", "tally":
+		"charter", "navy", "dynasty", "tally", "karabey", "league":
 			return [3, links[kind]]
 	return []

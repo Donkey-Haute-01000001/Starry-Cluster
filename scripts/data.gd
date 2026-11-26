@@ -353,16 +353,18 @@ var systems := {
 
 ## Faction paint: main color and trim. One model reads as many owners.
 var liveries := {
-	"charter": [Color(0.86, 0.62, 0.18), Color(0.92, 0.9, 0.84)],   # company amber, white trim
-	"navy": [Color(0.32, 0.42, 0.58), Color(0.9, 0.92, 0.96)],      # Federation slate blue, white
-	"pirate": [Color(0.55, 0.26, 0.16), Color(0.85, 0.6, 0.3)],     # rust, scavenged brass
-	"default": [Color(0.72, 0.1, 0.08), Color(0.86, 0.62, 0.18)],   # Charter default red, over old company amber
-	"tally": [Color(0.32, 0.12, 0.1), Color(0.85, 0.82, 0.74)],     # oxblood, bone tally marks
-	"dynasty": [Color(0.22, 0.45, 0.32), Color(0.88, 0.7, 0.32)],   # Dynasty green, brass
-	"karabey": [Color(0.6, 0.12, 0.12), Color(0.2, 0.18, 0.18)],    # Clan Karabey crimson and black
-	"league": [Color(0.18, 0.4, 0.55), Color(0.9, 0.78, 0.4)],      # Merchant League teal, gold
-	"faithful": [Color(0.78, 0.75, 0.66), Color(0.45, 0.3, 0.45)],   # pilgrim white, violet
-	"nomad": [Color(0.6, 0.5, 0.3), Color(0.35, 0.6, 0.55)],        # patched ochre, verdigris
+	# Vishnu 2026-11-26: one hue per faction, muted on the hull, bright in neon words.
+	"charter": [Color(0.86, 0.42, 0.12), Color(0.92, 0.92, 0.9)],   # safety orange, white bands
+	"navy": [Color(0.55, 0.7, 0.85), Color(0.85, 0.68, 0.25)],      # Federation baby blue, gold
+	"pirate": [Color(0.48, 0.08, 0.08), Color(0.86, 0.82, 0.72)],   # blood, bone
+	"default": [Color(0.72, 0.1, 0.08), Color(0.86, 0.42, 0.12)],   # Charter default red, over old company orange
+	"tally": [Color(0.09, 0.08, 0.08), Color(0.42, 0.07, 0.15)],    # black, burgundy
+	"dynasty": [Color(0.1, 0.42, 0.24), Color(0.93, 0.9, 0.8)],     # Ottoman green, cream white
+	"karabey": [Color(0.5, 0.06, 0.1), Color(0.1, 0.09, 0.09)],     # Clan Karabey deep crimson, black
+	"league": [Color(0.4, 0.2, 0.55), Color(0.93, 0.93, 0.95)],     # Merchant League purple, white
+	"remnant": [Color(0.1, 0.09, 0.08), Color(0.7, 0.56, 0.25)],    # Imperial Remnant black, tarnished gold
+	"faithful": [Color(0.86, 0.83, 0.74), Color(0.48, 0.3, 0.85)],  # bone white, rift violet
+	"nomad": [Color(0.45, 0.46, 0.47), Color(0.85, 0.75, 0.3)],     # weathered grey, faded hazard yellow
 }
 
 
@@ -913,8 +915,10 @@ var speakers := {
 var neon := {
 	"colors": {
 		"people": Color("#FFFFFF"), "places": Color("#FF4FD8"), "threats": Color("#FF2E4D"),
-		"charter": Color("#FFB23A"), "navy": Color("#4D6BFF"), "dynasty": Color("#0FB866"),
-		"tally": Color("#9B6BFF"), "credits": Color("#FFE27A"),
+		"charter": Color("#FF7A1A"), "navy": Color("#8CC8FF"), "dynasty": Color("#14C46E"),
+		"tally": Color("#C2185B"), "credits": Color("#FFE27A"),
+		"karabey": Color("#C0122E"), "league": Color("#C05CFF"), "pirate": Color("#FF2E4D"),
+		"remnant": Color("#D4A93C"), "faithful": Color("#8A6BFF"), "nomad": Color("#F2D45C"),
 		"gold": Color("#E8B21C"), "envy": Color("#2FE36B"),   ## hand tags [gold] [green]
 	},
 	"people": ["Charlotte Hansen", "Charlie", "Desmond Okafor", "Dez", "Phaedra Andreou", "Fay",
@@ -925,7 +929,12 @@ var neon := {
 		"the Drip", "the Bones", "the Counter", "the Grind", "the Gatehouse", "Wreckyard Nine", "Marcellus belt"],
 	"charter": ["Charter Company", "the Charter", "Charter"],
 	"navy": ["Federation Navy", "the Federation", "Federation", "the Navy", "Navy", "FNS Ulysses", "Ulysses"],
-	"dynasty": ["the Dynasty", "Dynasty", "Clan Karabey", "Karabey"],
+	"dynasty": ["the Dynasty", "Dynasty"],
+	"karabey": ["Clan Karabey", "Karabey"],
+	"league": ["Merchant League", "the League"],
+	"remnant": ["Imperial Remnant", "the Remnant"],
+	"faithful": ["the Faithful"],
+	"nomad": ["Miners' Compact", "the Compact"],
 	"tally": ["Tally's crew", "Tally crew"],
 	"threats": ["Charter Recovery", "Recovery", "repossession", "repossessed", "repossess", "repo", "strikes", "strike",
 		"overdue", "default", "seized", "impound", "raiders", "pirates", "mayday"],
@@ -936,6 +945,7 @@ var neon := {
 		"Lt. Franz Kessler": "Franz", "Franz Kessler": "Franz", "Lt. Kessler": "Franz", "Kessler": "Franz",
 		"Alejandra Vargas": "Alejandra", "Hollis Gray": "Hollis", "Jack Tallyn": "Tallyman", "Tally": "Tallyman", "Petty Officer Mbeki": "Mbeki",
 		"charter": "charter", "navy": "federation", "dynasty": "dynasty", "tally": "grind",
+		"karabey": "dynasty", "league": "league",
 		"the Wall": "gate", "the Gatehouse": "gate",
 	},
 }
