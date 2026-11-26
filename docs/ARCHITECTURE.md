@@ -1,6 +1,6 @@
 # Architecture
 
-~13.4k lines GDScript, no scene tree to speak of: scenes are thin, scripts build their nodes in code.
+~15.3k lines GDScript, no scene tree to speak of: scenes are thin, scripts build their nodes in code.
 
 ## Boot
 
@@ -46,4 +46,4 @@ Suggested split when Vishnu okays it: `main.gd` → `flight.gd` (world) + `merch
 
 ## Tools (`tools/`)
 
-`prepare_art.py` (build `art/` from bought packs), `vox_to_sprite.py`, `make_portraits.py`, `import_void_fleets.py`, `livery_sheet.gd`. `make_sounds.py` / `make_combat_sounds.py` are legacy synth placeholders: don't use for new sounds.
+`prepare_art.py` (build `art/` from bought packs), `vox_to_sprite.py`, `make_portraits.py`, `import_void_fleets.py`, `livery_sheet.gd`.

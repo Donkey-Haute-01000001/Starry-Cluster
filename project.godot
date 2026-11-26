@@ -6,7 +6,7 @@ config_version=5
 config/name="Sector Secundus"
 config/description="A top-down space fleet RPG."
 run/main_scene="res://scenes/start.tscn"
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]
 
