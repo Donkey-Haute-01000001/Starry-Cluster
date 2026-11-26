@@ -17,12 +17,10 @@ var _busy := false
 var _menu: HBoxContainer            ## the main menu: one row along the bottom
 const Neon = preload("res://scripts/neon.gd")
 const NeonMenu = preload("res://scripts/neon_menu.gd")
+const NeonSettings = preload("res://scripts/neon_settings.gd")
 var _beats: Control                 ## the start's opening, typing onto the file
 const BeatsOnPaper = preload("res://scripts/beats_on_paper.gd")
-const Keys = preload("res://scripts/keys.gd")
 const CreditsRoll = preload("res://scripts/credits_roll.gd")
-var _bind_wait := ""                 ## action waiting for a key on the controls sheet
-var _bind_note := ""
 
 
 func _ready() -> void:
@@ -108,12 +106,10 @@ func _ready() -> void:
 			_show_credits()
 			_credits_shot.call_deferred(a.substr(15))
 		elif a.begins_with("--controls-shot="):
-			_open_board()
-			_show_controls(false)
+			(func(): _show_settings().show_controls(true)).call_deferred()
 			_snapshot.call_deferred(a.substr(16))
 		elif a.begins_with("--settings-shot="):
-			_open_board()
-			_show_settings(false)
+			_show_settings.call_deferred()
 			_snapshot.call_deferred(a.substr(16))
 		elif a.begins_with("--intro-shot="):
 			# --intro-shot=DIR: each start's opening, a beat in, plus the Merchant file after.
@@ -214,9 +210,7 @@ func _build_menu() -> void:
 	_menu_button("NEW CAREER", func():
 		_open_board()
 		_show_index(false))
-	_menu_button("SETTINGS", func():
-		_open_board()
-		_show_settings(false))
+	_menu_button("SETTINGS", _show_settings)
 	_menu_button("CREDITS", _show_credits)
 	_menu_button("QUIT", func(): get_tree().quit())
 
@@ -404,167 +398,15 @@ func _show_index(animate := true) -> void:
 
 
 ## Settings: the flight controls, as a checklist.
-func _show_settings(animate := true) -> void:
-	var page := _new_page(animate)
-	var v := _sheet_body(page)
-	_type(v, "BERTH 14  ·  RIG SETUP SHEET", 13, true, UIStyle.INK_FADED)
-	_label(v, "Settings", Data.font_bold, 34, UIStyle.INK_TYPE)
-	_rule(v)
-	var rows := [
-		["Flight assist", "Thrusters damp unwanted drift. (V in flight)", "assist"],
-		["Mouse steering", "The rig turns to face your cursor. Off: Q/E to turn.", "mouse_steer"],
-	]
-	for r in rows:
-		var key: String = r[2]
-		var on: bool = PlayerController.setting(key)
-		_type_button(v, "[%s]  %s" % ["x" if on else "  ", r[0]], func():
-			PlayerController.toggle(key)
-			_show_settings(false), 18)
-		var t := _type(v, "       " + r[1], 13, false, UIStyle.INK_FADED)
-		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var fs := PlayerController.fullscreen
-	_type_button(v, "[%s]  Fullscreen" % ("x" if fs else "  "), func():
-		PlayerController.fullscreen = not PlayerController.fullscreen
-		PlayerController.save_settings()
-		_show_settings(false), 18)
-	_rule(v)
-	# Volume: ten ticks, typed like a gauge. - and + step it.
-	for r in [["Music", "music_vol"], ["Effects", "sfx_vol"]]:
-		var key: String = r[1]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		v.add_child(row)
-		var lv: float = PlayerController.vol(key)
-		var n := roundi(lv * 10.0)
-		var name_l := _type(row, r[0].rpad(9), 18, true)
-		name_l.custom_minimum_size = Vector2(110, 0)
-		_type_button(row, " - ", _step_vol.bind(key, -0.1), 18)
-		_type(row, "|".repeat(n) + ".".repeat(10 - n), 18, true, UIStyle.INK_TYPE)
-		_type_button(row, " + ", _step_vol.bind(key, 0.1), 18)
-		_type(row, "%d%%" % (n * 10), 14, false, UIStyle.INK_FADED)
-		var mute := PlayerController.muted(key)
-		_type_button(row, "[%s] mute" % ("x" if mute else "  "), func():
-			PlayerController.toggle_mute(key)
-			_show_settings(false), 16)
-	_rule(v)
-	# Text speed: the four marks typed in a row, the live one bracketed.
-	var ts := HBoxContainer.new()
-	ts.add_theme_constant_override("separation", 10)
-	v.add_child(ts)
-	var ts_l := _type(ts, "Text", 18, true)
-	ts_l.custom_minimum_size = Vector2(110, 0)
-	for k in Neon.SPEEDS.size():
-		var nm: String = Neon.SPEEDS[k][0]
-		var on := k == PlayerController.text_speed
-		_type_button(ts, ("[%s]" % nm) if on else nm, func():
-			PlayerController.text_speed = k
-			PlayerController.save_settings()
-			_show_settings(false), 16)
-	var tn := _type(v, "       How fast story lines and comms type out. Click or Space finishes a line.", 13, false, UIStyle.INK_FADED)
-	tn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_rule(v)
-	_type_button(v, "Controls  ·  key list + rebinding  >", func(): _show_controls(true), 18)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(spacer)
-	_type_button(v, "back to menu", _close_board, 12)
-
-
-## Controls: every key, two columns. Click a key, press the new one.
-func _show_controls(animate := true) -> void:
-	var page := _new_page(animate)
-	var v := _sheet_body(page)
-	v.add_theme_constant_override("separation", 6)
-	_type(v, "BERTH 14  ·  RIG SETUP SHEET  ·  CONTROLS", 13, true, UIStyle.INK_FADED)
-	_label(v, "Controls", Data.font_bold, 34, UIStyle.INK_TYPE)
-	_rule(v)
-	var cols := HBoxContainer.new()
-	cols.add_theme_constant_override("separation", 22)
-	v.add_child(cols)
-	var left := VBoxContainer.new()
-	var right := VBoxContainer.new()
-	for c in [left, right]:
-		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		c.add_theme_constant_override("separation", 2)
-		cols.add_child(c)
-	var group := ""
-	for a in Keys.ACTIONS:
-		var col: VBoxContainer = left if a[2] == "FLIGHT" else right
-		if a[2] != group:
-			group = a[2]
-			if col.get_child_count() > 0:
-				var gap := Control.new()
-				gap.custom_minimum_size = Vector2(0, 6)
-				col.add_child(gap)
-			_type(col, group, 12, true, UIStyle.INK_FADED)
-		var row := HBoxContainer.new()
-		col.add_child(row)
-		var l := _type(row, a[1], 14)
-		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var id: String = a[0]
-		var waiting := _bind_wait == id
-		var b := _type_button(row, "press a key" if waiting else Keys.key_name(id), func():
-			_bind_wait = id
-			_bind_note = "Press the new key for %s.  Esc cancels." % Keys.label(id)
-			Sfx.play("tick", -6.0)
-			_show_controls(false), 14)
-		b.custom_minimum_size = Vector2(88, 0)
-		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		if waiting:
-			b.add_theme_color_override("font_color", UIStyle.INK_PEN)
-	_rule(v)
-	_type(v, "FIXED", 12, true, UIStyle.INK_FADED)
-	for f in Keys.FIXED:
-		_type(v, "%s  %s" % [f[0].rpad(15), f[1]], 13, false, UIStyle.INK_FADED)
-	if _bind_note != "":
-		var n := _label(v, _bind_note, Data.font_hand, 24, UIStyle.INK_PEN)
-		n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(spacer)
-	var bottom := HBoxContainer.new()
-	bottom.add_theme_constant_override("separation", 24)
-	v.add_child(bottom)
-	_type_button(bottom, "< back to settings", func():
-		_bind_wait = ""
-		_bind_note = ""
-		_show_settings(true), 12)
-	if not Keys.is_default():
-		_type_button(bottom, "reset to defaults", func():
-			Keys.reset()
-			_bind_wait = ""
-			_bind_note = "Defaults restored."
-			_show_controls(false), 12)
-
-
-func _input(event: InputEvent) -> void:
-	if _bind_wait == "":
-		return
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		_bind_wait = ""
-		_bind_note = ""
-	else:
-		var sp := Keys.spec_of(event)
-		if sp == "":
-			return
-		if sp == "reserved":
-			_bind_note = "That key is spoken for (see Fixed). Pick another."
-		else:
-			var id := _bind_wait
-			var swapped := Keys.rebind(id, sp)
-			_bind_wait = ""
-			_bind_note = "%s  →  %s." % [Keys.label(id), Keys.key_name(id)]
-			if swapped != "":
-				_bind_note += "  %s moved to %s." % [Keys.label(swapped), Keys.key_name(swapped)]
-		Sfx.play("tick", -6.0)
-	get_viewport().set_input_as_handled()
-	_show_controls(false)
-
-
-func _step_vol(key: String, d: float) -> void:
-	PlayerController.set_vol(key, clampf(snappedf(PlayerController.vol(key) + d, 0.1), 0.0, 1.0))
-	Sfx.play("tick", -6.0)
-	_show_settings(false)
+## Settings and Controls: neon pages, shared with the pause menu.
+func _show_settings() -> NeonSettings:
+	_set_menu_shown(false)
+	var m := NeonSettings.new()
+	add_child(m)
+	m.back.connect(func():
+		m.queue_free()
+		_set_menu_shown(true))
+	return m
 
 
 func _close_board() -> void:
