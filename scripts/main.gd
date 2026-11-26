@@ -802,6 +802,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			pause_menu.open()
 			get_viewport().set_input_as_handled()
 		return
+	# A name in the centre banner opens its journal page too.
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and merchant:
+		var bh: Array = hud.banner_link_at(event.position)
+		if not bh.is_empty() and journal.open_to(bh[1], bh[2]):
+			get_viewport().set_input_as_handled()
+			return
 	# A highlighted word in a comms line opens its journal page.
 	if hud.comms_showing() and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var hit: Array = hud.link_at(event.position)

@@ -956,6 +956,12 @@ var neon := {
 	"faithful": ["the Faithful"],
 	"nomad": ["Miners' Compact", "the Compact"],
 	"tally": ["Tally's crew", "Tally crew"],
+	## Named ships: [whose colour, who it links to]. A ship reads in its owner's
+	## faction neon, so "Hollis' Girl" isn't taken for Hollis or a place.
+	"ships": {
+		"Hollis' Girl": ["charter", "Hollis"], "Sweet Margaret": ["charter", "Alejandra"],
+		"CCS Ledger Line": ["charter", ""], "Ledger Line": ["charter", ""], "Red Stork": ["pirate", ""],
+	},
 	"threats": ["Charter Recovery", "Recovery", "repossession", "repossessed", "repossess", "repo", "strikes", "strike",
 		"overdue", "default", "seized", "impound", "raiders", "pirates", "mayday"],
 	## Click a highlighted word to open its journal page (M&B encyclopedia).
@@ -969,6 +975,13 @@ var neon := {
 		"the Wall": "gate", "the Gatehouse": "gate",
 	},
 }
+
+
+## A ship's class as spacers say it ("Light Freighter"), from its base hull.
+func hull_class(id: String) -> String:
+	if hull_variants.has(id):
+		id = hull_variants[id][0]
+	return str(hulls.get(id, {}).get("name", id))
 
 
 func speaker_info(who: String) -> Dictionary:

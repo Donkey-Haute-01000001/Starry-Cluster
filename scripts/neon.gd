@@ -130,6 +130,8 @@ static func word_kind(p: Dictionary, i: int) -> String:
 static func color(kind: String) -> Color:
 	if kind == "you":
 		return you_color()
+	if kind.begins_with("ship_"):
+		kind = kind.substr(5)
 	return Data.neon["colors"].get(kind, Color.WHITE)
 
 
@@ -341,6 +343,8 @@ static func _refresh_rules() -> void:
 	for n in you:
 		if n.length() >= 2 and n != "Unnamed rig" and n != "Unnamed":
 			list.append([n, "you", false])
+	for ph in Data.neon["ships"]:
+		list.append([ph, "ship_" + str(Data.neon["ships"][ph][0]), false])
 	for k in ["people", "places", "charter", "navy", "dynasty", "karabey", "league", "remnant", "faithful", "nomad", "tally"]:
 		for ph in Data.neon[k]:
 			list.append([ph, k, false])
@@ -403,6 +407,12 @@ static func span(p: Dictionary, k: int) -> String:
 ## Tabs: 1 people, 2 places, 3 powers.
 static func link(kind: String, phrase: String) -> Array:
 	var links: Dictionary = Data.neon["links"]
+	if kind.begins_with("ship_"):
+		# A ship opens its owner's page, or its own if it's talked to you.
+		var owner: String = str(Data.neon["ships"].get(phrase, ["", ""])[1])
+		if owner != "" and Career.contacts.has(owner):
+			return [1, owner]
+		return [1, phrase] if Career.contacts.has(phrase) else []
 	match kind:
 		"people":
 			var who: String = links.get(phrase, phrase)

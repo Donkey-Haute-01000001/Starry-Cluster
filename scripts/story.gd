@@ -288,7 +288,7 @@ func _raid_rig() -> void:
 	_rig.controller.flee = true
 	_rig.set_meta("tagged", true)
 	# Make it land: banner, a beat of slow motion, and her line through the combat hold.
-	main.show_message("MAYDAY. %s is under attack." % Data.ahead["victim_rig"], 4.5, Color(1.0, 0.45, 0.35))
+	main.show_message("Mayday. %s “%s” under attack." % [Data.hull_class(_rig.hull_id).to_upper(), Data.ahead["victim_rig"]], 4.5)
 	_slow_mo()
 	Career.say(Data.ahead["victim_rig"], Data.hails["mayday"] % [Data.ahead["victim_rig"], "the Greenhouse lane"], true)
 	main.hud.force_talk = true

@@ -52,6 +52,7 @@ var _comms_age := 0.0
 var _comms_words := 0      ## words typed in so far (one key tick each)
 var comms_top := 0.0      ## top edge of the comms panel this frame (cards stack above it)
 var comms_rect := Rect2()  ## the comms panel on screen, for clicks
+var message_links: Array = []  ## highlighted words in the centre banner: [Rect2, kind, phrase]
 var comms_links: Array = []  ## highlighted words in the comms panel: [Rect2, kind, phrase]
 var _plate_k := 1.0        ## nav plate: 1 full, 0 tucked away
 var _plate_wake := 0.0     ## seconds since the plate last had news
@@ -326,6 +327,15 @@ func advance_comms() -> void:
 
 ## The highlighted word under `at` in the comms panel that opens a journal
 ## page: [Rect2, kind, phrase], or [] if none.
+func banner_link_at(at: Vector2) -> Array:
+	if main.message_t <= 0.0:
+		return []
+	for h in message_links:
+		if (h[0] as Rect2).grow(3).has_point(at) and not Neon.link(h[1], h[2]).is_empty():
+			return h
+	return []
+
+
 func link_at(at: Vector2) -> Array:
 	if _comms_t <= 0.0 or not comms_rect.has_point(at):
 		return []
@@ -501,9 +511,10 @@ func _draw() -> void:
 			var blink := 0.6 + 0.4 * sin(t * 6.0)
 			draw_colored_polygon(PackedVector2Array([edge + dir * 16, edge + dir.rotated(2.5) * 12, edge + dir.rotated(-2.5) * 12]), Color(COL_ENEMY, blink))
 			var km := int(main.player.global_position.distance_to(ship.global_position)) if is_instance_valid(main.player) else 0
-			var lab := "MAYDAY  %s  %s km" % [ship.display_name.to_upper(), _km(km)]
+			var lab := "MAYDAY  %s “%s”  %s km" % [Data.hull_class(ship.hull_id).to_upper(), ship.display_name, _km(km)]
 			var lw := Data.font_type_bold.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 			var lp := (edge - dir * 30.0 - Vector2(lw * 0.5, -4)).clamp(Vector2(10, 20), vp - Vector2(lw + 10, 10))
+			draw_rect(Rect2(lp + Vector2(-6, -16), Vector2(lw + 12, 22)), Color(0.02, 0.03, 0.04, 0.8))
 			draw_string(Data.font_type_bold, lp.round(), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(COL_ENEMY, blink))
 
 	if main.focus_target and is_instance_valid(main.focus_target):
@@ -606,8 +617,16 @@ func _draw() -> void:
 		_draw_tip(vp)
 		if main.autopilot_on():
 			_text(Vector2(vp.x * 0.5, 160), _sp("AUTOPILOT") + "   →   " + str(main.player.controller.autopilot.label), 13, Color(0.55, 0.9, 1.0, 0.9), true, true)
+	message_links.clear()
 	if main.message_t > 0:
-		_text(Vector2(vp.x * 0.5, vp.y * 0.25), main.message, 20, Color(main.message_col, minf(1.0, main.message_t)), true, true)
+		var mp := Neon.parse(main.message)
+		if (mp["kind"] as Array).any(func(k): return k != ""):
+			# Names in a banner read in neon, and click through like comms.
+			var mf: Font = Data.font_bold
+			var mw: float = mf.get_string_size(str(mp["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x + 8.0
+			Neon.draw(self, mf, Vector2(roundf(vp.x * 0.5 - mw * 0.5), vp.y * 0.25 - mf.get_ascent(22)), mp, mw + 40.0, 22, main.message_col, minf(1.0, main.message_t), 1e9, false, -1, message_links)
+		else:
+			_text(Vector2(vp.x * 0.5, vp.y * 0.25), main.message, 20, Color(main.message_col, minf(1.0, main.message_t)), true, true)
 
 	if shown("radar"):
 		_draw_radar(Vector2(vp.x - 110, vp.y - 110), 90.0)
