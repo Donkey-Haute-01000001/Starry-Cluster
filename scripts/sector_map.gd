@@ -50,7 +50,7 @@ const PEN_NOTES := [
 const REGIONS := [
 	[Vector2(0.19, 0.5), Vector2(0.175, 0.46), Color(0.55, 0.78, 1.0), 0.5, "Federation pocket", "The Federation", "Hesper March and the interior, behind the Wall. Navy patrols, Charter routes."],
 	[Vector2(0.205, 0.27), Vector2(0.06, 0.12), Color(0.85, 0.25, 0.25), 0.55, "The Grind", "Contested  ·  pirate clans", "Marcellus belt. Federation on paper; the rocks belong to whoever's armed."],
-	[Vector2(0.52, 0.5), Vector2(0.075, 0.17), Color(0.62, 0.62, 0.62), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls."],
+	[Vector2(0.53, 0.5), Vector2(0.13, 0.25), Color(0.62, 0.62, 0.62), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls."],
 	[Vector2(0.86, 0.5), Vector2(0.11, 0.18), Color(0.2, 0.72, 0.42), 0.4, "Dynasty heartland", "The Dynasty  ·  rumor", "Warlord country on the far side. Nobody you know has been."],
 	[Vector2(0.6, 0.15), Vector2(0.15, 0.12), Color(0.68, 0.42, 0.9), 0.4, "League lanes", "The Merchant League  ·  rumor", "Merchant houses on the lane stations. Tolls on everything, they say."],
 	[Vector2(0.82, 0.22), Vector2(0.1, 0.13), Color(0.82, 0.66, 0.28), 0.4, "Remnant holdout", "Imperial Remnant  ·  rumor", "Old empire colors, still flying. If it's true."],
@@ -251,6 +251,15 @@ func _net() -> Array:
 		var i: int = add.call(Vector2(0.87, 0.62) + Vector2(cos(ang) * 0.075, sin(ang) * 0.13), 3)
 		links.append([cap, i, "spoke"])
 	links.append([-1, cap, "road"])
+	# The Crossroads: a ring of free stations round the Dynasty gate, every one
+	# a toll, a market or a place to hide. (Vishnu 2026-11-26: "add more stations".)
+	var ring: Array = []
+	for v in [Vector2(0.455, 0.36), Vector2(0.43, 0.47), Vector2(0.465, 0.71), Vector2(0.57, 0.7), Vector2(0.63, 0.6), Vector2(0.64, 0.47)]:
+		var ri: int = add.call(v, 2, "hub")
+		links.append([-1, ri, "spoke"])
+		ring.append(ri)
+	for k in ring.size():
+		links.append([ring[k], ring[(k + 1) % ring.size()], "local"])
 	# A Dynasty fort guarding the Crossroads.
 	links.append([-1, add.call(Vector2(0.6, 0.37), 2), "spoke"])
 	# League: one long line of lane stations.
