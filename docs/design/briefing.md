@@ -33,11 +33,11 @@ The opening is a tutorial. Charlie gives the Charter's required briefing ("Hey c
 
 ## Open questions (one card each)
 
-1. Pacing: parked at the berth, as you fly, or a mix
+1. ~~Pacing~~ locked: mix
 2. Skip: how the player says "I've got it"
 3. Do Charlie's beats replace the key-cap prompts, or sit beside them
 4. Lines: 2–3 takes per beat, Vishnu picks
 
 ## Locked
 
-(none yet)
+- **Pacing: mix** (Vishnu 2026-11-26). Parked at launch for the basics: system plate, job line + arrow, comms box. The rest (radar, ship panel, guns, orders) gets a Charlie line the first time each matters.
