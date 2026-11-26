@@ -10,6 +10,7 @@ const WheelScript := preload("res://scripts/tactics_wheel.gd")
 const BodyScript := preload("res://scripts/body.gd")
 const StationUIScript := preload("res://scripts/station_ui.gd")
 const StoryScript := preload("res://scripts/story.gd")
+const Checks := preload("res://scripts/checks.gd")
 
 const JUMP_CHARGE := 3.0
 
@@ -367,16 +368,19 @@ func _new_career_test() -> void:
 	hud.advance_comms()
 	await _wait(1.0)
 	print("[launch] after space: waiting=%s pilot=%s" % [hud.comms_waiting(), Career.pilot])
+	Checks.check(Career.jobs.size() > 0 and Career.pilot.get("name", "") == "Test Pilot", "new career: pilot filed, first job given")
 	sector_map.open()
 	await _wait(0.3)
 	print("[launch] map paused=%s" % get_tree().paused)
+	Checks.check(get_tree().paused, "chart pauses the game")
 	journal.open()
 	await _wait(0.3)
 	print("[launch] journal over map: map=%s journal=%s paused=%s" % [sector_map.visible, journal.visible, get_tree().paused])
 	journal.close()
 	await _wait(0.3)
 	print("[launch] closed: paused=%s" % get_tree().paused)
-	get_tree().quit()
+	Checks.check(not get_tree().paused, "closing the journal unpauses")
+	Checks.finish(get_tree(), "new career")
 
 
 func undock() -> void:
@@ -1051,7 +1055,12 @@ func _autotest_step(delta: float) -> void:
 		print("[autotest] order=%s escorts=%s" % [fleet_order, st])
 	if _autotest_t >= 120.0 or not is_instance_valid(player):
 		print("[autotest] done: wave=%d kills=%d escort_losses=%d player_alive=%s" % [wave, kills, _losses, is_instance_valid(player)])
-		get_tree().quit()
+		# Waves escalate until the player falls, so death is the normal end.
+		# Fail when the fight itself is broken: nobody dies, or it ends early.
+		Checks.check(kills >= 5, "autotest: at least 5 kills (got %d)" % kills)
+		Checks.check(wave >= 3, "autotest: reached wave 3 (got %d)" % wave)
+		Checks.check(_autotest_t >= 30.0, "autotest: player lasts 30s (got %.0fs)" % _autotest_t)
+		Checks.finish(get_tree(), "autotest")
 
 
 ## Automated check of the Merchant opening: `-- --merchant-test`. Plays the
@@ -1084,6 +1093,7 @@ func _capture_test(mode: String) -> void:
 	print("[capture] disabled=%s alive=%s hull=%d" % [player.disabled, player.alive, int(player.hull_hp)])
 	player.take_damage(player.max_hull, player.global_position)
 	print("[capture] after overkill alive=%s hull=%d" % [player.alive, int(player.hull_hp)])
+	Checks.check(player.alive and player.disabled, "capture: overkill disables the rig, never destroys it")
 	var w := 0.0
 	while capture.phase in ["", "adrift"] and w < 30.0:
 		await _wait(0.25)
@@ -1114,6 +1124,13 @@ func _capture_test(mode: String) -> void:
 		await _wait(9.0)
 		_shot("capture_death")
 	print("[capture] end phase=%s docked=%s disabled=%s credits=%d cargo=%d loan +%d days +%.1f strikes=%d" % [capture.phase, docked_at, player.disabled, Career.credits, Career.cargo_used(), Career.loan_balance - loan0, Career.day - day0, Career.strikes])
+	match mode:
+		"surrender":
+			Checks.check(docked_at != "" and Career.cargo_used() == 0 and Career.loan_balance - loan0 == 2500, "surrender: ransomed home, cargo seized, 2,500 on the loan")
+		"fight":
+			Checks.check(capture.phase == "dead", "fight the breach: death card")
+		"driven", "tally":
+			Checks.check(docked_at != "" and Career.cargo_used() > 0, "%s: towed home with the cargo" % mode)
 
 
 func _wait(sec: float) -> void:
@@ -1137,7 +1154,7 @@ func _run_merchant_test() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--capture-test="):
 			await _capture_test(a.substr(15))
-			get_tree().quit()
+			Checks.finish(get_tree(), "capture " + a.substr(15))
 			return
 	# --look=a,b,...: quick screenshots only (station ids, "rift", "crossroads").
 	for a in OS.get_cmdline_user_args():
@@ -1607,6 +1624,8 @@ func _run_merchant_test() -> void:
 		Engine.time_scale = 4.0
 	await _wait(0.5)
 	print("[merchant] start: day=%.2f credits=%d loan=%d jobs=%d objective=%s" % [Career.day, Career.credits, Career.loan_balance, Career.jobs.size(), Career.objective.get("station", "")])
+	Checks.check(Career.loan_balance > 0 and Career.jobs.size() > 0, "start: loan and starter job set")
+	var loan_start := Career.loan_balance
 	_shot("m_flight")
 	_go("bones")
 	Career.buy("bones", "parts", 20)
@@ -1615,6 +1634,7 @@ func _run_merchant_test() -> void:
 	undock()
 	_go("drip")
 	print("[merchant] at drip: hold=%d/%d job_cargo=%s cargo=%s" % [Career.cargo_used(), Career.cargo_capacity, Career.job_cargo, Career.cargo])
+	Checks.check(Career.job_cargo.get("water", 0) == 20, "drip: 20 water loaded")
 	undock()
 	await _wait(0.1)
 	_shot("m_drip")
@@ -1626,17 +1646,21 @@ func _run_merchant_test() -> void:
 	await _wait(3.3)
 	_shot("m_arrival")
 	print("[merchant] after jump: system=%s" % system_id)
+	Checks.check(system_id == "tiberine", "jump: arrived in Tiberine")
 	_go("greenhouse")
 	var before := Career.credits
 	Career.sell("greenhouse", "parts", 99)
 	print("[merchant] delivered: credits=%d (parts sold for %d) flags=%s objective=%s" % [Career.credits, Career.credits - before, Career.flags, Career.objective])
+	Checks.check(Career.flags.get("starter_done", false), "starter run delivered")
 	print("[merchant] friend: met=%s escorts=%s capacity=%d" % [Career.friend.get("met"), escorts.map(func(e): return e.display_name), Career.cargo_capacity])
+	Checks.check(Career.friend.get("met", false) and escorts.size() >= 1, "Dez met and flying escort")
 	undock()
 	await _wait(0.3)
 	_shot("m_greenhouse")
 	Career.day = 6.99
 	await _wait(1.0)
 	print("[merchant] after week 1: credits=%d loan=%d" % [Career.credits, Career.loan_balance])
+	Checks.check(Career.loan_balance < loan_start, "week 1 payment taken")
 
 	# The Tallyman waits at the Marcellus jump exit.
 	load_system("marcellus", "aurelia")
@@ -1663,6 +1687,8 @@ func _run_merchant_test() -> void:
 			Career.flags["test_navy_shot"] = true
 			_shot("m_franz")
 	print("[tally] done after %.0fs: tally_done=%s franz_met=%s engines=%s escorts=%d cargo=%s job_cargo=%s" % [waited, Career.flags.get("tally_done"), Career.flags.get("franz_met"), player.ion_t <= 0.0, escorts.size(), Career.cargo, Career.job_cargo])
+	Checks.check(Career.flags.get("tally_done", false) and Career.flags.get("franz_met", false), "Tallyman ambush resolved, Franz met")
+	Checks.check(is_instance_valid(player) and player.alive, "player survives the ambush")
 
 	# Kessler's board at Four, then the Red Stork near Amber's.
 	_go("four")
@@ -1674,6 +1700,7 @@ func _run_merchant_test() -> void:
 	await _wait(1.0)
 	var lark: Ship = story._bounty_ship
 	print("[bounty] spawned=%s objective=%s" % [lark != null and is_instance_valid(lark), Career.objective.get("station", "")])
+	Checks.check(lark != null and is_instance_valid(lark), "Red Stork spawned")
 	for s in get_tree().get_nodes_in_group("ships"):
 		if s.team == 1 and s != lark:
 			s.die()
@@ -1706,6 +1733,7 @@ func _run_merchant_test() -> void:
 			lark.die()
 	_go("four")
 	print("[bounty] killed=%s paid=%s credits=%d" % [Career.flags.get("bounty_killed"), Career.flags.get("bounty_paid"), Career.credits])
+	Checks.check(Career.flags.get("bounty_paid", false), "Red Stork bounty paid")
 	undock()
 	_go("four")
 	print("[bounty] pitch=%s" % Career.flags.get("franz_pitch"))
@@ -1722,6 +1750,7 @@ func _run_merchant_test() -> void:
 	# Saltgate's bar.
 	Career.credits += 2000
 	print("[bar] hire fay=%s mersham=%s escorts=%s bond=%s" % [Career.hire("fay"), Career.hire("mersham"), escorts.map(func(e): return e.display_name), Career.flags.get("bond")])
+	Checks.check(Career.crew.has("fay") and Career.crew.has("mersham"), "Fay and Mersham hired")
 	# Save and load round trip.
 	var save_before := [Career.credits, Career.loan_balance, snappedf(Career.day, 0.01), Career.crew.keys(), Career.flags.get("bounty_paid"), Career.friend.get("role")]
 	Career.save_game("saltgate")
@@ -1731,6 +1760,7 @@ func _run_merchant_test() -> void:
 	var loaded := Career.load_game()
 	var save_after := [Career.credits, Career.loan_balance, snappedf(Career.day, 0.01), Career.crew.keys(), Career.flags.get("bounty_paid"), Career.friend.get("role")]
 	print("[save] loaded=%s match=%s resume=%s summary=%s\n  before=%s\n  after=%s" % [loaded, str(save_before) == str(save_after), Career.resume_station, Career.save_summary(), save_before, save_after])
+	Checks.check(loaded and str(save_before) == str(save_after), "save/load round trip matches")
 	Career.delete_career(Career.slot)
 	await _wait(0.05)
 	_shot("m_saltgate")
@@ -1741,6 +1771,7 @@ func _run_merchant_test() -> void:
 	_go("counter")
 	Career.pay_extra(Career.loan_balance)
 	print("[ending] papers=%s loan=%d" % [Career.flags.get("papers"), Career.loan_balance])
+	Checks.check(Career.loan_balance <= 0 and Career.flags.get("papers", false), "loan paid, papers issued")
 	undock()
 	load_system("porta_aquila", "tiberine")
 	await _wait(0.5)
@@ -1752,10 +1783,11 @@ func _run_merchant_test() -> void:
 	print("[ending] scene=%s charging=%s" % [story.scene, jump_charge >= 0.0])
 	await _wait(4.0)
 	print("[ending] system=%s hud=%s" % [system_id, hud.visible])
+	Checks.check(system_id == "crossroads", "ending: jumped to the Crossroads")
 	await _wait(10.0)
 	_shot("m_crossroads")
 	await _wait(14.0)
 	print("[ending] phase=%s" % story._phase)
 	_shot("m_title")
 	print("[merchant] done")
-	get_tree().quit()
+	Checks.finish(get_tree(), "merchant")
