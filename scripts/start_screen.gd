@@ -250,58 +250,39 @@ func _menu_button(text: String, cb: Callable, sub := "") -> void:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
-## Top right: the sector bulletin, printed and pinned. Flavour for the
-## world outside the berth.
+## Top right: the sector bulletin in neon (docs/design/ui-look.md), typed on a
+## dark wash. Flavour for the world outside the berth.
 func _build_bulletin() -> void:
 	var vp := get_viewport_rect().size
-	var slip := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.93, 0.91, 0.85)
-	sb.shadow_color = Color(0, 0, 0, 0.4)
-	sb.shadow_size = 4
-	sb.shadow_offset = Vector2(2, 3)
-	sb.set_content_margin_all(14)
-	slip.add_theme_stylebox_override("panel", sb)
-	slip.position = Vector2(vp.x - 380, 54)
-	slip.custom_minimum_size = Vector2(340, 0)
-	slip.rotation = deg_to_rad(0.6)
-	add_child(slip)
-	_bulletin = slip
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 7)
-	slip.add_child(v)
-	_type(v, "HESPER MARCH BULLETIN  ·  WEEK 1", 11, true, UIStyle.INK_FADED)
-	_rule(v)
-	for line in [
+	var lines := [
 		"Charter Co. posts record quarter. Haulers' rates unchanged.",
 		"Navy patrol warns of raiders in the Marcellus belt.",
 		"Saltgate bar: pilots for hire, cheap.",
 		"Aquila customs: Writs of Passage checked in full.",
-	]:
-		# Hanging bullet: a square of ink, then the wrapped line beside it.
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		v.add_child(row)
-		var dot := Control.new()
-		dot.custom_minimum_size = Vector2(6, 0)
-		dot.draw.connect(func(): dot.draw_rect(Rect2(0, 6, 5, 5), UIStyle.INK_TYPE))
-		row.add_child(dot)
-		var t := _type(row, line, 13)
-		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		t.custom_minimum_size = Vector2(298, 0)
-	# Two thumbtacks pin it to the berth wall.
-	var tacks := Control.new()
-	tacks.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tacks.position = slip.position
-	tacks.rotation = slip.rotation
-	tacks.size = Vector2(340, 20)
-	tacks.draw.connect(func():
-		for x in [16.0, 324.0]:
-			tacks.draw_circle(Vector2(x + 2, 4), 6.5, Color(0, 0, 0, 0.35))
-			tacks.draw_circle(Vector2(x, 2), 6.0, Color(0.72, 0.16, 0.14))
-			tacks.draw_circle(Vector2(x - 1.8, 0.2), 2.0, Color(1.0, 0.6, 0.55, 0.8)))
-	add_child(tacks)
-	slip.set_meta("tacks", tacks)
+	]
+	var slip := Control.new()
+	slip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slip.position = Vector2(vp.x - 440, 60)
+	slip.size = Vector2(400, 260)
+	add_child(slip)
+	_bulletin = slip
+	slip.draw.connect(func():
+		var f: Font = Data.font_talk
+		var w := slip.size.x
+		# Soft dark wash, no box.
+		for k in 10:
+			var g := 30.0 - k * 3.0
+			slip.draw_rect(Rect2(Vector2.ZERO, slip.size).grow(g), Color(0.016, 0.02, 0.047, 0.1))
+		slip.draw_string(f, Vector2(0, 20), "HESPER MARCH BULLETIN", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.3, 0.31, 0.37))
+		slip.draw_string(f, Vector2(0, 20), "WEEK 1", HORIZONTAL_ALIGNMENT_RIGHT, w, 20, Color(0.3, 0.31, 0.37))
+		var y := 54.0
+		for line in lines:
+			slip.draw_string(f, Vector2(0, y), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(UIStyle.GOLD, 0.8))
+			slip.draw_multiline_string(f, Vector2(18, y), line, HORIZONTAL_ALIGNMENT_LEFT, w - 18.0, 22, -1, Color(0.9, 0.9, 0.94))
+			y += f.get_multiline_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, w - 18.0, 22).y + 10.0)
+	slip.set_meta("tacks", Control.new())
+	slip.get_meta("tacks").visible = false
+	add_child(slip.get_meta("tacks"))
 
 
 func _continue(n := -1) -> void:
