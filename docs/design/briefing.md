@@ -35,7 +35,7 @@ The opening is a tutorial. Charlie gives the Charter's required briefing ("Hey c
 
 1. ~~Pacing~~ locked: mix
 2. ~~Skip~~ locked: reply choice
-3. Do Charlie's beats replace the key-cap prompts, or sit beside them
+3. ~~Key prompts~~ locked: Charlie + key caps together
 4. Lines: 2–3 takes per beat, Vishnu picks
 
 ## Locked
@@ -43,3 +43,21 @@ The opening is a tutorial. Charlie gives the Charter's required briefing ("Hey c
 - **Pacing: mix** (Vishnu 2026-11-26). Parked at launch for the basics: system plate, job line + arrow, comms box. The rest (radar, ship panel, guns, orders) gets a Charlie line the first time each matters.
 - **Skip: a reply to Charlie** (Vishnu 2026-11-26). After her opener: "Go ahead" or "I've flown before, Charlie. Thanks though." (his line), shown with a small "(skip tutorial)" tag. Skipping drops the parked briefing; Charlie answers in character.
 - **Dialogue: story lines pause the game in a centre window** (Vishnu 2026-11-26). Big window above the ship panel, world dimmed, "CLICK / SPACE ▸ continue". Chatter stays in the corner ticker and never pauses. Built in `hud.gd` (`_dialogue_pause_step`).
+- **Key prompts: Charlie + key caps together** (Vishnu 2026-11-26). Charlie gives the what and why; the key-cap strip shows the keys under her line and fades once you've done it.
+
+## Beats
+
+Parked at launch (engines held; each HUD part fades in as she names it):
+1. Opener (Vishnu's line) + reply: "Go ahead" / "I've flown before, Charlie. Thanks though." (skip tutorial)
+2. Skip answer (only if skipped)
+3. System plate: where you are, how rough, money, hold, the loan
+4. Job line + green arrow, [G] autopilot
+5. Station and jump names at the edge
+6. The comms window ("that's me")
+7. Flight keys (caps: W / mouse / X), engines released
+
+First time it matters (one line each, then never again):
+8. Radar: first ship on the scope
+9. Ship panel: first hit on your shields
+10. Guns: first hostile in range (caps: turrets / ion / swap)
+11. Orders: first fight with an escort (caps: hold Tab)
