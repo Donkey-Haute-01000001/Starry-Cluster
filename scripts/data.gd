@@ -588,7 +588,7 @@ var charlie := {
 	"repossessed": "They took the cargo, and the fee's on the lien. ...I'm so sorry, captain.",
 	"walk_loaded": "That's twenty tons. If you've got room, the Bones is next door. Then Tiberine. Press [G] and the rig flies itself, mostly.",  ## Vishnu pick B
 	"walk_tiberine": "Tiberine. Follow the green arrow to the Greenhouse. They'll unload you, you just have to park.",  ## Vishnu pick B
-	"raider": "Captain, that's a raider. He hits Charter rigs. Engines are dead, use the turrets. I'm calling the navy.",  ## DRAFT take A
+	"raider": "Captain, that's a raider. He hits Charter rigs. Engines are dead, use the turrets. I'm calling the navy.",  ## Vishnu pick A
 	"job_done": "Greenhouse says the water's in. Nice flying, captain. The board's open: pick your own runs from here. Watch the belt, though. Marcellus pays well for a reason.",
 }
 
@@ -824,7 +824,7 @@ var tally := {
 	"spare": "I'm not taking your cargo. Not this time. Keep paying them. You'll see.",
 	"signoff": "Name's Tallyn. They call me the Tallyman. I keep count.",
 	"dez": "He let us go. Why'd he let us go?",
-	"warning": "Charter colors. Hold still, this won't take long.",  ## DRAFT take B
+	"warning": "Charter colors. Hold still, this won't take long.",  ## Vishnu pick B
 }
 
 ## Lt. Franz Kessler (script doc: Franz).
