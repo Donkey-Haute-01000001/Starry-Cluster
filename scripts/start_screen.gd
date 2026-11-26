@@ -92,16 +92,14 @@ func _ready() -> void:
 			_show_register.call_deferred()
 			_snapshot.call_deferred(a.substr(15))
 		elif a.begins_with("--files-shot="):
-			_open_board()
-			_show_index(false)
+			_show_starts.call_deferred()
 			_snapshot.call_deferred(a.substr(13))
 		elif a == "--pick-test":
 			# New career -> Merchant should open the Merchant file.
-			_open_board()
-			_show_index(false)
-			_pick(0)
-			print("[pick] opened file %d" % _selected)
-			get_tree().quit.call_deferred()
+			(func():
+				_show_starts()._open(0)
+				print("[pick] opened file %d" % _selected)
+				get_tree().quit()).call_deferred()
 		elif a.begins_with("--credits-shot="):
 			_show_credits()
 			_credits_shot.call_deferred(a.substr(15))
@@ -206,10 +204,7 @@ func _build_menu() -> void:
 		_menu_button("CONTINUE", _continue, Career.save_summary())
 	if not Career.list_careers().is_empty():
 		_menu_button("CAREERS", _show_register)
-	# The clipboard slides in with the page already on it (no second page swipe).
-	_menu_button("NEW CAREER", func():
-		_open_board()
-		_show_index(false))
+	_menu_button("NEW CAREER", _show_starts)
 	_menu_button("SETTINGS", _show_settings)
 	_menu_button("CREDITS", _show_credits)
 	_menu_button("QUIT", func(): get_tree().quit())
@@ -366,38 +361,46 @@ func _open_board() -> void:
 	Sfx.play("paper", -4.0)
 
 
-## The career files, none opened yet: pick one.
-func _show_index(animate := true) -> void:
-	_selected = -1   # no file open: any pick opens one
-	var page := _new_page(animate)
-	var v := _sheet_body(page)
-	_type(v, "BERTH 14  ·  CAPTAIN'S FILES", 13, true, UIStyle.INK_FADED)
-	_label(v, "Who were you?", Data.font_bold, 34, UIStyle.INK_TYPE)
-	_type(v, "Pick a file. Only the Merchant file is open for now.", 14, false, UIStyle.INK_FADED)
-	_rule(v)
+## New career: the starts in neon. Pick one and its file comes up on the
+## clipboard, the opening typing onto it.
+func _show_starts() -> NeonMenu:
+	_set_menu_shown(false)
+	var m := NeonMenu.new()
+	m.title = "WHO WERE YOU?"
+	m.cols = [0.0, 220.0, 420.0]
+	var r := []
 	for k in Data.starts.size():
 		var st: Dictionary = Data.starts[k]
-		var row := VBoxContainer.new()
-		row.add_theme_constant_override("separation", 2)
-		v.add_child(row)
-		var b := _type_button(row, "%s   ·   %s" % [st["name"].to_upper(), st["doc"]["file"]], _pick.bind(k), 18)
-		if not st["playable"]:
-			b.add_theme_color_override("font_color", Color(UIStyle.INK_TYPE, 0.55))
 		var first := Neon.plain(st["beats"][0]).replace("\n", " ")
 		var cut := first.find(".", 60)
-		var t := _type(row, first.substr(0, cut + 1) if cut > 0 else first, 13, false, UIStyle.INK_FADED)
-		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		t.custom_minimum_size = Vector2(PAPER_W - 70, 0)
-		var gap := Control.new()
-		gap.custom_minimum_size = Vector2(0, 8)
-		v.add_child(gap)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(spacer)
-	_type_button(v, "back to menu", _close_board, 12)
+		r.append({"cells": [st["name"], st["doc"]["file"], "" if st["playable"] else "sealed"],
+			"tint": {1: NeonMenu.DIM, 2: NeonMenu.OFF},
+			"blurb": first.substr(0, cut + 1) if cut > 0 else first})
+	m.set_rows(r)
+	add_child(m)
+	m.chosen.connect(func(k):
+		m.queue_free()
+		_selected = -1
+		_open_board()
+		_show_file(k, true))
+	m.back.connect(func():
+		m.queue_free()
+		_set_menu_shown(true))
+	return m
 
 
-## Settings: the flight controls, as a checklist.
+## From a file back to the list of starts: the clipboard slides away first.
+func _board_to_starts() -> void:
+	var tw := create_tween()
+	var home := _board.position
+	tw.tween_property(_board, "position:x", home.x + 700.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		_board.visible = false
+		_board.position = home
+		_show_starts())
+	Sfx.play("paper", -6.0)
+
+
 ## Settings and Controls: neon pages, shared with the pause menu.
 func _show_settings() -> NeonSettings:
 	_set_menu_shown(false)
@@ -683,7 +686,7 @@ func _show_file(i: int, animate := true) -> void:
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 14)
 	v.add_child(foot)
-	_type_button(foot, "all files", func(): _show_index(true), 12)
+	_type_button(foot, "all files", _board_to_starts, 12)
 	_type_button(foot, "combat sandbox", func():
 		Data.mode = "sandbox"
 		get_tree().change_scene_to_file("res://scenes/main.tscn"), 12)
