@@ -174,6 +174,7 @@ func _process(delta: float) -> void:
 	_sheet.param("reg", rg)
 	_sheet.param("regc", rc)
 	_sheet.param("reg_hi", _region_of(_hover))
+	_sheet.param("reg_clip", Vector4(c.position.x - pr.position.x, c.position.y - pr.position.y, c.size.x, c.size.y))
 	queue_redraw()
 
 

@@ -23,6 +23,7 @@ uniform int reg_n = 0;
 uniform vec4 reg[10];
 uniform vec4 regc[10];
 uniform int reg_hi = -1;
+uniform vec4 reg_clip = vec4(0.0);   // chart frame (px): territory stays inside it
 
 varying vec2 lp;
 
@@ -107,39 +108,58 @@ vec3 paper(vec2 p, vec2 uv) {
 		float pool = (1.0 - smoothstep(ring.z - 6.0, ring.z, d)) * 0.25 * fbm(p / 18.0);
 		col = mix(col, col * vec3(0.72, 0.55, 0.38), clamp(ringv * 0.6 + pool, 0.0, 1.0) * wear);
 	}
-	// Territory, Victoria-style: every power's colour spreads until it meets a
-	// neighbour, then the two bleed into each other across a soft border. Far
-	// from everyone the paper stays blank.
+	// Territory, Victoria-style: every power holds ground up to a hard border
+	// with its neighbours, inked dark, the colour pooled deeper along its own
+	// side of the line. Past the outer frontier the paper stays blank.
 	if (reg_n > 0) {
+		// Two passes: weights relative to the nearest power, so they never
+		// underflow far from a centre (GL Compatibility floats are short).
+		float ds[10];
+		float dmin = 99.0;
+		for (int i = 0; i < 10; i++) {
+			if (i >= reg_n) break;
+			vec2 q = (p - reg[i].xy) / reg[i].zw;
+			ds[i] = length(q) + (fbm(p / 60.0 + float(i) * 7.3) - 0.5) * 0.22;
+			dmin = min(dmin, ds[i]);
+		}
 		vec3 rtint = vec3(0.0);
 		float wsum = 0.0;
-		float dmin = 99.0;
 		float w1 = 0.0;
 		float w2 = 0.0;
 		float hi = 0.0;
 		float str = 0.0;
 		for (int i = 0; i < 10; i++) {
 			if (i >= reg_n) break;
-			vec2 q = (p - reg[i].xy) / reg[i].zw;
-			float d = length(q) + (fbm(p / 45.0 + float(i) * 7.3) - 0.5) * 0.28;
-			float w = exp(-d * 7.0);
+			float w = exp(-(ds[i] - dmin) * 26.0);
 			rtint += regc[i].rgb * w;
 			str += regc[i].a * w;
 			hi += (i == reg_hi ? 1.0 : 0.0) * w;
 			wsum += w;
-			dmin = min(dmin, d);
 			if (w > w1) { w2 = w1; w1 = w; } else if (w > w2) { w2 = w; }
 		}
 		rtint /= wsum;
 		str /= wsum;
 		hi /= wsum;
-		float cover = 1.0 - smoothstep(1.05, 1.7, dmin);
-		float bloom = 0.85 + 0.3 * fbm(p / 22.0);
-		// A faint pooled line where two powers meet.
-		float border = exp(-pow((w1 - w2) / (w1 + 1e-5) / 0.18, 2.0)) * cover;
-		float k = clamp(str * (1.0 + hi * 0.8) * bloom * cover, 0.0, 0.85);
+		float edge_d = 1.3;
+		float cover = 1.0 - smoothstep(edge_d - 0.02, edge_d, dmin);
+		float inclip = 1.0;
+		if (reg_clip.z > 0.0) {
+			inclip = step(reg_clip.x, p.x) * step(p.x, reg_clip.x + reg_clip.z) * step(reg_clip.y, p.y) * step(p.y, reg_clip.y + reg_clip.w);
+		}
+		cover *= inclip;
+		// How close to a neighbour's border: 0 on the line, 1 deep inside.
+		float sep = clamp((w1 - w2) / (w1 + 1e-6), 0.0, 1.0);
+		float pool = (1.0 - smoothstep(0.0, 0.5, sep)) * cover;
+		float outer = 1.0 - smoothstep(0.0, 0.045, edge_d - dmin);
+		pool = max(pool, outer * cover);
+		float bloom = 0.9 + 0.2 * fbm(p / 22.0);
+		float k = clamp((str * 0.95 * (1.0 + hi * 0.6) * bloom + pool * 0.25) * cover, 0.0, 0.75);
 		col = col * mix(vec3(1.0), rtint, k);
-		col *= 1.0 - border * 0.22;
+		// Inked borders: between powers, and the outer frontier.
+		float line_in = (1.0 - smoothstep(0.03, 0.09, sep)) * cover;
+		float line_out = exp(-pow((dmin - edge_d) / 0.012, 2.0)) * inclip;
+		float ink = clamp(max(line_in, line_out), 0.0, 1.0);
+		col = mix(col, col * rtint * 0.5, ink * 0.75);
 	}
 	col = creases(col, uv.x, folds.x, size.x);
 	col = creases(col, uv.y, folds.y, size.y);
