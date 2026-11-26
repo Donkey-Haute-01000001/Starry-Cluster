@@ -22,9 +22,9 @@ Each screen is mocked, shown, and built only after Vishnu OKs it.
 | Careers register, start picker, Settings, Controls, Pause | built |
 | Start files (contract + sealed starts) | built |
 | Title menu row | **unchanged** (locked) |
-| Form ID-1 (name, rig, photo) | next |
-| Form NK-2 (Dez contact) | then |
-| Launch ID card | then |
+| Form ID-1 (name, rig, photo) | built |
+| Form NK-2 (Dez contact) | built |
+| Launch ID card | next |
 | Ransom receipt, sector bulletin, dispatch slip | then |
 | Journal and chart | last (biggest) |
 

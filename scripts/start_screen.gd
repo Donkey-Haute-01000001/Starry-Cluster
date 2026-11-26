@@ -20,6 +20,7 @@ const NeonMenu = preload("res://scripts/neon_menu.gd")
 const NeonSettings = preload("res://scripts/neon_settings.gd")
 const NeonFile = preload("res://scripts/neon_file.gd")
 const NeonId = preload("res://scripts/neon_id.gd")
+const NeonContact = preload("res://scripts/neon_contact.gd")
 var _beats: Control                 ## the start's opening, typing onto the file
 var _file: Control                  ## the start's file, in neon
 const BeatsOnPaper = preload("res://scripts/beats_on_paper.gd")
@@ -125,8 +126,7 @@ func _ready() -> void:
 			_show_identity.call_deferred()
 			_snapshot.call_deferred(a.substr(10))
 		elif a.begins_with("--creator-shot="):
-			_open_board()
-			_show_contact(false)
+			_show_contact.call_deferred()
 			_snapshot.call_deferred(a.substr(15))
 
 
@@ -652,8 +652,7 @@ func _show_identity() -> void:
 	m.filed.connect(func():
 		m.queue_free()
 		Sfx.play("flip", -4.0)
-		_open_board()
-		_show_contact(true))
+		_show_contact())
 	m.back.connect(func():
 		m.queue_free()
 		_show_file(_selected, false))
@@ -692,117 +691,16 @@ func _field(parent: Node, label: String, key: String, sz: int) -> void:
 
 # --- Page three: Dez on the emergency-contact form -------------------------------------
 
-func _show_contact(animate := true) -> void:
-	if _bg == "":
-		_bg = Data.friend_background_order[0]
-	var page := _new_page(animate)
-	var v := _sheet_body(page)
-	v.add_theme_constant_override("separation", 6)
-
-	_type(v, "THE CHARTER COMPANY", 21, true)
-	_type(v, "Form NK-2  ·  Emergency Contact / Next of Kin", 13)
-	_type(v, "Attach to file CC-40817-M. One contact only. Print clearly.", 11, false, UIStyle.INK_FADED)
-	_rule(v)
-
-	var who := HBoxContainer.new()
-	who.add_theme_constant_override("separation", 18)
-	v.add_child(who)
-	var photo := Control.new()
-	photo.custom_minimum_size = Vector2(104, 132)
-	photo.draw.connect(func():
-		UIStyle.draw_id_photo(photo, Rect2(Vector2(4, 4), Vector2(96, 124)), Data.speaker_portraits["Dez"], "NK-40817-1", 9, "Dez"))
-	who.add_child(photo)
-	var fields := VBoxContainer.new()
-	fields.add_theme_constant_override("separation", 2)
-	fields.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	who.add_child(fields)
-	for f in [["NAME", Data.FRIEND_FULL_NAME], ["GOES BY", Data.FRIEND_NAME], ["RELATIONSHIP", "friend. best one."]]:
-		_type(fields, f[0], 11, false, UIStyle.INK_FADED)
-		var h := _label(fields, f[1], Data.font_hand, 25, UIStyle.INK_PEN)
-		h.add_theme_constant_override("line_spacing", -6)
-
-	_type(v, "HOW KNOWN TO APPLICANT  (tick one)", 12, true)
-	var rows := VBoxContainer.new()
-	rows.add_theme_constant_override("separation", 4)
-	v.add_child(rows)
-	for k in Data.friend_background_order:
-		_bg_row(rows, k)
-
-	var gap := Control.new()
-	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(gap)
-	_rule(v)
-	var foot := HBoxContainer.new()
-	foot.add_theme_constant_override("separation", 14)
-	v.add_child(foot)
-	var go := _type_button(foot, "file it", _file_it, 17)
-	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_type_button(foot, "back", func():
-		if not _busy:
-			_show_identity(), 12)
-
-	var b: Dictionary = Data.friend_backgrounds[_bg]
-	var note := _pen(page, b["note"], Vector2(300, 172), -5.0, 24)
-	note.text = note.text.replace(". ", ".\n")
-	note.add_theme_constant_override("line_spacing", -8)
-	note.name = "Note"
-
-
-func _bg_row(parent: Node, k: String) -> void:
-	var b: Dictionary = Data.friend_backgrounds[k]
-	var role: Dictionary = Data.friend_roles[b["role"]]
-	var mem: Dictionary = Data.friend_memories[b["memory"]]
-	var row := Button.new()
-	row.focus_mode = Control.FOCUS_NONE
-	row.custom_minimum_size = Vector2(0, 98)
-	var clear := StyleBoxFlat.new()
-	clear.bg_color = Color(0, 0, 0, 0)
-	var hover := StyleBoxFlat.new()
-	hover.bg_color = Color(UIStyle.INK_TYPE, 0.05)
-	for st in ["normal", "focus", "pressed"]:
-		row.add_theme_stylebox_override(st, clear)
-	for st in ["hover", "hover_pressed"]:
-		row.add_theme_stylebox_override(st, hover)
-	row.pressed.connect(func():
-		if _busy or _bg == k:
-			return
-		_bg = k
-		Sfx.play("tick")
-		Sfx.play("pen", -10.0, 1.3)
-		for c in parent.get_children():
-			c.queue_redraw()
-		var note := _page.get_node_or_null("Note") as Label
-		if note:
-			note.text = b["note"].replace(". ", ".\n"))
-	row.draw.connect(func():
-		# Tick box, with a pen check when it's the one.
-		var bx := Rect2(4, 8, 18, 18)
-		row.draw_rect(bx, UIStyle.INK_TYPE, false, 1.5)
-		if _bg == k:
-			row.draw_polyline(PackedVector2Array([bx.position + Vector2(2, 8), bx.position + Vector2(8, 16),
-				bx.position + Vector2(24, -8)]), UIStyle.INK_PEN, 3.0, true))
-	parent.add_child(row)
-	var text := VBoxContainer.new()
-	text.add_theme_constant_override("separation", -1)
-	text.position = Vector2(34, 4)
-	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(text)
-	var t1 := _type(text, b["title"].to_upper(), 14, true)
-	var t2 := _type(text, b["typed"], 12)
-	t2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	t2.custom_minimum_size.x = PAPER_W - 100
-	var perk: String = mem["trait_desc"].split(":")[1].split("(")[0].strip_edges() if ":" in mem["trait_desc"] else mem["trait_desc"]
-	var t3 := _type(text, "On file: flies a %s. %s %s" % [role["ship"], role["bonus"], perk[0].to_upper() + perk.substr(1)], 11, false, UIStyle.INK_FADED)
-	t3.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	t3.custom_minimum_size.x = PAPER_W - 100
-	for l in [t1, t2, t3]:
-		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-
-func _file_it() -> void:
-	if _busy:
-		return
-	_busy = true
-	_stamp(_page, "FILED", Vector2(PAPER_W - 210, PAPER_H - 150), 8.0, true)
-	await get_tree().create_timer(1.0).timeout
-	_begin(Data.friend_for(_bg))
+func _show_contact() -> void:
+	_board.visible = false
+	_set_menu_shown(false)
+	var m := NeonContact.new()
+	m.bg = _bg
+	add_child(m)
+	m.filed.connect(func(bg: String):
+		_bg = bg
+		_begin(Data.friend_for(bg)))
+	m.back.connect(func():
+		_bg = m.bg
+		m.queue_free()
+		_show_identity())
