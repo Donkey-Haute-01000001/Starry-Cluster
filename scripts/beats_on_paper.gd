@@ -128,6 +128,11 @@ func _draw() -> void:
 				a, _age - _starts[i], not neon)
 		y += h + BEAT_GAP
 	# More to come: a typewriter caret blinks where the next beat will land.
-	if _starts.size() < beats.size() and _age >= _beat_end() and fmod(_age, 1.0) < 0.6:
-		draw_rect(Rect2(0, typed - scroll + f.get_ascent(text_size) - 2, 8 if not neon else 12, 2),
-			Color(1.0, 0.77, 0.42) if neon else UIStyle.INK_FADED)
+	if _starts.size() < beats.size() and _age >= _beat_end():
+		var cy := typed - scroll + f.get_ascent(text_size) - 2
+		var cc := Color(1.0, 0.77, 0.42) if neon else UIStyle.INK_FADED
+		if fmod(_age, 1.0) < 0.6:
+			draw_rect(Rect2(0, cy, 8 if not neon else 12, 2), cc)
+		# Say what the caret wants (playtest 11-26: a new player sat waiting).
+		var pulse := 0.45 + 0.35 * absf(sin(_age * 2.5))
+		draw_string(f, Vector2(24, cy + 2), "click to continue", HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(14, int(text_size * 0.6)), Color(cc, pulse))
