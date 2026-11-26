@@ -1,6 +1,6 @@
 class_name Sfx
 extends RefCounted
-## Paper and dock foley (synthesized by tools/make_sounds.py). Fire and forget:
+## Recorded foley (see CREDITS.md). Fire and forget:
 ## Sfx.play("stamp"). Missing sounds are ignored.
 
 static var _cache := {}

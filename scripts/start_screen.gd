@@ -160,13 +160,13 @@ func _snapshot(path: String) -> void:
 	get_tree().quit()
 
 
-## Now and then the dock talks: a hydraulic hiss or the PA chime.
+## Now and then the dock talks: a hydraulic release or the PA chime.
 func _ambience() -> void:
 	while is_inside_tree():
 		await get_tree().create_timer(randf_range(6.0, 13.0)).timeout
 		if not is_inside_tree():
 			return
-		Sfx.play("hiss" if randf() < 0.65 else "chime", -10.0)
+		Sfx.play("undock" if randf() < 0.65 else "chime", -10.0)
 
 
 func _begin(friend: Dictionary) -> void:
