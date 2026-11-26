@@ -103,7 +103,7 @@ func _tally_hit_step(delta: float) -> void:
 			_hauler = null
 		elif main.debt and int(Career.flags.get("ledger_hailed", 0)) == 0 and p.global_position.distance_to(_hauler.global_position) < 1200.0:
 			Career.flags["ledger_hailed"] = 1
-			Career.say(_hauler.display_name, Data.forks["tally_hauler_hail"], true)
+			Career.call_in("HAIL", _hauler.display_name, Data.forks["tally_hauler_hail"], _hauler)
 		return
 	_hit_t += delta
 	if _hit_t > 7.0:
@@ -150,7 +150,7 @@ func _hunter_step(delta: float) -> void:
 	_hunter.info = {"group": "raider", "owner": "the paymaster at Amber's", "job": "hunting you"}
 	_hunter.controller = AIController.new(_hunter, main)
 	_hunter.controller.target = p
-	Career.say("Trojan", Data.forks["hunter_crates"] if int(f.get("shady_done", 0)) > 0 else Data.forks["hunter"], true)
+	Career.call_in("HAIL", "Trojan", Data.forks["hunter_crates"] if int(f.get("shady_done", 0)) > 0 else Data.forks["hunter"], _hunter)
 
 
 # --- The rig ahead of you ------------------------------------------------------------
@@ -287,10 +287,9 @@ func _raid_rig() -> void:
 		_raiders.append(r)
 	_rig.controller.flee = true
 	_rig.set_meta("tagged", true)
-	# Make it land: banner, a beat of slow motion, and her line through the combat hold.
-	main.show_message("Mayday. %s “%s” under attack." % [Data.hull_class(_rig.hull_id).to_upper(), Data.ahead["victim_rig"]], 4.5)
+	# Make it land: the mayday banner, a beat of slow motion, and her line through the combat hold.
 	_slow_mo()
-	Career.say(Data.ahead["victim_rig"], Data.hails["mayday"] % [Data.ahead["victim_rig"], "the Greenhouse lane"], true)
+	Career.call_in("MAYDAY", Data.ahead["victim_rig"], Data.hails["mayday"] % [Data.ahead["victim_rig"], "the Greenhouse lane"], _rig)
 	main.hud.force_talk = true
 	Career.say(Data.ahead["owner"], Data.ahead["coach_1"])
 
@@ -389,7 +388,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_t += delta
 	if _choices:
-		_choices.position.y = main.hud.comms_top - 12.0 - _choices.size.y
+		_choices.position = Vector2(main.hud.comms_rect.position.x, main.hud.comms_top - 12.0 - _choices.size.y)
 	match scene:
 		"ambush":
 			_ambush_step()

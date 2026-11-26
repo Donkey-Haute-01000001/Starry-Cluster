@@ -278,7 +278,7 @@ func _start_raid() -> void:
 	var where := _nearest_station_name(victim.global_position)
 	incident = {"victim": victim, "raiders": raiders, "kind": kind, "t": 0.0, "navy_at": randf_range(45.0, 75.0),
 		"navy_sent": false, "robbed_t": -1.0, "player_near": false, "player_hits": 0.0}
-	Career.say(victim.display_name, Data.hails["mayday"] % [victim.display_name, where], true)
+	Career.call_in("MAYDAY", victim.display_name, Data.hails["mayday"] % [victim.display_name, where], victim)
 
 
 func _nearest_station_name(at: Vector2) -> String:

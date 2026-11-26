@@ -647,6 +647,15 @@ func _set_objective(text: String, station: String) -> void:
 ## Is the line being said right now everyday chatter (scrolls by in the
 ## ticker) rather than a story beat (waits for you)? Read by listeners.
 var chatter_now := false
+var call_now := {}  ## set while a call at you (mayday, hail) goes out: {kind, ship}
+
+
+## A call that wants something from you: a mayday or a hail. Goes on the
+## ticker like chatter, and the HUD puts up a banner for it (Vishnu 2026-11-26).
+func call_in(kind: String, speaker: String, text: String, ship: Node = null) -> void:
+	call_now = {"kind": kind, "ship": ship}
+	say(speaker, text, true)
+	call_now = {}
 
 
 func say(speaker: String, text: String, chatter := false) -> void:

@@ -102,7 +102,7 @@ func _send_cutter(p: Ship) -> void:
 	cutter.controller = Cutter.new(cutter, main)
 	# A full comms line, not the ticker: she's breaking the rules to tell you.
 	Career.say("Charlie", Data.charlie["cutter_inbound"])
-	Career.say("Charter Recovery", Data.recovery["hail"], true)
+	Career.call_in("HAIL", "Charter Recovery", Data.recovery["hail"], cutter)
 
 
 ## Flies straight for your rig and nobody else: ion first, then guns.
@@ -148,7 +148,7 @@ func _scan_step(delta: float, p: Ship) -> void:
 		return
 	if scan.is_empty() or scan["by"] != by:
 		scan = {"by": by, "k": 0.0}
-		Career.say("Navy patrol", Data.customs["scan"], true)
+		Career.call_in("HAIL", "Navy patrol", Data.customs["scan"], by)
 	scan["k"] = minf(1.0, scan["k"] + delta / SCAN_TIME)
 	if scan["k"] >= 1.0:
 		_scanned[by.get_instance_id()] = true

@@ -52,6 +52,7 @@ var _comms_age := 0.0
 var _comms_words := 0      ## words typed in so far (one key tick each)
 var comms_top := 0.0      ## top edge of the comms panel this frame (cards stack above it)
 var comms_rect := Rect2()  ## the comms panel on screen, for clicks
+var _call := {}  ## the call banner: {kind, who, ship, t}
 var message_links: Array = []  ## highlighted words in the centre banner: [Rect2, kind, phrase]
 var comms_links: Array = []  ## highlighted words in the comms panel: [Rect2, kind, phrase]
 var _plate_k := 1.0        ## nav plate: 1 full, 0 tucked away
@@ -213,6 +214,10 @@ func _process(delta: float) -> void:
 	if not (_comms_hold and _comms_t > 0.0):
 		_comms_t = maxf(0.0, _comms_t - delta)
 	_comms_age += delta
+	if not _call.is_empty():
+		_call["t"] += delta
+		if _call["t"] > CALL_TIME:
+			_call = {}
 	_type_sounds()
 	if _comms_t <= 0.0 and not _comms_queue.is_empty() and not _quiet():
 		var next: Array = _comms_queue.pop_front()
@@ -259,6 +264,8 @@ func _quiet() -> bool:
 ## Comms messages from people (Charlie, dock crews). Shown in flight for a while.
 ## In flight, a line that arrives while another is showing waits its turn.
 func on_comms(speaker: String, text: String) -> void:
+	if not Career.call_now.is_empty() and main.docked_at == "":
+		_call = {"kind": Career.call_now["kind"], "who": speaker, "ship": Career.call_now.get("ship"), "t": 0.0}
 	if Career.chatter_now:
 		if main.docked_at == "":
 			_tick_queue.append([speaker, text])
@@ -328,7 +335,7 @@ func advance_comms() -> void:
 ## The highlighted word under `at` in the comms panel that opens a journal
 ## page: [Rect2, kind, phrase], or [] if none.
 func banner_link_at(at: Vector2) -> Array:
-	if main.message_t <= 0.0:
+	if main.message_t <= 0.0 and _call.is_empty():
 		return []
 	for h in message_links:
 		if (h[0] as Rect2).grow(3).has_point(at) and not Neon.link(h[1], h[2]).is_empty():
@@ -991,6 +998,45 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 		_draw_comms(vp)
 	if _tick_t > 0.0 and not main.docked_at and not _tick.is_empty():
 		_draw_ticker(vp)
+	if not _call.is_empty() and not main.docked_at and not _dialogue_paused:
+		_draw_call(vp)
+
+
+const CALL_TIME := 6.0
+
+## A call at you, top centre: what it is, who, how far. The words stay on the
+## ticker; this makes sure you see it came in.
+func _draw_call(vp: Vector2) -> void:
+	var t: float = _call["t"]
+	var a := clampf(t / 0.2, 0.0, 1.0) * clampf((CALL_TIME - t) / 0.5, 0.0, 1.0)
+	var mayday: bool = _call["kind"] == "MAYDAY"
+	var col: Color = COL_ENEMY if mayday else UIStyle.GOLD
+	var ship = _call["ship"]
+	var who: String = _call["who"]
+	if is_instance_valid(ship) and ship is Ship and ship.display_name == who:
+		who = "%s \u201c%s\u201d" % [Data.hull_class(ship.hull_id).to_upper(), who]
+	var dist := ""
+	if is_instance_valid(ship) and ship is Node2D and is_instance_valid(main.player):
+		dist = "%s km" % _km(int(main.player.global_position.distance_to(ship.global_position)))
+	var fb: Font = Data.font_bold
+	var np := Neon.parse(who)
+	var kw := fb.get_string_size(_call["kind"], HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+	var ww := fb.get_string_size(str(np["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+	var dw := fb.get_string_size(dist, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+	var w := kw + ww + dw + 80.0
+	var r := Rect2(Vector2(roundf((vp.x - w) * 0.5), 112), Vector2(w, 40))
+	var blink := 1.0 if not mayday else 0.75 + 0.25 * sin(t * 8.0)
+	draw_rect(r, Color(0.02, 0.03, 0.04, 0.88 * a))
+	draw_rect(Rect2(r.position, Vector2(4, r.size.y)), Color(col, a))
+	draw_rect(r, Color(col, 0.45 * a), false, 1.0)
+	var x := r.position.x + 18.0
+	var by := r.position.y + 28.0
+	draw_string(fb, Vector2(x, by), _call["kind"], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(col, a * blink))
+	x += kw + 16.0
+	Neon.draw(self, fb, Vector2(x, by - fb.get_ascent(22)), np, ww + 20.0, 22, Color(0.95, 0.95, 0.98), a, 1e9, false, -1, message_links)
+	x += ww + 16.0
+	if dist != "":
+		draw_string(fb, Vector2(x, by - 1), dist, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(UIStyle.TEXT_DIM, a))
 
 
 ## One line of chatter, low on the left: who, then what. Fades on its own.
