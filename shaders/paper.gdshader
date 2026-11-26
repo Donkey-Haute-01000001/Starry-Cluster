@@ -23,7 +23,8 @@ uniform int reg_n = 0;
 uniform vec4 reg[10];
 uniform vec4 regc[10];
 uniform int reg_hi = -1;
-uniform vec4 reg_clip = vec4(0.0);   // chart frame (px): territory stays inside it
+uniform vec4 reg_clip = vec4(0.0);
+uniform int reg_edge = -1;         // the power that holds the chart's outer rim (bottom, right)   // chart frame (px): territory stays inside it
 
 varying vec2 lp;
 
@@ -119,6 +120,14 @@ vec3 paper(vec2 p, vec2 uv) {
 			if (i >= reg_n) break;
 			vec2 q = (p - reg[i].xy) / reg[i].zw;
 			ds[i] = length(q) + (fbm(p / 60.0 + float(i) * 7.3) - 0.5) * 0.22;
+			if (i == reg_edge && reg_clip.z > 0.0) {
+				// The rim: the bottom edge from the middle on, and the right edge low down.
+				vec2 lo = reg_clip.xy + reg_clip.zw - p;
+				float band = reg_clip.w * 0.11;
+				float eb = lo.y + band * 3.0 * (1.0 - smoothstep(0.38, 0.48, (p.x - reg_clip.x) / reg_clip.z));
+				float er = lo.x + band * 3.0 * (1.0 - smoothstep(0.45, 0.6, (p.y - reg_clip.y) / reg_clip.w));
+				ds[i] = min(ds[i], min(eb, er) / band * 0.75 + (fbm(p / 40.0) - 0.5) * 0.2);
+			}
 			dmin = min(dmin, ds[i]);
 		}
 		vec3 rtint = vec3(0.0);
