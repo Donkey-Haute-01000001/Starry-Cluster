@@ -395,37 +395,53 @@ func _draw_days(vp: Vector2) -> void:
 		draw_line(at + Vector2(i * 110 - 4, -12), at + Vector2(i * 110 + 76, -4), Color(0.85, 0.85, 0.9, a * 0.8), 2.0)
 
 
+## The ransom receipt in neon (docs/design/ui-look.md): it flickers on over the
+## black, amounts in green, ADDED TO LIEN slams on as a red neon stamp.
 func _draw_receipt(vp: Vector2) -> void:
-	var k := clampf((_t - float(_receipt["shown"])) / 0.4, 0.0, 1.0)
-	var r := Rect2(Vector2(roundf(vp.x * 0.5 - 210), lerpf(vp.y + 20.0, vp.y * 0.5 - 130.0, 1.0 - pow(1.0 - k, 3.0))), Vector2(420, 260))
-	draw_rect(Rect2(r.position + Vector2(5, 7), r.size), Color(0, 0, 0, 0.45))
-	draw_rect(r, Color(0.93, 0.91, 0.85))
-	draw_rect(Rect2(r.position, Vector2(r.size.x, 6)), UIStyle.INK_STAMP)
-	var f: Font = Data.font_type
-	var fb: Font = Data.font_type_bold
-	var ink := UIStyle.INK_TYPE
-	draw_string(fb, r.position + Vector2(18, 30), "THE CHARTER COMPANY  ·  RECOVERY", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIStyle.INK_FADED)
-	draw_string(fb, r.position + Vector2(18, 58), "RANSOM RECEIPT  No. %03d" % (10 + int(_receipt["n"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, ink)
-	draw_string(f, r.position + Vector2(18, 84), "Rig \"%s\" and operator released after %d days." % [_rig(), Data.HELD_DAYS], HORIZONTAL_ALIGNMENT_LEFT, 384, 12, ink)
-	draw_string(f, r.position + Vector2(18, 102), "Cargo taken: %d t.   Cash taken: %s cr." % [int(_receipt["seized"]), Career.fmt(int(_receipt["took"]))], HORIZONTAL_ALIGNMENT_LEFT, 384, 12, ink)
-	draw_line(r.position + Vector2(18, 116), r.position + Vector2(402, 116), Color(UIStyle.INK_FADED, 0.5), 1.0)
-	draw_string(f, r.position + Vector2(18, 138), "Ransom, rig and operator", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ink)
-	draw_string(f, r.position + Vector2(300, 138), "%s cr" % Career.fmt(Data.RANSOM_FEE), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ink)
+	var age := _t - float(_receipt["shown"])
+	var a: float = 1.0 if age > 0.35 else [1.0, 0.15, 0.8, 0.3, 1.0][int(age / 0.07) % 5]
+	var talk: Font = Data.font_talk
+	var bold: Font = Data.font_bold
+	var white := Color(0.9, 0.9, 0.94, a)
+	var off := Color(0.3, 0.31, 0.37, a)
+	var green := Color(UIStyle.GREEN, a)
+	var w := 520.0
+	var x0 := roundf(vp.x * 0.5 - w * 0.5)
+	var y := vp.y * 0.5 - 170.0
+	var tx := x0
+	for ch in "THE CHARTER COMPANY":
+		draw_string(bold, Vector2(tx, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(1, 1, 1, a))
+		tx += bold.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 7.0
+	draw_string(talk, Vector2(x0, y + 28), "RECOVERY   RANSOM RECEIPT", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, off)
+	draw_string(talk, Vector2(x0, y + 28), "NO. %03d" % (10 + int(_receipt["n"])), HORIZONTAL_ALIGNMENT_RIGHT, w, 20, off)
+	y += 70.0
+	draw_string(talk, Vector2(x0, y), "Rig \"%s\" and operator" % _rig(), HORIZONTAL_ALIGNMENT_LEFT, w, 24, white)
+	draw_string(talk, Vector2(x0, y + 26), "released after %d days." % Data.HELD_DAYS, HORIZONTAL_ALIGNMENT_LEFT, w, 24, white)
+	draw_string(talk, Vector2(x0, y + 52), "Cargo taken: %d t.   Cash taken: %s cr." % [int(_receipt["seized"]), Career.fmt(int(_receipt["took"]))], HORIZONTAL_ALIGNMENT_LEFT, w, 24, white)
+	y += 94.0
 	var dn := int(_receipt["downed"])
-	draw_string(f, r.position + Vector2(18, 156), "Escort pilots recovered  ×%d" % dn, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ink if dn > 0 else UIStyle.INK_FADED)
-	draw_string(f, r.position + Vector2(300, 156), "%s cr" % Career.fmt(dn * Data.RANSOM_PER_ESCORT), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ink if dn > 0 else UIStyle.INK_FADED)
-	draw_line(r.position + Vector2(18, 168), r.position + Vector2(402, 168), Color(UIStyle.INK_FADED, 0.5), 1.0)
-	draw_string(fb, r.position + Vector2(18, 190), "TOTAL", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ink)
-	draw_string(fb, r.position + Vector2(300, 190), "%s cr" % Career.fmt(int(_receipt["fee"])), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, ink)
-	draw_string(f, r.position + Vector2(18, 240), "any key", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(UIStyle.INK_FADED, 0.7 if _t > _receipt["shown"] + 1.5 else 0.0))
+	for row in [["RANSOM, RIG AND OPERATOR", Data.RANSOM_FEE, true], ["ESCORT PILOTS RECOVERED  X%d" % dn, dn * Data.RANSOM_PER_ESCORT, dn > 0]]:
+		draw_string(talk, Vector2(x0, y), row[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 24, white if row[2] else off)
+		draw_string(talk, Vector2(x0, y), "%s CR" % Career.fmt(int(row[1])), HORIZONTAL_ALIGNMENT_RIGHT, w, 24, green if row[2] else off)
+		y += 30.0
+	y += 14.0
+	draw_string(talk, Vector2(x0, y), "TOTAL", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, off)
+	var tot := "%s CR" % Career.fmt(int(_receipt["fee"]))
+	for o in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2), Vector2(0, 2)]:
+		draw_string(talk, Vector2(x0, y + 4) + o, tot, HORIZONTAL_ALIGNMENT_RIGHT, w, 36, Color(UIStyle.GREEN, 0.15 * a))
+	draw_string(talk, Vector2(x0, y + 4), tot, HORIZONTAL_ALIGNMENT_RIGHT, w, 36, green)
+	draw_string(talk, Vector2(x0, vp.y * 0.5 + 190.0), "ANY KEY", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.47, 0.49, 0.56, 1.0 if age > 1.5 else 0.0))
 	if _receipt.has("stamped"):
-		var sk := clampf((_t - float(_receipt["shown"]) - 0.9) / 0.15, 0.0, 1.0)
-		var sc := 1.6 - 0.6 * sk
-		draw_set_transform(r.position + Vector2(300, 226), -0.16, Vector2(sc, sc))
+		var st := age - 0.9
+		var sa: float = 1.0 if st > 0.15 else [1.0, 0.2, 1.0][int(st / 0.05) % 3]
+		var red := Color(1.0, 0.3, 0.33)
 		var stamp := "ADDED TO LIEN"
-		var sw := Data.font_stamp.get_string_size(stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
-		draw_rect(Rect2(Vector2(-sw * 0.5 - 8, -24), Vector2(sw + 16, 32)), Color(UIStyle.INK_STAMP, 0.85 * sk), false, 2.5)
-		draw_string(Data.font_stamp, Vector2(-sw * 0.5, 0), stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(UIStyle.INK_STAMP, 0.85 * sk))
+		var sw := Data.font_stamp.get_string_size(stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, 34).x
+		draw_set_transform(Vector2(x0 + 30.0, y + 58.0), deg_to_rad(-6.0))
+		var sr := Rect2(Vector2(-12, -38), Vector2(sw + 24, 48))
+		draw_rect(sr.grow(4), Color(red, 0.15 * sa), false, 6.0)
+		draw_rect(sr, Color(red, 0.9 * sa), false, 2.0)
+		draw_string(Data.font_stamp, Vector2(0, 0), stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, 34, Color(red, 0.9 * sa))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
