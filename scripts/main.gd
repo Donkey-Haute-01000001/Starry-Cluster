@@ -1676,6 +1676,16 @@ func _run_merchant_test() -> void:
 	undock()
 	await _wait(0.1)
 	_shot("m_drip")
+	# The hold view: job water and your own parts, with what you paid.
+	var rows: Array = hud.hold_rows()
+	Checks.check(Career.paid.get("parts", 0) > 0 and rows.size() == 2 and rows[0][2] == "JOB" and Career.best_market("parts")[0] != "", "hold: job and own cargo listed, paid price and best market known")
+	journal._set_tab(journal.HOLD)
+	journal.open()
+	await _wait(0.3)
+	_shot("m_hold")
+	Checks.check(journal._entries().size() == 2 and get_tree().paused, "hold: HOLD page lists both and pauses")
+	journal.close()
+	await _wait(0.1)
 	var target := objective_target()
 	print("[merchant] objective points at: %s %s" % [target.kind if target else "none", target.id if target else ""])
 	player.position = target.global_position

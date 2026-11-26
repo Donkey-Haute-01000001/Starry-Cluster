@@ -1,6 +1,6 @@
 # Hold view (inventory)
 
-Status: **spec ready for sign-off.** From the 2026-11-26 playtest: the tester "couldn't understand what she was holding or why" and asked for an inventory.
+Status: **signed and built** (Vishnu 2026-11-26). From the 2026-11-26 playtest: the tester "couldn't understand what she was holding or why" and asked for an inventory.
 
 ## What's there today
 
@@ -28,7 +28,7 @@ Status: **spec ready for sign-off.** From the 2026-11-26 playtest: the tester "c
 - **Where: both** (Vishnu 2026-11-26). HUD strip under the system plate while you carry cargo; HOLD tab in the journal for detail.
 - **Lines: where + money** (Vishnu 2026-11-26). Good, tons, JOB → station or who wants it, what you paid, today's best price where it's wanted, profit. Tracking what you paid is new (average cost per ton, kept in the save).
 
-## Proposed (in the sign-off)
+## Built
 
 - **Strip:** one row per good, at most 4, then "+N more". `WATER 20 t  JOB → Greenhouse` / `PARTS 10 t  paid 52  Greenhouse 71  +190`. Profit green, loss red.
 - **Tab:** HOLD, first tab in the journal. `I` opens the journal on it (rebindable). Pauses, like the journal. Each good: name + slang, tons, paid/t, best price and station, profit, the `desc` line. Job cargo lists the job, its pay and the due station.

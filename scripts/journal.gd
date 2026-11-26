@@ -9,10 +9,13 @@ const Neon = preload("res://scripts/neon.gd")
 var main: Node
 var _was_paused := false
 var _tab := 0
-var _sel := [0, 0, 0, 0, 0, 0]       ## selected entry per tab
+var _sel := [0, 0, 0, 0, 0, 0, 0]    ## selected entry per tab
 var _hit: Array = []              ## [Rect2, kind, index] clickable areas this frame
 
-const TABS := ["JOBS", "PEOPLE", "PLACES", "POWERS", "ACCOUNTS", "RADIO"]
+const TABS := ["JOBS", "PEOPLE", "PLACES", "POWERS", "ACCOUNTS", "RADIO", "HOLD"]
+const HOLD := 6
+## Order on the page: HOLD first (hold.md). Tab ids stay put for the links.
+const ORDER := [6, 0, 1, 2, 3, 4, 5]
 const RADIO_PAGE := 10            ## lines per Radio entry (a long day runs over pages)
 
 var _t := 0.0
@@ -97,7 +100,16 @@ func close(keep_paused := false) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("journal"):
+	if event.is_action_pressed("hold"):
+		if not main.merchant or main.pause_menu.visible:
+			return
+		if visible and _tab == HOLD:
+			close()
+		else:
+			_set_tab(HOLD)
+			open()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("journal"):
 		if not main.merchant or main.pause_menu.visible:
 			return
 		toggle()
@@ -108,10 +120,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		close()
 		get_viewport().set_input_as_handled()
 	elif event.keycode == KEY_TAB or event.keycode == KEY_RIGHT:
-		_set_tab(posmod(_tab + (-1 if event.shift_pressed else 1), TABS.size()))
+		_set_tab(ORDER[posmod(ORDER.find(_tab) + (-1 if event.shift_pressed else 1), ORDER.size())])
 		get_viewport().set_input_as_handled()
 	elif event.keycode == KEY_LEFT:
-		_set_tab(posmod(_tab - 1, TABS.size()))
+		_set_tab(ORDER[posmod(ORDER.find(_tab) - 1, ORDER.size())])
 		get_viewport().set_input_as_handled()
 	elif event.keycode in [KEY_DOWN, KEY_S]:
 		_step_sel(1)
@@ -119,8 +131,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.keycode in [KEY_UP, KEY_W]:
 		_step_sel(-1)
 		get_viewport().set_input_as_handled()
-	elif event.keycode >= KEY_1 and event.keycode <= KEY_6:
-		_set_tab(event.keycode - KEY_1)
+	elif event.keycode >= KEY_1 and event.keycode <= KEY_7:
+		_set_tab(ORDER[event.keycode - KEY_1])
 		get_viewport().set_input_as_handled()
 
 
@@ -172,6 +184,7 @@ func _entries() -> Array:
 		2: return _place_entries()
 		3: return _power_entries()
 		5: return _radio_entries()
+		6: return _hold_entries()
 	return []
 
 
@@ -201,6 +214,57 @@ func _radio_entries() -> Array:
 				title += "  ·  %d of %d" % [pg + 1, pages]
 			out.append([title, ", ".join(who), false, chunk])
 	return out
+
+
+## What's in the hold: job cargo first, then your own goods. Each:
+## [name, "20 t  ·  job" / "10 t  ·  +190", false, {good, tons, job}].
+func _hold_entries() -> Array:
+	var out: Array = []
+	for r in main.hud.hold_rows():
+		var g: String = r[0]
+		var gd: Dictionary = Data.goods.get(g, {"name": g})
+		var sub := "%d t" % r[1]
+		if r[2] == "JOB":
+			sub += "   job" + ("   to %s" % r[3] if r[3] != "" else "")
+		else:
+			var best: Array = Career.best_market(g)
+			if best[0] != "" and Career.paid.has(g):
+				var gain: int = (int(best[1]) - int(Career.paid[g])) * int(r[1])
+				sub += "   %s%d cr at %s" % ["+" if gain >= 0 else "", gain, Data.stations[best[0]]["nick"]]
+		out.append([str(gd["name"]), sub, false, {"good": g, "tons": r[1], "job": r[2] == "JOB", "to": r[3]}])
+	return out
+
+
+func _hold_page(r: Rect2, e: Array) -> void:
+	var d: Dictionary = e[3]
+	var g: String = d["good"]
+	var gd: Dictionary = Data.goods.get(g, {})
+	var slang := str(gd.get("slang", ""))
+	var y := _title(r, e[0], ("%d t in the hold" % d["tons"]) + ("   \"%s\"" % slang if slang != "" else ""))
+	if gd.has("desc"):
+		y = _para(r, y, str(gd["desc"]))
+	if d["job"]:
+		y = _head(r, y + 8, "JOB CARGO")
+		for j in Career.jobs:
+			if j["good"] == g and j["loaded"]:
+				y = _para(r, y, "%s. Deliver to %s. Pays %s cr." % [j["title"], Data.stations[j["to"]]["nick"], _num(j["pay"])])
+		return
+	y = _head(r, y + 8, "THE MONEY")
+	if Career.paid.has(g):
+		y = _para(r, y, "Paid %d cr a ton." % int(Career.paid[g]), 22, WHITE)
+	var wants: Array = []
+	for sid in Data.stations:
+		if g in Data.stations[sid].get("wants", []) and Career._prices.has(sid) and Career._prices[sid].has(g):
+			wants.append([Career.sell_price(sid, g), sid])
+	wants.sort_custom(func(a, b): return a[0] > b[0])
+	if wants.is_empty():
+		y = _para(r, y, "Nobody posts a price for this. Ask around.", 22, DIM)
+	for w in wants:
+		var line := "%s wants it: %d cr a ton" % [Data.stations[w[1]]["nick"], w[0]]
+		if Career.paid.has(g):
+			var gain: int = (int(w[0]) - int(Career.paid[g])) * int(d["tons"])
+			line += ",  %s%d cr on the load" % ["+" if gain >= 0 else "", gain]
+		y = _para(r, y, line, 22, WHITE)
 
 
 func _flag(k: String) -> bool:
@@ -372,13 +436,14 @@ func _draw() -> void:
 	draw_string(talk, Vector2(pr.position.x, pr.position.y - 58), meta, HORIZONTAL_ALIGNMENT_RIGHT, pr.size.x, 20, Color(OFF, a))
 	# Sections: a row of neon words, the open one burning gold.
 	tx = pr.position.x
-	for i in TABS.size():
+	for n in ORDER.size():
+		var i: int = ORDER[n]
 		var label: String = TABS[i]
 		var on := i == _tab
-		var kw := talk.get_string_size(str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+		var kw := talk.get_string_size(str(n + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
 		var lw := talk.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
 		var by := pr.position.y - 16.0
-		draw_string(talk, Vector2(tx, by), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(OFF, a))
+		draw_string(talk, Vector2(tx, by), str(n + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(OFF, a))
 		if on:
 			_glow(talk, Vector2(tx + kw + 8, by), label, 28, UIStyle.GOLD, a)
 			draw_line(Vector2(tx + kw + 8, by + 8), Vector2(tx + kw + 8 + lw, by + 8), Color(UIStyle.GOLD, 0.8 * a), 2.0)
@@ -414,6 +479,7 @@ func _draw() -> void:
 				2: _place_page(r, e[3])
 				3: _power_page(r, e[3])
 				5: _radio_page(r, e)
+				6: _hold_page(r, e)
 
 
 ## Neon flicker-on: buzzes for a moment after opening or changing section.

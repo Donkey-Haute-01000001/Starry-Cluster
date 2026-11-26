@@ -372,7 +372,7 @@ func loot(n: Node2D) -> void:
 	if take <= 0 or w["good"] == "":
 		main.show_message("Nothing worth taking." if w["good"] == "" else "Hold's full.", 2.0)
 		return
-	Career.cargo[w["good"]] = int(Career.cargo.get(w["good"], 0)) + take
+	Career.add_cargo(w["good"], take, 0)
 	w["tons"] -= take
 	# The lanes keep count of who picks rigs clean.
 	if not w.get("looted", false):

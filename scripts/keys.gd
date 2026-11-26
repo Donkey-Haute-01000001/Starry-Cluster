@@ -26,6 +26,7 @@ const ACTIONS := [
 	["answer", "Answer call", "COMMS", "key:%d" % KEY_C],
 	["chart", "Chart", "SCREENS", "key:%d" % KEY_M],
 	["journal", "Journal", "SCREENS", "key:%d" % KEY_J],
+	["hold", "Hold", "SCREENS", "key:%d" % KEY_I],
 	["toggle_help", "Controls card", "SCREENS", "key:%d" % KEY_H],
 ]
 ## Fixed extras, always on top of the bound key.

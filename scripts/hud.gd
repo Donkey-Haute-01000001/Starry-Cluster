@@ -882,6 +882,8 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 	# nickname spacers use, punched on label tape and stuck on crooked.
 	if shown("plate"):
 		_draw_plate(sys)
+		if main.docked_at == "" and not (main.in_combat and not main.escorts.is_empty()):
+			_draw_hold_strip()
 
 	# Every station and jump in the system, named at the screen edge, so you
 	# always know where home is. The job's stop gets the bright arrow below.
@@ -1137,6 +1139,57 @@ func _draw_nav_pips(vp: Vector2) -> void:
 
 
 ## The rig's nav plate (top left): where you are, how rough, money, hold, loan.
+## The hold at a glance, under the plate (docs/design/hold.md): job cargo and
+## where it's going, then your own goods with what you paid against the best
+## price today. I opens the full HOLD page.
+func hold_rows() -> Array:
+	var rows: Array = []
+	for g in Career.job_cargo:
+		var to := ""
+		for j in Career.jobs:
+			if j["good"] == g and j["loaded"]:
+				to = Data.stations[j["to"]]["nick"]
+		rows.append([g, int(Career.job_cargo[g]), "JOB", to])
+	for g in Career.cargo:
+		rows.append([g, int(Career.cargo[g]), "OWN", ""])
+	return rows
+
+
+func _draw_hold_strip() -> void:
+	var rows := hold_rows()
+	if rows.is_empty():
+		return
+	var f: Font = Data.font_talk
+	var x := 30.0
+	var y := 150.0
+	var shown_rows := rows.slice(0, 4)
+	var bg := Rect2(Vector2(16, 132), Vector2(470, 14 + shown_rows.size() * 22 + (20 if rows.size() > 4 else 0)))
+	draw_rect(bg, Color(0.016, 0.02, 0.047, 0.72))
+	for r in shown_rows:
+		var g: String = r[0]
+		var gd: Dictionary = Data.goods.get(g, {"name": g})
+		var head := "%s %d t" % [str(gd["name"]).to_upper(), r[1]]
+		draw_string(f, Vector2(x, y), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.92, 0.92, 0.96))
+		var cx := x + 200.0
+		if r[2] == "JOB":
+			draw_string(f, Vector2(cx, y), "JOB ▸ %s" % r[3] if r[3] != "" else "JOB", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.GOLD)
+		else:
+			var best: Array = Career.best_market(g)
+			var parts := ""
+			if Career.paid.has(g):
+				parts = "paid %d" % int(Career.paid[g])
+			if best[0] != "":
+				parts += ("   " if parts != "" else "") + "%s %d" % [Data.stations[best[0]]["nick"], best[1]]
+			draw_string(f, Vector2(cx, y), parts, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.TEXT_DIM)
+			if best[0] != "" and Career.paid.has(g):
+				var gain: int = (int(best[1]) - int(Career.paid[g])) * int(r[1])
+				var gs: String = ("+%d" if gain >= 0 else "%d") % gain
+				draw_string(f, Vector2(bg.end.x - 14 - f.get_string_size(gs, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x, y), gs, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIStyle.GREEN if gain >= 0 else UIStyle.RED)
+		y += 22.0
+	if rows.size() > 4:
+		draw_string(f, Vector2(x, y), "+%d more   %s hold" % [rows.size() - 4, Keys.key_name("hold")], HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIStyle.TEXT_DIM)
+
+
 func _draw_plate(sys: Dictionary) -> void:
 	var pk := 1.0 - pow(1.0 - _plate_k, 3.0)
 	if _plate_k < 0.98 and not main.in_combat:

@@ -19,7 +19,7 @@ Updated 2026-11-26. Edit this file when something ships or a pick changes the pl
 - UI look redo in progress (`docs/design/ui-look.md`, signed): all neon, no paper. Done: Careers register, Pause, Settings, Controls (title + flight share `neon_settings.gd`), New career start picker, start files (opening types in neon, sign line, pink pen note), Form ID-1, Form NK-2, launch ID card, dispatch slip, ransom receipt, sector bulletin
 - Comms ticker, quiet HUD, neon text, VT323 dialogue
 - Real-recording sounds, Pink Bloom music
-- Playtest fixes (sister, 2026-11-26): pinned job line, named nav pips, Charlie walkthrough, story lines pause in a centre window, Charter briefing (`docs/design/briefing.md`), shield-break sound
+- Playtest fixes (sister, 2026-11-26): pinned job line, named nav pips, Charlie walkthrough, story lines pause in a centre window, Charter briefing (`docs/design/briefing.md`), shield-break sound, Tallyman ambush readability, hold view (HUD strip + HOLD tab, I; `docs/design/hold.md`)
 
 ## Next (pick order with Vishnu)
 

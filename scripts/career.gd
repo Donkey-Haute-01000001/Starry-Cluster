@@ -15,6 +15,7 @@ var active := false
 var credits := 0
 var loan_balance := 0
 var cargo := {}             ## good id -> tons you own
+var paid := {}              ## good id -> what you paid per ton, averaged over buys (hold.md)
 var job_cargo := {}         ## good id -> tons carried for a job (not yours to sell)
 var cargo_capacity := 40
 var day := 0.0              ## days since the start; one week = 7 days
@@ -51,6 +52,7 @@ func start_merchant(p_friend: Dictionary = {}, p_pilot: Dictionary = {}) -> void
 	credits = Data.START_CREDITS
 	loan_balance = Data.LOAN_TOTAL
 	cargo = {}
+	paid = {}
 	job_cargo = {}
 	cargo_capacity = Data.hulls["light_freighter"]["cargo"]
 	day = 0.0
@@ -116,6 +118,7 @@ func _weekly_payment() -> void:
 func repossess() -> Dictionary:
 	var seized := cargo_used()
 	cargo.clear()
+	paid.clear()
 	job_cargo.clear()
 	jobs = jobs.filter(func(j): return not j["loaded"])
 	var took := mini(credits, arrears)
@@ -135,6 +138,7 @@ func repossess() -> Dictionary:
 func ransom(downed: int) -> Dictionary:
 	var seized := cargo_used()
 	cargo.clear()
+	paid.clear()
 	job_cargo.clear()
 	jobs = jobs.filter(func(j): return not j["loaded"])
 	var took := credits
@@ -428,9 +432,29 @@ func buy(station: String, good: String, tons: int) -> int:
 	if tons <= 0:
 		return 0
 	credits -= tons * p
-	cargo[good] = cargo.get(good, 0) + tons
+	add_cargo(good, tons, p)
 	changed.emit()
 	return tons
+
+
+## Into the hold at `each` credits a ton; what you paid averages over buys.
+## Salvage comes in at 0.
+func add_cargo(good: String, tons: int, each: int) -> void:
+	var had: int = int(cargo.get(good, 0))
+	var was: float = float(paid.get(good, each))
+	cargo[good] = had + tons
+	paid[good] = int(round((was * had + float(each) * tons) / float(had + tons)))
+
+
+## Where a good sells best today, among the stations that want it: [station id, price].
+func best_market(good: String) -> Array:
+	var best := ["", 0]
+	for sid in Data.stations:
+		if good in Data.stations[sid].get("wants", []) and _prices.has(sid) and _prices[sid].has(good):
+			var pr := sell_price(sid, good)
+			if pr > best[1]:
+				best = [sid, pr]
+	return best
 
 
 func sell(station: String, good: String, tons: int) -> int:
@@ -441,6 +465,7 @@ func sell(station: String, good: String, tons: int) -> int:
 	cargo[good] -= tons
 	if cargo[good] <= 0:
 		cargo.erase(good)
+		paid.erase(good)
 	changed.emit()
 	return tons
 
@@ -685,7 +710,7 @@ func prize_share(keep: float) -> int:
 ## another's file. Each dock keeps the previous file as .bak.
 const SAVE_DIR := "user://careers/"
 const LEGACY_PATH := "user://merchant_save.txt"
-const SAVE_KEYS := ["credits", "loan_balance", "strikes", "arrears", "cargo", "job_cargo", "cargo_capacity", "day",
+const SAVE_KEYS := ["credits", "loan_balance", "strikes", "arrears", "cargo", "paid", "job_cargo", "cargo_capacity", "day",
 	"next_payment_day", "system_id", "jobs", "flags", "objective", "friend", "crew", "visited", "_once", "_prices", "pilot", "comms_log", "contacts"]
 var resume_station := ""
 var slot := -1
