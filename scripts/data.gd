@@ -669,7 +669,8 @@ var capture := {
 	"held": "DRAFT  They cut the lines and run. Your rig's still dead in the water.",
 	"tally": "DRAFT  He looks you over. He makes a mark. He leaves.",
 	"charlie_wake": "DRAFT  Three days, captain. The Charter paid them. Which means you paid them. ...I'm just glad it's you on the line.",
-	"death": "DRAFT  They came through the lock. You didn't let them have the rig.",
+	"death_head": "YOU DIED",
+	"death": "\"Here Phaeton lies. Although greatly he failed, more greatly, he dared.\"",
 }
 var customs := {
 	"scan": "Charter rig, hold your course. Routine customs scan.",

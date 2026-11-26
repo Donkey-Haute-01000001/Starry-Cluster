@@ -430,10 +430,14 @@ func _draw_receipt(vp: Vector2) -> void:
 
 func _draw_death(vp: Vector2) -> void:
 	var a := _black
+	var head: String = Data.capture["death_head"]
+	draw_string(Data.font_stamp, Vector2(vp.x * 0.5 - 400, vp.y * 0.38), head, HORIZONTAL_ALIGNMENT_CENTER, 800, 72, Color(UIStyle.RED, a))
+	# The epitaph comes up a beat after the headline.
+	var b := clampf((_t - 3.2) / 1.2, 0.0, 1.0) * a
 	var line: String = Data.capture["death"]
 	var font: Font = Data.font_talk if Data.font_talk else Data.font_type
-	draw_multiline_string(font, Vector2(vp.x * 0.5 - 300, vp.y * 0.42), line, HORIZONTAL_ALIGNMENT_CENTER, 600, 28, -1, Color(0.92, 0.88, 0.78, a))
-	draw_string(Data.font_type_bold, Vector2(vp.x * 0.5 - 360, vp.y * 0.42 + 110), "[R]  LOAD LAST DOCK        [ESC]  TITLE", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, Color(UIStyle.TEXT_DIM, a))
+	draw_multiline_string(font, Vector2(vp.x * 0.5 - 300, vp.y * 0.38 + 56), line, HORIZONTAL_ALIGNMENT_CENTER, 600, 26, -1, Color(0.92, 0.88, 0.78, b))
+	draw_string(Data.font_type_bold, Vector2(vp.x * 0.5 - 360, vp.y * 0.38 + 170), "[R]  LOAD LAST DOCK        [ESC]  TITLE", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, Color(UIStyle.TEXT_DIM, b))
 
 
 ## The raider comes alongside your dead rig and holds there.
