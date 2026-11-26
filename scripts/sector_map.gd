@@ -50,11 +50,11 @@ const PEN_NOTES := [
 const REGIONS := [
 	[Vector2(0.19, 0.5), Vector2(0.175, 0.46), Color(0.55, 0.78, 1.0), 0.5, "Federation pocket", "The Federation", "Hesper March and the interior, behind the Wall. Navy patrols, Charter routes."],
 	[Vector2(0.205, 0.27), Vector2(0.06, 0.12), Color(0.85, 0.25, 0.25), 0.55, "The Grind", "Contested  ·  pirate clans", "Marcellus belt. Federation on paper; the rocks belong to whoever's armed."],
-	[Vector2(0.52, 0.5), Vector2(0.075, 0.17), Color(0.2, 0.72, 0.42), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls."],
+	[Vector2(0.52, 0.5), Vector2(0.075, 0.17), Color(0.62, 0.62, 0.62), 0.55, "The Crossroads", "The Dynasty", "Every lane in the cluster meets here. Dynasty gate, Dynasty tolls."],
 	[Vector2(0.86, 0.5), Vector2(0.11, 0.18), Color(0.2, 0.72, 0.42), 0.4, "Dynasty heartland", "The Dynasty  ·  rumor", "Warlord country on the far side. Nobody you know has been."],
 	[Vector2(0.6, 0.15), Vector2(0.15, 0.12), Color(0.68, 0.42, 0.9), 0.4, "League lanes", "The Merchant League  ·  rumor", "Merchant houses on the lane stations. Tolls on everything, they say."],
 	[Vector2(0.82, 0.22), Vector2(0.1, 0.13), Color(0.82, 0.66, 0.28), 0.4, "Remnant holdout", "Imperial Remnant  ·  rumor", "Old empire colors, still flying. If it's true."],
-	[Vector2(0.58, 0.84), Vector2(0.14, 0.12), Color(0.95, 0.78, 0.45), 0.4, "Free Ports", "Nobody  ·  pirate country", "Free stations, free trade, free fire."],
+	[Vector2(0.58, 0.84), Vector2(0.14, 0.12), Color(0.85, 0.25, 0.25), 0.4, "Free Ports", "Nobody  ·  pirate country", "Free stations, free trade, free fire."],
 	[Vector2(0.86, 0.84), Vector2(0.1, 0.12), Color(0.55, 0.42, 0.95), 0.45, "The dead rifts", "The Faithful  ·  rumor", "Zealots camped where the outbound rifts went dark, waiting."],
 ]
 
