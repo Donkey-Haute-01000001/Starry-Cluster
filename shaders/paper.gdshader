@@ -108,8 +108,8 @@ vec3 paper(vec2 p, vec2 uv) {
 		float pool = (1.0 - smoothstep(ring.z - 6.0, ring.z, d)) * 0.25 * fbm(p / 18.0);
 		col = mix(col, col * vec3(0.72, 0.55, 0.38), clamp(ringv * 0.6 + pool, 0.0, 1.0) * wear);
 	}
-	// Territory, grand-strategy style: flat pastel lands held to thin dark
-	// borders, a pale glow off each coast, rippled contours in the empty between.
+	// Territory, grand-strategy style: the whole chart divided up, flat pastel
+	// lands held to thin dark borders where they meet.
 	if (reg_n > 0) {
 		// Two passes: weights relative to the nearest power, so they never
 		// underflow far from a centre (GL Compatibility floats are short).
@@ -148,24 +148,18 @@ vec3 paper(vec2 p, vec2 uv) {
 		}
 		// Gap to the second-nearest power, in heartland radii: 0 on the line.
 		float dd = -log(max(w2 / (w1 + 1e-6), 1e-6)) / 26.0;
-		float edge_d = 1.12;
-		float land = (1.0 - smoothstep(edge_d - 0.004, edge_d + 0.004, dmin)) * cover;
-		float sea = (1.0 - land) * cover;
-		// Land: flat pastel colour, a touch deeper just inside every edge.
-		float rim = 1.0 - smoothstep(0.0, 0.07, min(dd, edge_d - dmin));
+		// Every inch is somebody's: lands meet each other, no empty between.
+		float land = cover;
+		// Far from any heartland the hold thins: lighter, sun-bleached.
+		float reach = 1.0 - 0.35 * smoothstep(1.2, 2.6, dmin);
+		// Flat pastel colour, a touch deeper just inside every border.
+		float rim = 1.0 - smoothstep(0.0, 0.07, dd);
 		float grain = 0.94 + 0.12 * fbm(p / 26.0);
-		float k = clamp((0.42 + str * 0.45) * (1.0 + hi * 0.35) * grain + rim * 0.18, 0.0, 0.9);
+		float k = clamp((0.42 + str * 0.45) * reach * (1.0 + hi * 0.35) * grain + rim * 0.18, 0.0, 0.9);
 		col = mix(col, col * mix(vec3(1.0), rtint, k), land);
-		// Thin dark borders between powers, and the coast.
+		// Thin dark borders where powers meet.
 		float bline = (1.0 - smoothstep(0.004, 0.011, dd)) * land;
-		float cline = exp(-pow((dmin - edge_d) / 0.006, 2.0)) * cover;
-		col = mix(col, col * mix(vec3(1.0), rtint, 0.9) * 0.55, clamp(bline + cline, 0.0, 1.0) * 0.8);
-		// The empty between: a pale glow off each coast, then rippled contours.
-		float off = dmin - edge_d;
-		float glow = (1.0 - smoothstep(0.0, 0.1, off)) * sea;
-		col = mix(col, col * mix(vec3(1.0), rtint, 0.25) * 1.04, glow * 0.6);
-		float ripple = exp(-pow(fract(off * 14.0 + 0.5) - 0.5, 2.0) / 0.004) * (1.0 - smoothstep(0.05, 0.6, off)) * sea;
-		col = mix(col, col * 0.86, ripple * 0.35);
+		col = mix(col, col * mix(vec3(1.0), rtint, 0.9) * 0.55, bline * 0.8);
 	}
 	col = creases(col, uv.x, folds.x, size.x);
 	col = creases(col, uv.y, folds.y, size.y);
