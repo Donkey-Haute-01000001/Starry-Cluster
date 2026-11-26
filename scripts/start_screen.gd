@@ -73,7 +73,7 @@ func _ready() -> void:
 	add_child(sign)
 	var title := _label(sign, "SECTOR SECUNDUS", Data.font_bold, 46, Color(0.88, 0.92, 0.98))
 	title.add_theme_constant_override("outline_size", 0)
-	_label(sign, "COUNTER STATION  ·  BERTH 14  ·  AURELIA", Data.font_type_bold, 15, Color(1.0, 0.75, 0.35, 0.85))
+	_label(sign, "AURELIA   HESPER MARCH", Data.font_type_bold, 15, Color(1.0, 0.75, 0.35, 0.85))
 
 	_board = Control.new()
 	_board.size = Vector2(PAPER_W + 44, PAPER_H + 70)
