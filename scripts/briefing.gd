@@ -68,8 +68,12 @@ func _parked_step() -> void:
 	var hud = main.hud
 	match _step:
 		"opener":
+			# Her opener and your reply share one window.
 			_say("opener")
-			_go("choose")
+			if hud.hold_enabled():
+				_show_choices()
+			else:
+				_choose(0)  # scripted tests take the briefing
 		"choose":
 			if hud.hold_enabled():
 				_show_choices()
@@ -147,6 +151,7 @@ func _show_choices() -> void:
 	_choices.process_mode = Node.PROCESS_MODE_ALWAYS
 	_choices.add_theme_constant_override("separation", 6)
 	main.hud.get_parent().add_child(_choices)
+	main.hud.reply_box = _choices
 	var head := Label.new()
 	head.text = "REPLY"
 	head.add_theme_font_override("font", Data.font_type_bold)
@@ -193,6 +198,7 @@ func _choose(i: int) -> void:
 	if _choices:
 		_choices.queue_free()
 		_choices = null
+		main.hud.end_reply()
 	if choosing:
 		choosing = false
 		get_tree().paused = false

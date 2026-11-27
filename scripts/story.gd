@@ -387,8 +387,6 @@ func _physics_process(delta: float) -> void:
 	if scene == "ambush" and _phase in ["approach", "talk", "gone", "navy"] and main.hud.comms_waiting():
 		return
 	_t += delta
-	if _choices:
-		_choices.position = Vector2(main.hud.comms_rect.position.x, main.hud.comms_top - 12.0 - _choices.size.y)
 	match scene:
 		"ambush":
 			_ambush_step()
@@ -589,6 +587,7 @@ func _show_choices() -> void:
 	var vp: Vector2 = main.get_viewport().get_visible_rect().size
 	_choices.position = Vector2(24, vp.y - 300)
 	main.hud.get_parent().add_child(_choices)
+	main.hud.reply_box = _choices
 	var head := Label.new()
 	head.text = "TX  ·  OPEN BAND  ·  REPLY OR STAY QUIET"
 	head.add_theme_font_override("font", Data.font_type_bold)
@@ -657,6 +656,7 @@ func choose(i: int) -> void:
 	_choices.queue_free()
 	_choices = null
 	_reply_bar = null
+	main.hud.end_reply()
 	Engine.time_scale = _base_scale
 	_reply(i)
 

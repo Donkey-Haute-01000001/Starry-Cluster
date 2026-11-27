@@ -8,6 +8,7 @@ const Keys = preload("res://scripts/keys.gd")
 var main: Node
 var show_help := false
 var _dialogue_paused := false  ## a story line has stopped the game until you move it on
+var reply_box: Control = null   ## reply buttons; they sit inside the dialogue window
 var force_talk := false        ## the briefing may speak mid-fight (otherwise the radio waits)
 ## Charter briefing (docs/design/briefing.md): HUD parts stay hidden until
 ## Charlie names them, then pulse once so you see what she means.
@@ -316,6 +317,14 @@ func comms_showing() -> bool:
 	return _comms_t > 0.0 and main.docked_at == ""
 
 
+## A reply was picked: let go of the window and move on to the next line.
+func end_reply() -> void:
+	reply_box = null
+	_comms_age = Neon.duration(Neon.parse(_comms_text)) + 0.01
+	_comms_words = 1 << 20
+	advance_comms()
+
+
 ## Space / Enter / click: finish the line if it's still typing, else the next one.
 func advance_comms() -> void:
 	var dur := Neon.duration(Neon.parse(_comms_text))
@@ -323,6 +332,8 @@ func advance_comms() -> void:
 		_comms_age = dur + 0.01
 		_comms_words = 1 << 20
 		return
+	if is_instance_valid(reply_box) and _comms_queue.is_empty():
+		return  # the window stays up until you pick a reply
 	Sfx.play("tick", -12.0)
 	if not _comms_queue.is_empty():
 		var next: Array = _comms_queue.pop_front()
@@ -1079,12 +1090,21 @@ func _draw_comms(vp: Vector2) -> void:
 	var tf22: Font = Data.font_talk if Data.font_talk else ThemeDB.fallback_font
 	var text_h := Neon.height(tf22, np, body_w, TALK_SIZE)
 	var h := maxf(152.0, 70.0 + text_h + 18.0)
+	# Replies live inside the window, under the words.
+	var replying := is_instance_valid(reply_box) and reply_box.is_inside_tree()
+	var rh := 0.0
+	if replying:
+		reply_box.reset_size()
+		rh = reply_box.size.y + 16.0
+		h = maxf(h, 70.0 + text_h + 10.0 + rh)
 	# Story lines: a window in the middle, above the ship panel. Chatter-sized
 	# lines stay in the corner.
 	var r := Rect2(Vector2(roundf((vp.x - pw) * 0.5), vp.y - 150 - h), Vector2(pw, h)) if big \
 		else Rect2(Vector2(16, vp.y - 20 - h), Vector2(560, h))
 	comms_top = r.position.y
 	comms_rect = r
+	if replying:
+		reply_box.position = Vector2(r.position.x + 110.0, r.end.y - rh + 4.0)
 	draw_rect(r, Color(0.02, 0.035, 0.045, (1.0 if big else 0.92) * a))
 	draw_rect(r, Color(col.r, col.g, col.b, 0.35 * a), false, 1.0)
 	# Channel strip across the top.
@@ -1122,7 +1142,7 @@ func _draw_comms(vp: Vector2) -> void:
 	var role_w := (Data.font_bold if Data.font_bold else ThemeDB.fallback_font).get_string_size(_speaker_name().to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	_text(Vector2(x + role_w + 10, r.position.y + 44), info["role"], 12, Color(col.r, col.g, col.b, 0.85 * a))
 	# What to press, and how many lines are waiting.
-	if _comms_hold:
+	if _comms_hold and not replying:
 		var more := _comms_queue.size()
 		var hint := ("CLICK / SPACE  ▸  next (%d more)" % more) if more > 0 else "CLICK / SPACE  ▸  continue"
 		if typing:
