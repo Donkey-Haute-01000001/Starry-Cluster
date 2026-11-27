@@ -1007,6 +1007,7 @@ func _draw_merchant(vp: Vector2, t: float) -> void:
 		if _dialogue_paused:
 			draw_rect(Rect2(Vector2.ZERO, vp), Color(0.0, 0.0, 0.02, 0.55))
 		_draw_comms(vp)
+		_draw_talker(vp)
 	if _tick_t > 0.0 and not main.docked_at and not _tick.is_empty():
 		_draw_ticker(vp)
 	if not _call.is_empty() and not main.docked_at and not _dialogue_paused:
@@ -1196,6 +1197,42 @@ func _trade_hint() -> String:
 	if where.is_empty():
 		return "%d t %s in the hold." % [tons, gname]
 	return "%d t %s in the hold. Needed at %s." % [tons, gname, ", ".join(where.slice(0, 3))]
+
+
+## The ship the current line is coming from: a gold ring on it, or a gold
+## arrow at the screen edge with its name and range when it's off screen.
+func _talker_ship() -> Ship:
+	var s = Career.speaker_ships.get(_comms_speaker)
+	return s if is_instance_valid(s) and s is Ship and s.alive else null
+
+
+func _draw_talker(vp: Vector2) -> void:
+	var ship := _talker_ship()
+	if ship == null or not is_instance_valid(main.player):
+		return
+	var t := Time.get_ticks_msec() / 1000.0
+	var col := UIStyle.GOLD
+	var sp := _to_screen(ship.global_position)
+	var km := _km(int(main.player.global_position.distance_to(ship.global_position)))
+	var lab := "%s  \u201c%s\u201d  %s km" % [_speaker_name().to_upper(), ship.display_name, km]
+	var f: Font = Data.font_type_bold
+	var lw := f.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	if Rect2(Vector2.ZERO, vp).grow(-20).has_point(sp):
+		var r: float = ship.radius * main.camera.zoom.x + 18.0
+		var pulse := 0.5 + 0.5 * sin(t * 4.0)
+		draw_arc(sp, r + pulse * 6.0, 0, TAU, 48, Color(col, 0.35 + 0.4 * pulse), 2.0)
+		draw_arc(sp, r, 0, TAU, 48, Color(col, 0.85), 1.5)
+		var lp := (sp + Vector2(-lw * 0.5, -r - 14.0)).clamp(Vector2(10, 24), vp - Vector2(lw + 10, 10))
+		draw_rect(Rect2(lp + Vector2(-6, -16), Vector2(lw + 12, 22)), Color(0.02, 0.03, 0.04, 0.8))
+		draw_string(f, lp.round(), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 19, col)
+	else:
+		var center := vp * 0.5
+		var dir := (sp - center).normalized()
+		var edge := center + dir * minf(absf((vp.x * 0.5 - 60) / dir.x) if dir.x != 0 else 1e9, absf((vp.y * 0.5 - 60) / dir.y) if dir.y != 0 else 1e9)
+		draw_colored_polygon(PackedVector2Array([edge + dir * 16, edge + dir.rotated(2.5) * 12, edge + dir.rotated(-2.5) * 12]), col)
+		var lp := (edge - dir * 30.0 - Vector2(lw * 0.5, -4)).clamp(Vector2(10, 24), vp - Vector2(lw + 10, 10))
+		draw_rect(Rect2(lp + Vector2(-6, -16), Vector2(lw + 12, 22)), Color(0.02, 0.03, 0.04, 0.8))
+		draw_string(f, lp.round(), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 19, col)
 
 
 func _km(d: int) -> String:

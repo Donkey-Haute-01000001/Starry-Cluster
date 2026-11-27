@@ -1197,7 +1197,21 @@ func _run_merchant_test() -> void:
 		if a.begins_with("--look="):
 			await _wait(0.3)
 			for what in a.substr(7).split(","):
-				if what == "crossroads":
+				if what == "ahead":
+					# The rig ahead in Tiberine: Alejandra's hello, then the raid on Hollis.
+					if station_ui.visible:
+						undock()
+					clear_system()
+					load_system("tiberine", "aurelia")
+					await _wait(1.0)
+					story._start_ahead()
+					await _wait(4.5)
+					_shot("look_ahead_hello")
+					hud.advance_comms()
+					hud.advance_comms()
+					await _wait(6.0)
+					_shot("look_ahead_raid")
+				elif what == "crossroads":
 					if station_ui.visible:
 						undock()
 					spawn_captain("fay")

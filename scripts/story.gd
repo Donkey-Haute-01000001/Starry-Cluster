@@ -202,6 +202,9 @@ func _start_ahead() -> void:
 	_friend_rig.rotation = dir.angle()
 	_friend_rig.velocity = p.velocity
 	_friend_rig.hull_floor = 0.5
+	_friend_rig.set_meta("tagged", true)  # named on screen: she's who's talking
+	Career.speaker_ships[Data.ahead["owner"]] = _friend_rig
+	Career.speaker_ships[Data.ahead["victim"].split(" ")[0]] = _rig
 	# Nobody on your side dies on the first run, however it looks.
 	for s in _fleet():
 		s.hull_floor = 0.12
@@ -317,6 +320,9 @@ func _end_ahead() -> void:
 	_raiders.clear()
 	if is_instance_valid(_rig) and _rig.has_meta("tagged"):
 		_rig.remove_meta("tagged")
+	if is_instance_valid(_friend_rig) and _friend_rig.has_meta("tagged"):
+		_friend_rig.remove_meta("tagged")
+	Career.speaker_ships.clear()
 	if is_instance_valid(_rig) and _rig.alive and _rig.controller is Traffic.Pilot:
 		_rig.controller.flee = false
 	scene = ""

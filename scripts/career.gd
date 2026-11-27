@@ -647,6 +647,9 @@ func _set_objective(text: String, station: String) -> void:
 ## Is the line being said right now everyday chatter (scrolls by in the
 ## ticker) rather than a story beat (waits for you)? Read by listeners.
 var chatter_now := false
+## Who's talking from which ship in the current scene: speaker -> Ship.
+## The HUD rings that ship while their line is up. Story clears it.
+var speaker_ships := {}
 var call_now := {}  ## set while a call at you (mayday, hail) goes out: {kind, ship}
 
 
